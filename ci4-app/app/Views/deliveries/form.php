@@ -1,0 +1,140 @@
+<?= $this->extend('layout') ?>
+<?= $this->section('content') ?>
+<h1 class="text-xl font-semibold">New Delivery</h1>
+<p class="mt-1 text-sm muted">Add a delivery receipt with one or more items.</p>
+
+<?php if (isset($validation)): ?>
+    <div class="card mt-4 px-4 py-2 text-sm">
+        <ul class="list-disc pl-5">
+            <?php foreach ($validation->getErrors() as $error): ?>
+                <li><?= esc($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
+
+<?php if (! empty($extraErrors ?? [])): ?>
+    <div class="card mt-4 px-4 py-2 text-sm">
+        <ul class="list-disc pl-5">
+            <?php foreach ($extraErrors as $error): ?>
+                <li><?= esc($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
+
+<form class="mt-6 space-y-6" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()">
+    <?= csrf_field() ?>
+    <div class="grid gap-4 sm:grid-cols-3">
+        <div>
+            <label class="block text-sm font-medium" for="client_id">Client</label>
+            <select class="input mt-1" id="client_id" name="client_id" required>
+                <option value="">Select client</option>
+                <?php foreach ($clients as $client): ?>
+                    <option value="<?= esc($client['id']) ?>" <?= old('client_id') == $client['id'] ? 'selected' : '' ?>>
+                        <?= esc($client['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium" for="dr_no">DR Number</label>
+            <input class="input mt-1" id="dr_no" name="dr_no" value="<?= esc(old('dr_no')) ?>" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium" for="date">Date</label>
+            <input class="input mt-1" id="date" name="date" type="date" value="<?= esc(old('date') ?: date('Y-m-d')) ?>" required>
+        </div>
+    </div>
+
+    <div class="card p-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold">Items</h2>
+            <button class="btn btn-secondary" type="button" @click="addItem()">Add Item</button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+            <template x-for="(item, index) in items" :key="index">
+                <div class="grid gap-3 sm:grid-cols-6">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium" :for="'product_' + index">Product</label>
+                        <select class="input mt-1" :id="'product_' + index" x-model="item.product_id" @change="selectProduct(index)" :name="'items[' + index + '][product_id]'" required>
+                            <option value="">Select product</option>
+                            <template x-for="product in products" :key="product.id">
+                                <option :value="product.id" x-text="product.product_name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium" :for="'price_' + index">Unit Price</label>
+                        <input class="input mt-1" :id="'price_' + index" type="number" step="0.01" x-model="item.unit_price" :name="'items[' + index + '][unit_price]'" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium" :for="'qty_' + index">Qty</label>
+                        <input class="input mt-1" :id="'qty_' + index" type="number" step="0.01" min="0" x-model="item.qty" @input="updateLine(index)" :name="'items[' + index + '][qty]'" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium" :for="'total_' + index">Total</label>
+                        <input class="input mt-1" :id="'total_' + index" x-model="item.line_total" readonly>
+                    </div>
+                    <div class="flex items-end">
+                        <button class="btn btn-secondary" type="button" @click="removeItem(index)" x-show="items.length > 1">Remove</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-4 text-sm">
+            <span class="font-semibold">Total</span>
+            <span x-text="total()"></span>
+        </div>
+    </div>
+
+    <div class="flex gap-3">
+        <button class="btn" type="submit">Save Delivery</button>
+        <a class="btn btn-secondary" href="<?= base_url('deliveries') ?>">Cancel</a>
+    </div>
+</form>
+
+<script>
+    function deliveryForm() {
+        return {
+            products: <?= $productsJson ?>,
+            items: [{
+                product_id: '',
+                qty: 1,
+                unit_price: '',
+                line_total: '0.00'
+            }],
+            addItem() {
+                this.items.push({
+                    product_id: '',
+                    qty: 1,
+                    unit_price: '',
+                    line_total: '0.00'
+                });
+            },
+            removeItem(index) {
+                this.items.splice(index, 1);
+            },
+            selectProduct(index) {
+                const item = this.items[index];
+                const product = this.products.find((row) => String(row.id) === String(item.product_id));
+                item.unit_price = product ? product.unit_price : '';
+                this.updateLine(index);
+            },
+            updateLine(index) {
+                const item = this.items[index];
+                const qty = parseFloat(item.qty) || 0;
+                const price = parseFloat(item.unit_price) || 0;
+                item.line_total = (qty * price).toFixed(2);
+            },
+            total() {
+                return this.items
+                    .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
+                    .toFixed(2);
+            }
+        };
+    }
+</script>
+<?= $this->endSection() ?>
