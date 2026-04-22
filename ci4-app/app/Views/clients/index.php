@@ -55,7 +55,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">View Ledger</a>
                         </td>
                         <td class="text-left">
-                            <button class="btn-link" type="button" @click="openEdit(<?= (int) $client['id'] ?>)">Edit</button>
+                            <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $client['id'] ?>)">Edit</button>
                             <form class="inline" method="post" action="<?= base_url('clients/' . $client['id'] . '/delete') ?>" onsubmit="return confirm('Delete this client?');">
                                 <?= csrf_field() ?>
                                 <button class="ml-3 btn-link" type="submit">Delete</button>

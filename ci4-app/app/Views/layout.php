@@ -12,8 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #edf0f3;
-            --header-bg: #e5e9ee;
+            --bg: #FAF9F6;
+            --header-bg: #F5F5DC;
             --surface: #ffffff;
             --surface-soft: #f6f7f9;
             --ink: #151515;
@@ -44,12 +44,17 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.35rem;
+            gap: 0.25rem;
+
             border: 1px solid var(--line-strong);
             background: var(--surface);
-            padding: 0.5rem 1rem;
-            font-weight: 600;
-            border-radius: 0.625rem;
+
+            padding: 0.35rem 0.7rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+
+            border-radius: 0.25rem;
+
             transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         }
 
@@ -79,12 +84,23 @@
             width: 100%;
             border: 1px solid var(--line);
             background: var(--surface);
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.625rem;
+
+            padding: 0.35rem 0.7rem;
+            /* match button */
+            font-size: 0.85rem;
+
+            border-radius: 0.25rem;
+            /* match button sharpness */
+
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .input:focus,
+        .input:focus {
+            outline: none;
+            border-color: var(--ink);
+            box-shadow: 0 0 0 1px var(--ink);
+        }
+
         .btn:focus {
             outline: 2px solid var(--ink);
             outline-offset: 2px;
@@ -97,7 +113,7 @@
             font-size: 0.875rem;
             background: var(--surface);
             border: 1px solid var(--line);
-            border-radius: 0.75rem;
+            border-radius: 0;
             overflow: hidden;
         }
 
@@ -115,7 +131,7 @@
             white-space: nowrap;
         }
 
-        .table tbody tr + tr td {
+        .table tbody tr+tr td {
             border-top: 1px solid var(--line);
         }
 
@@ -128,16 +144,30 @@
         }
 
         .nav-link {
-            color: var(--muted);
+            color: var(--ink);
+            /* make all links black */
             text-decoration: none;
             padding: 0.35rem 0.6rem;
             border-radius: 0.55rem;
+            font-weight: 400;
+            /* normal */
             transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .nav-link-active {
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid var(--line);
         }
 
         .nav-link:hover {
             color: var(--ink);
             background: rgba(255, 255, 255, 0.7);
+        }
+
+        .nav-link:focus-visible {
+            outline: 2px solid var(--ink);
+            outline-offset: 1px;
         }
 
         .tab-link {
@@ -195,7 +225,7 @@
         .modal-panel {
             width: 100%;
             border: 1px solid var(--line);
-            border-radius: 0.85rem;
+            border-radius: 0;
             background: var(--surface);
             box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
         }
@@ -269,6 +299,23 @@
     <?php
     $successMessage = session()->getFlashdata('success');
     $errorMessage = session()->getFlashdata('error');
+
+    $currentPath = trim((string) uri_string(), '/');
+    if (str_starts_with($currentPath, 'index.php/')) {
+        $currentPath = substr($currentPath, 10);
+    }
+
+    $isNavActive = static function (string $segment) use ($currentPath): bool {
+        return $currentPath === $segment || str_starts_with($currentPath, $segment . '/');
+    };
+
+    $navAttributes = static function (string $segment) use ($isNavActive): string {
+        if (! $isNavActive($segment)) {
+            return 'class="nav-link"';
+        }
+
+        return 'class="nav-link nav-link-active" aria-current="page"';
+    };
     ?>
 
     <?php if ($successMessage || $errorMessage): ?>
@@ -298,16 +345,16 @@
             <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
                 <div class="text-lg font-semibold">AR Admin</div>
                 <?php if (session()->get('user_id')): ?>
-                    <nav class="flex flex-wrap items-center gap-1 text-sm">
-                        <a href="<?= base_url('clients') ?>" class="nav-link">Clients</a>
-                        <a href="<?= base_url('products') ?>" class="nav-link">Products</a>
-                        <a href="<?= base_url('banks') ?>" class="nav-link">Banks</a>
-                        <a href="<?= base_url('cashiers') ?>" class="nav-link">Cashiers</a>
-                        <a href="<?= base_url('deliveries') ?>" class="nav-link">Deliveries</a>
-                        <a href="<?= base_url('payments') ?>" class="nav-link">Payments</a>
-                        <a href="<?= base_url('other-accounts') ?>" class="nav-link">Other Accounts</a>
-                        <a href="<?= base_url('boa') ?>" class="nav-link">BOA</a>
-                        <a href="<?= base_url('excess') ?>" class="nav-link">Excess</a>
+                    <nav class="flex flex-wrap items-center gap-1 text-sm text-black">
+                        <a href="<?= base_url('clients') ?>" <?= $navAttributes('clients') ?>>Clients</a>
+                        <a href="<?= base_url('products') ?>" <?= $navAttributes('products') ?>>Products</a>
+                        <a href="<?= base_url('banks') ?>" <?= $navAttributes('banks') ?>>Banks</a>
+                        <a href="<?= base_url('cashiers') ?>" <?= $navAttributes('cashiers') ?>>Cashiers</a>
+                        <a href="<?= base_url('deliveries') ?>" <?= $navAttributes('deliveries') ?>>Deliveries</a>
+                        <a href="<?= base_url('payments') ?>" <?= $navAttributes('payments') ?>>Payments</a>
+                        <a href="<?= base_url('other-accounts') ?>" <?= $navAttributes('other-accounts') ?>>Other Accounts</a>
+                        <a href="<?= base_url('boa') ?>" <?= $navAttributes('boa') ?>>BOA</a>
+                        <a href="<?= base_url('excess') ?>" <?= $navAttributes('excess') ?>>Excess</a>
                         <a href="<?= base_url('logout') ?>" class="nav-link">Logout</a>
                     </nav>
                 <?php endif; ?>

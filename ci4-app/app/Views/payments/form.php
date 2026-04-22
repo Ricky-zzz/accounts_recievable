@@ -87,7 +87,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
         </div>
 
         <div class="mt-6 overflow-x-auto">
-            <div class="flex gap-6 min-w-[1400px]">
+            <div class="flex gap-10 min-w-[1700px]">
                 <div class="min-w-[320px]">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold">Unpaid Delivery Receipts</h2>
@@ -183,49 +183,12 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     </div>
                 </div>
 
-                <div class="min-w-[360px]">
-                    <div class="flex items-center justify-between">
+                <div class="min-w-[440px]">
+                    <div class="flex items-center justify-between gap-3">
                         <h2 class="text-sm font-semibold">Other Accounts</h2>
-                        <span class="text-xs muted" x-text="otherAccountRows.length + ' items'"></span>
+                        <button class="btn btn-secondary" type="button" @click="openOtherAccountModal()">+ Other Account</button>
                     </div>
-                    <div class="mt-3 grid gap-3">
-                        <div>
-                            <label class="block text-sm font-medium" for="other_account_id">Account</label>
-                            <select class="input mt-1" id="other_account_id" x-model="otherAccountForm.account_id">
-                                <option value="">Select account</option>
-                                <template x-for="account in otherAccounts" :key="account.id">
-                                    <option :value="account.id" x-text="account.name"></option>
-                                </template>
-                            </select>
-                        </div>
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <div>
-                                <label class="block text-sm font-medium" for="other_reference">Reference</label>
-                                <input class="input mt-1" id="other_reference" type="text" x-model="otherAccountForm.reference" placeholder="DR101">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium" for="other_amount">Amount</label>
-                                <input class="input mt-1" id="other_amount" type="number" step="0.01" min="0" x-model="otherAccountForm.amount">
-                            </div>
-                        </div>
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <div>
-                                <label class="block text-sm font-medium" for="other_note">Note</label>
-                                <input class="input mt-1" id="other_note" type="text" x-model="otherAccountForm.note" placeholder="Optional note">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium" for="other_affects_trade">AR Trade Impact</label>
-                                <select class="input mt-1" id="other_affects_trade" x-model="otherAccountForm.affects_trade">
-                                    <option value="1">Affects AR Trade</option>
-                                    <option value="0">Independent</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="flex gap-3">
-                            <button class="btn btn-secondary" type="button" @click="addOtherAccount()">Add Entry</button>
-                            <button class="btn btn-secondary" type="button" @click="clearOtherAccountForm()">Clear</button>
-                        </div>
-                    </div>
+                    <p class="mt-1 text-xs muted" x-text="otherAccountRows.length + ' items'"></p>
 
                     <table class="table mt-4">
                         <thead>
@@ -276,34 +239,12 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     </div>
                 </div>
 
-                <div class="min-w-[320px]">
-                    <div class="flex items-center justify-between">
+                <div class="min-w-[380px]">
+                    <div class="flex items-center justify-between gap-3">
                         <h2 class="text-sm font-semibold">A/R Other</h2>
-                        <span class="text-xs muted" x-text="arOtherRows.length + ' items'"></span>
+                        <button class="btn btn-secondary" type="button" @click="openArOtherModal()">+ A/R Other</button>
                     </div>
-                    <div class="mt-3 grid gap-3">
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <div>
-                                <label class="block text-sm font-medium" for="ar_other_description">Description</label>
-                                <input class="input mt-1" id="ar_other_description" type="text" x-model="arOtherForm.description" placeholder="Description">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium" for="ar_other_amount">Amount</label>
-                                <input class="input mt-1" id="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherForm.amount">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium" for="ar_other_affects_trade">AR Trade Impact</label>
-                            <select class="input mt-1" id="ar_other_affects_trade" x-model="arOtherForm.affects_trade">
-                                <option value="0">Independent</option>
-                                <option value="1">Adds to AR Trade</option>
-                            </select>
-                        </div>
-                        <div class="flex gap-3">
-                            <button class="btn btn-secondary" type="button" @click="addArOther()">Add Entry</button>
-                            <button class="btn btn-secondary" type="button" @click="clearArOtherForm()">Clear</button>
-                        </div>
-                    </div>
+                    <p class="mt-1 text-xs muted" x-text="arOtherRows.length + ' items'"></p>
 
                     <table class="table mt-4">
                         <thead>
@@ -352,6 +293,79 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
         </div>
     </form>
 
+    <div class="modal-backdrop" x-show="otherAccountModalOpen" x-cloak>
+        <div class="modal-panel max-w-md p-6">
+            <h2 class="text-lg font-semibold">Add Other Account</h2>
+            <div class="mt-4 grid gap-3">
+                <div>
+                    <label class="block text-sm font-medium" for="modal_other_account_id">Account</label>
+                    <select class="input mt-1" id="modal_other_account_id" x-model="otherAccountForm.account_id">
+                        <option value="">Select account</option>
+                        <template x-for="account in otherAccounts" :key="account.id">
+                            <option :value="account.id" x-text="`${account.name} - ${account.type}`"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium" for="modal_other_reference">Reference</label>
+                        <input class="input mt-1" id="modal_other_reference" type="text" x-model="otherAccountForm.reference" placeholder="DR101">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="modal_other_amount">Amount</label>
+                        <input class="input mt-1" id="modal_other_amount" type="number" step="0.01" min="0" x-model="otherAccountForm.amount">
+                    </div>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium" for="modal_other_note">Note</label>
+                        <input class="input mt-1" id="modal_other_note" type="text" x-model="otherAccountForm.note" placeholder="Optional note">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="modal_other_affects_trade">AR Trade Impact</label>
+                        <select class="input mt-1" id="modal_other_affects_trade" x-model="otherAccountForm.affects_trade">
+                            <option value="1">Affects AR Trade</option>
+                            <option value="0">Independent</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 flex gap-3">
+                <button class="btn" type="button" @click="addOtherAccount()">Add Entry</button>
+                <button class="btn btn-secondary" type="button" @click="closeOtherAccountModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" x-show="arOtherModalOpen" x-cloak>
+        <div class="modal-panel max-w-md p-6">
+            <h2 class="text-lg font-semibold">Add A/R Other</h2>
+            <div class="mt-4 grid gap-3">
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium" for="modal_ar_other_description">Description</label>
+                        <input class="input mt-1" id="modal_ar_other_description" type="text" x-model="arOtherForm.description" placeholder="Description">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="modal_ar_other_amount">Amount</label>
+                        <input class="input mt-1" id="modal_ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherForm.amount">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="modal_ar_other_affects_trade">AR Trade Impact</label>
+                    <select class="input mt-1" id="modal_ar_other_affects_trade" x-model="arOtherForm.affects_trade">
+                        <option value="0">Independent</option>
+                        <option value="1">Adds to AR Trade</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4 flex gap-3">
+                <button class="btn" type="button" @click="addArOther()">Add Entry</button>
+                <button class="btn btn-secondary" type="button" @click="closeArOtherModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-backdrop" x-show="modalOpen" x-cloak>
         <div class="modal-panel max-w-md p-6">
             <h2 class="text-lg font-semibold">Allocate Payment</h2>
@@ -398,6 +412,8 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
             modalOpen: false,
             modalDelivery: null,
             modalAmount: '',
+            otherAccountModalOpen: false,
+            arOtherModalOpen: false,
             otherAccountForm: {
                 account_id: '',
                 reference: '',
@@ -497,6 +513,20 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 this.modalDelivery = null;
                 this.modalAmount = '';
             },
+            openOtherAccountModal() {
+                this.otherAccountModalOpen = true;
+            },
+            closeOtherAccountModal() {
+                this.otherAccountModalOpen = false;
+                this.clearOtherAccountForm();
+            },
+            openArOtherModal() {
+                this.arOtherModalOpen = true;
+            },
+            closeArOtherModal() {
+                this.arOtherModalOpen = false;
+                this.clearArOtherForm();
+            },
             confirmAllocation() {
                 const amount = parseFloat(this.modalAmount) || 0;
                 if (!this.modalDelivery || amount <= 0) {
@@ -525,6 +555,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 const accountId = parseInt(this.otherAccountForm.account_id, 10);
                 const amount = parseFloat(this.otherAccountForm.amount) || 0;
                 const affectsTrade = this.otherAccountForm.affects_trade === '1';
+                const reference = (this.otherAccountForm.reference || '').trim();
 
                 if (!accountId || amount <= 0) {
                     alert('Select an account and enter a valid amount.');
@@ -537,17 +568,35 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     return;
                 }
 
+                // If reference matches a delivery DR# and account is DR type, deduct from that delivery
+                if (reference && account.type === 'dr') {
+                    const allocation = this.allocations.find((row) => row.dr_no === reference);
+                    if (allocation) {
+                        // Find the original delivery to verify sufficient balance
+                        const delivery = this.deliveries.find((row) => String(row.id) === String(allocation.delivery_id));
+                        if (delivery && delivery.working_balance >= 0) {
+                            if (amount > delivery.working_balance) {
+                                alert(`Discount amount (${amount}) exceeds remaining balance (${delivery.working_balance.toFixed(2)}) for ${reference}.`);
+                                return;
+                            }
+                            // Deduct discount from delivery's working balance
+                            delivery.working_balance = parseFloat((delivery.working_balance - amount).toFixed(2));
+                            allocation.balance_after = delivery.working_balance;
+                        }
+                    }
+                }
+
                 this.otherAccountRows.push({
                     account_id: account.id,
                     account_name: account.name,
                     type: account.type,
-                    reference: (this.otherAccountForm.reference || '').trim(),
+                    reference: reference,
                     note: (this.otherAccountForm.note || '').trim(),
                     amount: amount,
                     affects_trade: affectsTrade,
                 });
 
-                this.clearOtherAccountForm();
+                this.closeOtherAccountModal();
             },
             clearOtherAccountForm() {
                 this.otherAccountForm = {
@@ -562,6 +611,20 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 if (index < 0 || index >= this.otherAccountRows.length) {
                     return;
                 }
+                const row = this.otherAccountRows[index];
+                
+                // If this was a discount linked to a delivery, restore its balance
+                if (row.reference && row.type === 'dr') {
+                    const allocation = this.allocations.find((a) => a.dr_no === row.reference);
+                    if (allocation) {
+                        const delivery = this.deliveries.find((d) => String(d.id) === String(allocation.delivery_id));
+                        if (delivery) {
+                            delivery.working_balance = parseFloat((delivery.working_balance + parseFloat(row.amount)).toFixed(2));
+                            allocation.balance_after = delivery.working_balance;
+                        }
+                    }
+                }
+                
                 this.otherAccountRows.splice(index, 1);
             },
             addArOther() {
@@ -580,7 +643,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     affects_trade: affectsTrade,
                 });
 
-                this.clearArOtherForm();
+                this.closeArOtherModal();
             },
             clearArOtherForm() {
                 this.arOtherForm = {

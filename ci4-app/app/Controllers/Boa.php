@@ -62,7 +62,7 @@ class Boa extends BaseController
         $builder->where('b.date >=', $from);
         $builder->where('b.date <=', $to);
         $builder->orderBy('b.date', 'desc');
-        $builder->orderBy('b.id', 'desc');
+        $builder->orderBy('b.id', 'asc');
 
         return view('boa/index', [
             'from' => $from,
