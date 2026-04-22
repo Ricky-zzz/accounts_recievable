@@ -39,13 +39,19 @@ class Boa extends BaseController
             'reference',
             'payment_id',
             'ar_trade',
+            'ar_others',
+            'account_title',
+            'dr',
+            'cr',
+            'note',
+            'description',
             'created_at',
             'updated_at',
         ];
         $bankColumns = array_values(array_diff($columns, $fixed));
 
         $builder = $db->table('boa b');
-        $builder->select('b.date, b.payor, b.reference, b.ar_trade');
+        $builder->select('b.date, b.payor, b.reference, b.ar_trade, b.ar_others, b.account_title, b.dr, b.cr, b.note, b.description');
         $builder->select('c.name as payor_name');
 
         foreach ($bankColumns as $column) {

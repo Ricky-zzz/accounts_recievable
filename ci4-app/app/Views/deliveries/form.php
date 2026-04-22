@@ -26,17 +26,27 @@
 <form class="mt-6 space-y-6" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()">
     <?= csrf_field() ?>
     <div class="grid gap-4 sm:grid-cols-3">
-        <div>
-            <label class="block text-sm font-medium" for="client_id">Client</label>
-            <select class="input mt-1" id="client_id" name="client_id" required>
-                <option value="">Select client</option>
-                <?php foreach ($clients as $client): ?>
-                    <option value="<?= esc($client['id']) ?>" <?= old('client_id') == $client['id'] ? 'selected' : '' ?>>
-                        <?= esc($client['name']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+        <?php if ($selectedClient): ?>
+            <div>
+                <label class="block text-sm font-medium">Client</label>
+                <div class="mt-1 rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
+                    <?= esc($selectedClient['name']) ?>
+                </div>
+                <input type="hidden" name="client_id" value="<?= esc($selectedClient['id']) ?>">
+            </div>
+        <?php else: ?>
+            <div>
+                <label class="block text-sm font-medium" for="client_id">Client</label>
+                <select class="input mt-1" id="client_id" name="client_id" required>
+                    <option value="">Select client</option>
+                    <?php foreach ($clients as $client): ?>
+                        <option value="<?= esc($client['id']) ?>" <?= old('client_id') == $client['id'] ? 'selected' : '' ?>>
+                            <?= esc($client['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
         <div>
             <label class="block text-sm font-medium" for="dr_no">DR Number</label>
             <input class="input mt-1" id="dr_no" name="dr_no" value="<?= esc(old('dr_no')) ?>" required>

@@ -15,6 +15,12 @@ class BoaModel extends Model
         'reference',
         'payment_id',
         'ar_trade',
+        'ar_others',
+        'account_title',
+        'dr',
+        'cr',
+        'note',
+        'description',
     ];
     protected $useTimestamps = true;
 }

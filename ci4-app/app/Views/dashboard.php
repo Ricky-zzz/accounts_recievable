@@ -9,6 +9,7 @@
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('cashiers') ?>">Cashiers</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('deliveries') ?>">Deliveries</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payments') ?>">Payments</a>
+    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('other-accounts') ?>">Other Accounts</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('boa') ?>">BOA</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('excess') ?>">Excess</a>
 </div>

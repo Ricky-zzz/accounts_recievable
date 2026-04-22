@@ -7,25 +7,28 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Products extends BaseController
 {
+    private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [])
+    {
+        $redirect = redirect()
+            ->to('/products')
+            ->withInput()
+            ->with('error', $message)
+            ->with('form_mode', $mode)
+            ->with('form_errors', $errors);
+
+        if ($id !== null) {
+            $redirect = $redirect->with('form_id', $id);
+        }
+
+        return $redirect;
+    }
+
     public function index(): string
     {
         $model = new ProductModel();
 
         return view('products/index', [
             'products' => $model->orderBy('product_name', 'asc')->findAll(),
-        ]);
-    }
-
-    public function createForm(): string
-    {
-        return view('products/form', [
-            'title' => 'New Product',
-            'action' => base_url('products'),
-            'product' => [
-                'product_id' => '',
-                'product_name' => '',
-                'unit_price' => '',
-            ],
         ]);
     }
 
@@ -44,34 +47,18 @@ class Products extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return view('products/form', [
-                'title' => 'New Product',
-                'action' => base_url('products'),
-                'product' => $product,
-                'validation' => $this->validator,
-            ]);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'create',
+                null,
+                $this->validator->getErrors()
+            );
         }
 
         $model = new ProductModel();
         $model->insert($product);
 
         return redirect()->to('/products')->with('success', 'Product created.');
-    }
-
-    public function edit(int $id): string
-    {
-        $model = new ProductModel();
-        $product = $model->find($id);
-
-        if (! $product) {
-            throw PageNotFoundException::forPageNotFound();
-        }
-
-        return view('products/form', [
-            'title' => 'Edit Product',
-            'action' => base_url('products/' . $id),
-            'product' => $product,
-        ]);
     }
 
     public function update(int $id)
@@ -96,12 +83,12 @@ class Products extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return view('products/form', [
-                'title' => 'Edit Product',
-                'action' => base_url('products/' . $id),
-                'product' => array_merge($existing, $product),
-                'validation' => $this->validator,
-            ]);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'edit',
+                $id,
+                $this->validator->getErrors()
+            );
         }
 
         $model->update($id, $product);

@@ -22,6 +22,12 @@ if (! function_exists('boa_column_from_bank_name')) {
             'REFERENCE',
             'PAYMENT_ID',
             'AR_TRADE',
+            'AR_OTHERS',
+            'ACCOUNT_TITLE',
+            'DR',
+            'CR',
+            'NOTE',
+            'DESCRIPTION',
             'CREATED_AT',
             'UPDATED_AT',
         ];

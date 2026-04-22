@@ -12,20 +12,61 @@ class Deliveries extends BaseController
 {
     public function index(): string
     {
-        $db = db_connect();
-        $builder = $db->table('deliveries');
-        $builder
-            ->select('deliveries.*, clients.name as client_name')
-            ->join('clients', 'clients.id = deliveries.client_id', 'left')
-            ->orderBy('deliveries.date', 'desc')
-            ->orderBy('deliveries.id', 'desc');
+        $query = trim((string) ($this->request->getGet('q') ?? ''));
+        $clients = [];
+
+        if ($query !== '') {
+            $clientModel = new ClientModel();
+            $clients = $clientModel
+                ->like('name', $query)
+                ->orderBy('name', 'asc')
+                ->findAll();
+        }
 
         return view('deliveries/index', [
-            'deliveries' => $builder->get()->getResultArray(),
+            'query' => $query,
+            'clients' => $clients,
         ]);
     }
 
-    public function createForm(): string
+    public function list(): string
+    {
+        $fromDate = trim((string) ($this->request->getGet('from_date') ?? ''));
+        $toDate = trim((string) ($this->request->getGet('to_date') ?? ''));
+        $deliveries = [];
+
+        // Default to today's date
+        if ($fromDate === '' && $toDate === '') {
+            $fromDate = date('Y-m-d');
+            $toDate = date('Y-m-d');
+        }
+
+        if ($fromDate !== '' || $toDate !== '') {
+            $db = db_connect();
+            $builder = $db->table('deliveries');
+            $builder
+                ->select('deliveries.*, clients.name as client_name')
+                ->join('clients', 'clients.id = deliveries.client_id', 'left');
+
+            if ($fromDate !== '') {
+                $builder->where('deliveries.date >=', $fromDate);
+            }
+            if ($toDate !== '') {
+                $builder->where('deliveries.date <=', $toDate);
+            }
+
+            $builder->orderBy('deliveries.date', 'desc')->orderBy('deliveries.id', 'desc');
+            $deliveries = $builder->get()->getResultArray();
+        }
+
+        return view('deliveries/list', [
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'deliveries' => $deliveries,
+        ]);
+    }
+
+    public function createForm($clientId = null)
     {
         $clientModel = new ClientModel();
         $productModel = new ProductModel();
@@ -33,9 +74,19 @@ class Deliveries extends BaseController
         $products = $productModel->orderBy('product_name', 'asc')->findAll();
         $productsJson = json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
+        $selectedClient = null;
+        if ($clientId) {
+            $selectedClient = $clientModel->find((int) $clientId);
+            if (! $selectedClient) {
+                return redirect()->to('/deliveries')->with('error', 'Client not found.');
+            }
+        }
+
         return view('deliveries/form', [
             'title' => 'New Delivery',
             'action' => base_url('deliveries'),
+            'clientId' => $clientId,
+            'selectedClient' => $selectedClient,
             'clients' => $clientModel->orderBy('name', 'asc')->findAll(),
             'products' => $products,
             'productsJson' => $productsJson,
@@ -44,6 +95,8 @@ class Deliveries extends BaseController
 
     public function create()
     {
+        $postedClientId = (int) $this->request->getPost('client_id');
+
         $rules = [
             'client_id' => 'required|is_natural_no_zero',
             'dr_no' => 'required|max_length[50]',
@@ -51,7 +104,7 @@ class Deliveries extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return $this->createFormWithErrors($this->validator);
+            return $this->createFormWithErrors($this->validator, [], $postedClientId > 0 ? $postedClientId : null);
         }
 
         $clientId = (int) $this->request->getPost('client_id');
@@ -60,7 +113,7 @@ class Deliveries extends BaseController
         $items = $this->request->getPost('items');
 
         if (! is_array($items) || count($items) === 0) {
-            return $this->createFormWithErrors(null, ['At least one item is required.']);
+            return $this->createFormWithErrors(null, ['At least one item is required.'], $clientId);
         }
 
         $deliveryModel = new DeliveryModel();
@@ -70,7 +123,7 @@ class Deliveries extends BaseController
             ->first();
 
         if ($existing) {
-            return $this->createFormWithErrors(null, ['DR number already exists for this client.']);
+            return $this->createFormWithErrors(null, ['DR number already exists for this client.'], $clientId);
         }
 
         $cleanItems = [];
@@ -97,7 +150,7 @@ class Deliveries extends BaseController
         }
 
         if (empty($cleanItems)) {
-            return $this->createFormWithErrors(null, ['Add at least one valid item with quantity.']);
+            return $this->createFormWithErrors(null, ['Add at least one valid item with quantity.'], $clientId);
         }
 
         $db = db_connect();
@@ -151,7 +204,7 @@ class Deliveries extends BaseController
         return redirect()->to('/deliveries')->with('success', 'Delivery saved.');
     }
 
-    private function createFormWithErrors($validation = null, array $errors = [])
+    private function createFormWithErrors($validation = null, array $errors = [], $clientId = null)
     {
         $clientModel = new ClientModel();
         $productModel = new ProductModel();
@@ -159,9 +212,16 @@ class Deliveries extends BaseController
         $products = $productModel->orderBy('product_name', 'asc')->findAll();
         $productsJson = json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
+        $selectedClient = null;
+        if ($clientId) {
+            $selectedClient = $clientModel->find((int) $clientId);
+        }
+
         return view('deliveries/form', [
             'title' => 'New Delivery',
             'action' => base_url('deliveries'),
+            'clientId' => $clientId,
+            'selectedClient' => $selectedClient,
             'clients' => $clientModel->orderBy('name', 'asc')->findAll(),
             'products' => $products,
             'productsJson' => $productsJson,

@@ -15,10 +15,6 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 
--- Dumping database structure for ar
-CREATE DATABASE IF NOT EXISTS `ar` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE `ar`;
-
 -- Dumping structure for table ar.banks
 CREATE TABLE IF NOT EXISTS `banks` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,

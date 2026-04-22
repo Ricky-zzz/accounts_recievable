@@ -118,8 +118,8 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
         </table>
     <?php endif; ?>
 
-    <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40" x-show="itemsOpen" x-cloak>
-        <div class="card w-full max-w-lg p-6">
+    <div class="modal-backdrop" x-show="itemsOpen" x-cloak>
+        <div class="modal-panel max-w-lg p-6">
             <h2 class="text-lg font-semibold">Delivery Items</h2>
             <table class="table mt-4">
                 <thead>
@@ -156,8 +156,8 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
         </div>
     </div>
 
-    <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40" x-show="allocOpen" x-cloak>
-        <div class="card w-full max-w-lg p-6">
+    <div class="modal-backdrop" x-show="allocOpen" x-cloak>
+        <div class="modal-panel max-w-lg p-6">
             <h2 class="text-lg font-semibold" x-text="allocTitle()"></h2>
             <table class="table mt-4">
                 <thead>

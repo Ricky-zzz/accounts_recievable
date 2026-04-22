@@ -1,0 +1,228 @@
+<?= $this->extend('layout') ?>
+<?= $this->section('content') ?>
+<div class="space-y-6" x-data="accountManager()">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h1 class="text-xl font-semibold">Other Accounts</h1>
+            <p class="mt-1 text-sm muted">Manage chart of accounts for DR and CR entries.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <form class="flex items-center gap-2" method="get" action="<?= base_url('other-accounts') ?>">
+                <input class="input" name="q" placeholder="Search account" value="<?= esc($query ?? '') ?>">
+                <button class="btn btn-secondary" type="submit">Search</button>
+            </form>
+            <button class="btn" type="button" @click="openModal()">New Account</button>
+        </div>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th class="text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (empty($accounts)): ?>
+                <tr>
+                    <td class="py-3" colspan="4">No accounts yet.</td>
+                </tr>
+            <?php else: ?>
+                <?php foreach ($accounts as $account): ?>
+                    <tr>
+                        <td><code class="text-xs"><?= esc($account['account_code']) ?></code></td>
+                        <td><?= esc($account['name']) ?></td>
+                        <td>
+                            <span class="status-chip">
+                                <?= strtoupper($account['type']) ?>
+                            </span>
+                        </td>
+                        <td class="text-left">
+                            <button class="btn-link" type="button" @click="openModal(<?= (int) $account['id'] ?>)">Edit</button>
+                            <button class="ml-3 btn-link" type="button" @click="deleteAccount(<?= (int) $account['id'] ?>, '<?= esc($account['account_code']) ?>')">Delete</button>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+
+    <!-- Modal -->
+    <div class="modal-backdrop" x-show="open" x-cloak>
+        <div class="modal-panel max-w-md p-6">
+            <h2 class="text-lg font-semibold" x-text="isEdit ? 'Edit Account' : 'New Account'"></h2>
+            <form class="mt-4 space-y-4" @submit.prevent="saveAccount()">
+                <?= csrf_field() ?>
+                <div>
+                    <label class="block text-sm font-medium" for="account_code">Account Code</label>
+                    <input 
+                        class="input mt-1" 
+                        id="account_code" 
+                        x-model="form.account_code" 
+                        required
+                        placeholder="e.g., 1000">
+                    <span class="field-error" x-show="errors.account_code" x-text="errors.account_code"></span>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="name">Name</label>
+                    <input 
+                        class="input mt-1" 
+                        id="name" 
+                        x-model="form.name" 
+                        required
+                        placeholder="e.g., Sales Revenue">
+                    <span class="field-error" x-show="errors.name" x-text="errors.name"></span>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="type">Type</label>
+                    <select 
+                        class="input mt-1" 
+                        id="type" 
+                        x-model="form.type" 
+                        required>
+                        <option value="">Select type...</option>
+                        <option value="dr">DR</option>
+                        <option value="cr">CR</option>
+                    </select>
+                    <span class="field-error" x-show="errors.type" x-text="errors.type"></span>
+                </div>
+                <div class="flex gap-3">
+                    <button class="btn" type="submit" :disabled="loading">
+                        <span x-show="!loading" x-text="isEdit ? 'Update' : 'Create'"></span>
+                        <span x-show="loading">Saving...</span>
+                    </button>
+                    <button class="btn btn-secondary" type="button" @click="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function accountManager() {
+        return {
+            open: false,
+            isEdit: false,
+            loading: false,
+            errors: {},
+            form: {
+                account_code: '',
+                name: '',
+                type: 'dr',
+            },
+            currentId: null,
+
+            openModal(id = null) {
+                this.errors = {};
+                this.isEdit = !!id;
+                this.currentId = id;
+
+                if (id) {
+                    this.loading = true;
+                    fetch(`<?= base_url('other-accounts') ?>/${id}/get`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                this.form = {
+                                    account_code: data.data.account_code,
+                                    name: data.data.name,
+                                    type: data.data.type,
+                                };
+                            }
+                        })
+                        .finally(() => {
+                            this.loading = false;
+                            this.open = true;
+                        });
+                } else {
+                    this.form = {
+                        account_code: '',
+                        name: '',
+                        type: 'dr',
+                    };
+                    this.open = true;
+                }
+            },
+
+            closeModal() {
+                this.open = false;
+                this.form = {
+                    account_code: '',
+                    name: '',
+                    type: 'dr',
+                };
+                this.errors = {};
+                this.currentId = null;
+            },
+
+            async saveAccount() {
+                this.loading = true;
+                this.errors = {};
+
+                const url = this.isEdit 
+                    ? `<?= base_url('other-accounts') ?>/${this.currentId}` 
+                    : `<?= base_url('other-accounts') ?>`;
+                const method = this.isEdit ? 'POST' : 'POST';
+
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: new URLSearchParams({
+                            '_method': this.isEdit ? 'PUT' : 'POST',
+                            'account_code': this.form.account_code,
+                            'name': this.form.name,
+                            'type': this.form.type,
+                            '<?= csrf_token() ?>': '<?= csrf_hash() ?>',
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        this.errors = data.errors || {};
+                    } else {
+                        this.closeModal();
+                        location.reload();
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async deleteAccount(id, code) {
+                if (!confirm(`Delete account "${code}"?`)) return;
+
+                try {
+                    const response = await fetch(`<?= base_url('other-accounts') ?>/${id}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: new URLSearchParams({
+                            '_method': 'DELETE',
+                            '<?= csrf_token() ?>': '<?= csrf_hash() ?>',
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        location.reload();
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            },
+        };
+    }
+</script>
+<?= $this->endSection() ?>

@@ -7,25 +7,28 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Banks extends BaseController
 {
+    private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [])
+    {
+        $redirect = redirect()
+            ->to('/banks')
+            ->withInput()
+            ->with('error', $message)
+            ->with('form_mode', $mode)
+            ->with('form_errors', $errors);
+
+        if ($id !== null) {
+            $redirect = $redirect->with('form_id', $id);
+        }
+
+        return $redirect;
+    }
+
     public function index(): string
     {
         $model = new BankModel();
 
         return view('banks/index', [
             'banks' => $model->orderBy('bank_name', 'asc')->findAll(),
-        ]);
-    }
-
-    public function createForm(): string
-    {
-        return view('banks/form', [
-            'title' => 'New Bank',
-            'action' => base_url('banks'),
-            'bank' => [
-                'bank_name' => '',
-                'account_name' => '',
-                'bank_number' => '',
-            ],
         ]);
     }
 
@@ -44,38 +47,44 @@ class Banks extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return view('banks/form', [
-                'title' => 'New Bank',
-                'action' => base_url('banks'),
-                'bank' => $bank,
-                'validation' => $this->validator,
-            ]);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'create',
+                null,
+                $this->validator->getErrors()
+            );
         }
 
         $model = new BankModel();
         $duplicate = $model->where('bank_name', $bank['bank_name'])->first();
         if ($duplicate) {
-            return redirect()->back()->withInput()->with('error', 'Bank name already exists.');
+            return $this->redirectWithFormState('Bank name already exists.', 'create', null, [
+                'bank_name' => 'Bank name already exists.',
+            ]);
         }
 
         helper('boa');
         $boaColumn = boa_column_from_bank_name($bank['bank_name']);
         if ($boaColumn === '') {
-            return redirect()->back()->withInput()->with('error', 'Bank name cannot be used as a BOA column.');
+            return $this->redirectWithFormState('Bank name cannot be used as a BOA column.', 'create', null, [
+                'bank_name' => 'Bank name cannot be used as a BOA column.',
+            ]);
         }
 
         $db = db_connect();
         if (! $db->tableExists('boa')) {
-            return redirect()->back()->withInput()->with('error', 'BOA table is missing. Run migrations first.');
+            return $this->redirectWithFormState('BOA table is missing. Run migrations first.', 'create');
         }
 
         if ($db->fieldExists($boaColumn, 'boa')) {
-            return redirect()->back()->withInput()->with('error', 'BOA column already exists for this bank name.');
+            return $this->redirectWithFormState('BOA column already exists for this bank name.', 'create', null, [
+                'bank_name' => 'BOA column already exists for this bank name.',
+            ]);
         }
 
         $bankId = $model->insert($bank, true);
         if (! $bankId) {
-            return redirect()->back()->withInput()->with('error', 'Failed to create bank.');
+            return $this->redirectWithFormState('Failed to create bank.', 'create');
         }
 
         $forge = \Config\Database::forge($db);
@@ -90,26 +99,10 @@ class Banks extends BaseController
             ]);
         } catch (\Throwable $e) {
             $model->delete($bankId);
-            return redirect()->back()->withInput()->with('error', 'Failed to add BOA column for this bank.');
+            return $this->redirectWithFormState('Failed to add BOA column for this bank.', 'create');
         }
 
         return redirect()->to('/banks')->with('success', 'Bank created.');
-    }
-
-    public function edit(int $id): string
-    {
-        $model = new BankModel();
-        $bank = $model->find($id);
-
-        if (! $bank) {
-            throw PageNotFoundException::forPageNotFound();
-        }
-
-        return view('banks/form', [
-            'title' => 'Edit Bank',
-            'action' => base_url('banks/' . $id),
-            'bank' => $bank,
-        ]);
     }
 
     public function update(int $id)
@@ -134,17 +127,19 @@ class Banks extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return view('banks/form', [
-                'title' => 'Edit Bank',
-                'action' => base_url('banks/' . $id),
-                'bank' => array_merge($existing, $bank),
-                'validation' => $this->validator,
-            ]);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'edit',
+                $id,
+                $this->validator->getErrors()
+            );
         }
 
         $duplicate = $model->where('bank_name', $bank['bank_name'])->where('id !=', $id)->first();
         if ($duplicate) {
-            return redirect()->back()->withInput()->with('error', 'Bank name already exists.');
+            return $this->redirectWithFormState('Bank name already exists.', 'edit', $id, [
+                'bank_name' => 'Bank name already exists.',
+            ]);
         }
 
         helper('boa');
@@ -152,27 +147,33 @@ class Banks extends BaseController
         $newBoaColumn = boa_column_from_bank_name($bank['bank_name']);
 
         if ($newBoaColumn === '') {
-            return redirect()->back()->withInput()->with('error', 'Bank name cannot be used as a BOA column.');
+            return $this->redirectWithFormState('Bank name cannot be used as a BOA column.', 'edit', $id, [
+                'bank_name' => 'Bank name cannot be used as a BOA column.',
+            ]);
         }
 
         if ($oldBoaColumn !== $newBoaColumn) {
             $db = db_connect();
 
             if (! $db->tableExists('boa')) {
-                return redirect()->back()->withInput()->with('error', 'BOA table is missing. Run migrations first.');
+                return $this->redirectWithFormState('BOA table is missing. Run migrations first.', 'edit', $id);
             }
 
             if ($db->fieldExists($newBoaColumn, 'boa')) {
-                return redirect()->back()->withInput()->with('error', 'BOA column already exists for the new bank name.');
+                return $this->redirectWithFormState('BOA column already exists for the new bank name.', 'edit', $id, [
+                    'bank_name' => 'BOA column already exists for the new bank name.',
+                ]);
             }
 
             if (! $db->fieldExists($oldBoaColumn, 'boa')) {
-                return redirect()->back()->withInput()->with('error', 'Existing BOA column is missing for this bank.');
+                return $this->redirectWithFormState('Existing BOA column is missing for this bank.', 'edit', $id);
             }
 
             $hasUsage = $db->table('boa')->where($oldBoaColumn . ' >', 0)->countAllResults();
             if ($hasUsage > 0) {
-                return redirect()->back()->withInput()->with('error', 'Cannot rename bank with BOA records.');
+                return $this->redirectWithFormState('Cannot rename bank with BOA records.', 'edit', $id, [
+                    'bank_name' => 'Cannot rename bank with BOA records.',
+                ]);
             }
 
             $forge = \Config\Database::forge($db);
@@ -187,7 +188,7 @@ class Banks extends BaseController
                     ],
                 ]);
             } catch (\Throwable $e) {
-                return redirect()->back()->withInput()->with('error', 'Failed to update BOA column for this bank.');
+                return $this->redirectWithFormState('Failed to update BOA column for this bank.', 'edit', $id);
             }
         }
 

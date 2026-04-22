@@ -66,8 +66,8 @@
         </tbody>
     </table>
 
-    <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40" x-show="open" x-cloak>
-        <div class="card w-full max-w-md p-6">
+    <div class="modal-backdrop" x-show="open" x-cloak>
+        <div class="modal-panel max-w-md p-6">
             <h2 class="text-lg font-semibold">Assign Receipt Range</h2>
             <p class="mt-1 text-sm muted" x-text="cashierName"></p>
             <form class="mt-4 space-y-4" method="post" action="<?= base_url('cashiers/assign-range') ?>">

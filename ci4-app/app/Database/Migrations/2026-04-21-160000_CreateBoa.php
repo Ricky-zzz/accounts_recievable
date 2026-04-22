@@ -24,8 +24,9 @@ class CreateBoa extends Migration
                 'unsigned'   => true,
             ],
             'reference' => [
-                'type'       => 'INT',
-                'constraint' => 11,
+                'type'       => 'VARCHAR',
+                'constraint' => 50,
+                'null'       => true,
             ],
             'payment_id' => [
                 'type'       => 'INT',
@@ -33,6 +34,36 @@ class CreateBoa extends Migration
                 'unsigned'   => true,
             ],
             'ar_trade' => [
+                'type'       => 'DECIMAL',
+                'constraint' => '12,2',
+                'default'    => 0,
+            ],
+            'ar_others' => [
+                'type'       => 'DECIMAL',
+                'constraint' => '12,2',
+                'default'    => 0,
+            ],
+            'account_title' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '50',
+                'null'       => true,
+            ],
+            'note' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '150',
+                'null'       => true,
+            ],
+            'description' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '150',
+                'null'       => true,
+            ],
+            'dr' => [
+                'type'       => 'DECIMAL',
+                'constraint' => '12,2',
+                'default'    => 0,
+            ],
+            'cr' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '12,2',
                 'default'    => 0,

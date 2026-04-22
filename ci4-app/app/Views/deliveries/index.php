@@ -1,37 +1,62 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<div class="flex items-center justify-between">
-    <div>
-        <h1 class="text-xl font-semibold">Deliveries</h1>
-        <p class="mt-1 text-sm muted">Delivery receipts and totals.</p>
-    </div>
-    <a class="btn" href="<?= base_url('deliveries/new') ?>">New Delivery</a>
+
+<!-- Tab Navigation -->
+<div class="mb-6 flex border-b border-gray-300">
+    <a 
+        href="<?= base_url('deliveries') ?>" 
+        class="tab-link tab-link-active">
+        New Delivery
+    </a>
+    <a 
+        href="<?= base_url('deliveries/list') ?>" 
+        class="tab-link">
+        View Deliveries
+    </a>
 </div>
+
+<div>
+    <h2 class="text-lg font-semibold">Search Client</h2>
+    <p class="mt-1 text-sm muted">Find a client to create a new delivery.</p>
+</div>
+<form class="mt-4 flex items-center gap-2" method="get" action="<?= base_url('deliveries') ?>">
+    <input class="input" name="q" placeholder="Search client" value="<?= esc($query ?? '') ?>">
+    <button class="btn btn-secondary" type="submit">Search</button>
+</form>
 
 <table class="table mt-6">
     <thead>
         <tr>
-            <th>Date</th>
-            <th>DR#</th>
-            <th>Client</th>
-            <th>Total</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th class="text-right">Action</th>
         </tr>
     </thead>
     <tbody>
-        <?php if (empty($deliveries)): ?>
+        <?php if (empty($clients)): ?>
             <tr>
-                <td class="py-3" colspan="4">No deliveries yet.</td>
+                <td class="py-3" colspan="4">
+                    <?php if ($query === ''): ?>
+                        Enter a client name to search.
+                    <?php else: ?>
+                        No clients found.
+                    <?php endif; ?>
+                </td>
             </tr>
         <?php else: ?>
-            <?php foreach ($deliveries as $delivery): ?>
+            <?php foreach ($clients as $client): ?>
                 <tr>
-                    <td><?= esc($delivery['date']) ?></td>
-                    <td><?= esc($delivery['dr_no']) ?></td>
-                    <td><?= esc($delivery['client_name'] ?? '') ?></td>
-                    <td><?= esc(number_format((float) $delivery['total_amount'], 2)) ?></td>
+                    <td><?= esc($client['name']) ?></td>
+                    <td><?= esc($client['email'] ?? '') ?></td>
+                    <td><?= esc($client['phone'] ?? '') ?></td>
+                    <td class="text-left">
+                        <a class="btn-link" href="<?= base_url('deliveries/client/' . $client['id']) ?>">New Delivery</a>
+                    </td>
                 </tr>
             <?php endforeach; ?>
         <?php endif; ?>
     </tbody>
 </table>
+
 <?= $this->endSection() ?>

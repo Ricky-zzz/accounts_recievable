@@ -7,6 +7,22 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Clients extends BaseController
 {
+    private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [])
+    {
+        $redirect = redirect()
+            ->to('/clients')
+            ->withInput()
+            ->with('error', $message)
+            ->with('form_mode', $mode)
+            ->with('form_errors', $errors);
+
+        if ($id !== null) {
+            $redirect = $redirect->with('form_id', $id);
+        }
+
+        return $redirect;
+    }
+
     public function index(): string
     {
         $model = new ClientModel();
@@ -29,20 +45,6 @@ class Clients extends BaseController
         ]);
     }
 
-    public function createForm(): string
-    {
-        return view('clients/form', [
-            'title' => 'New Client',
-            'action' => base_url('clients'),
-            'client' => [
-                'name' => '',
-                'address' => '',
-                'email' => '',
-                'phone' => '',
-            ],
-        ]);
-    }
-
     public function create()
     {
         $rules = [
@@ -59,34 +61,18 @@ class Clients extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return view('clients/form', [
-                'title' => 'New Client',
-                'action' => base_url('clients'),
-                'client' => $client,
-                'validation' => $this->validator,
-            ]);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'create',
+                null,
+                $this->validator->getErrors()
+            );
         }
 
         $model = new ClientModel();
         $model->insert($client);
 
         return redirect()->to('/clients')->with('success', 'Client created.');
-    }
-
-    public function edit(int $id): string
-    {
-        $model = new ClientModel();
-        $client = $model->find($id);
-
-        if (! $client) {
-            throw PageNotFoundException::forPageNotFound();
-        }
-
-        return view('clients/form', [
-            'title' => 'Edit Client',
-            'action' => base_url('clients/' . $id),
-            'client' => $client,
-        ]);
     }
 
     public function update(int $id)
@@ -112,12 +98,12 @@ class Clients extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return view('clients/form', [
-                'title' => 'Edit Client',
-                'action' => base_url('clients/' . $id),
-                'client' => array_merge($existing, $client),
-                'validation' => $this->validator,
-            ]);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'edit',
+                $id,
+                $this->validator->getErrors()
+            );
         }
 
         $model->update($id, $client);

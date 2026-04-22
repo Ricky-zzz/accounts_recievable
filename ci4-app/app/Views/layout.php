@@ -12,27 +12,32 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f7f7f7;
+            --bg: #edf0f3;
+            --header-bg: #e5e9ee;
             --surface: #ffffff;
-            --ink: #111111;
-            --muted: #555555;
-            --line: #d1d5db;
-            --line-strong: #111111;
+            --surface-soft: #f6f7f9;
+            --ink: #151515;
+            --muted: #5c6168;
+            --line: #d5dae1;
+            --line-strong: #a8b0bc;
         }
 
         body {
             font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
             background-color: var(--bg);
-            background-image: linear-gradient(#eeeeee 1px, transparent 1px),
-                linear-gradient(90deg, #eeeeee 1px, transparent 1px);
-            background-size: 48px 48px;
             color: var(--ink);
+        }
+
+        .site-header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--line);
         }
 
         .card {
             background: var(--surface);
             border: 1px solid var(--line);
-            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+            border-radius: 0.75rem;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
         }
 
         .btn {
@@ -40,18 +45,32 @@
             align-items: center;
             justify-content: center;
             gap: 0.35rem;
-            border: 1px solid var(--ink);
+            border: 1px solid var(--line-strong);
             background: var(--surface);
             padding: 0.5rem 1rem;
             font-weight: 600;
+            border-radius: 0.625rem;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .btn:hover {
+            background: var(--surface-soft);
         }
 
         .btn-secondary {
             border-color: var(--line);
             font-weight: 500;
+            color: var(--muted);
         }
 
         .btn-link {
+            color: var(--muted);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        .btn-link:hover {
+            color: var(--ink);
             text-decoration: underline;
             text-underline-offset: 3px;
         }
@@ -61,36 +80,47 @@
             border: 1px solid var(--line);
             background: var(--surface);
             padding: 0.5rem 0.75rem;
+            border-radius: 0.625rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         .input:focus,
         .btn:focus {
-            outline: 2px solid var(--line-strong);
+            outline: 2px solid var(--ink);
             outline-offset: 2px;
         }
 
         .table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 0.875rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 0.75rem;
+            overflow: hidden;
         }
 
-        .table thead tr {
-            border-bottom: 1px solid var(--line-strong);
-        }
-
-        .table tbody tr {
-            border-bottom: 1px solid var(--line);
-        }
-
-        .table th {
-            text-align: left;
-            font-weight: 600;
-            padding: 0.65rem 0;
-        }
-
+        .table th,
         .table td {
-            padding: 0.55rem 0;
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+        }
+
+        .table thead th {
+            background: var(--surface-soft);
+            border-bottom: 1px solid var(--line);
+            font-weight: 600;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .table tbody tr + tr td {
+            border-top: 1px solid var(--line);
+        }
+
+        .table tbody tr:hover td {
+            background: #f9fafb;
         }
 
         .muted {
@@ -98,8 +128,135 @@
         }
 
         .nav-link {
-            text-decoration: underline;
-            text-underline-offset: 4px;
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.35rem 0.6rem;
+            border-radius: 0.55rem;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--ink);
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .tab-link {
+            display: inline-flex;
+            align-items: center;
+            border-bottom: 2px solid transparent;
+            padding: 0.7rem 1rem;
+            color: var(--muted);
+            font-weight: 500;
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .tab-link:hover {
+            color: var(--ink);
+        }
+
+        .tab-link-active {
+            border-bottom-color: var(--ink);
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            background: var(--surface-soft);
+            color: var(--ink);
+            border-radius: 9999px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .field-error {
+            margin-top: 0.3rem;
+            display: block;
+            font-size: 0.75rem;
+            color: #343a40;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(12, 14, 18, 0.4);
+            padding: 1rem;
+        }
+
+        .modal-panel {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 0.85rem;
+            background: var(--surface);
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+        }
+
+        .flash-message {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            border: 1px solid;
+            border-left: 4px solid;
+            border-radius: 0.75rem;
+            padding: 0.7rem 0.9rem;
+            font-size: 0.875rem;
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.16);
+            pointer-events: auto;
+        }
+
+        .flash-message-success {
+            border-color: #86efac;
+            border-left-color: #16a34a;
+            background: #f0fdf4;
+            color: #14532d;
+        }
+
+        .flash-message-error {
+            border-color: #fca5a5;
+            border-left-color: #dc2626;
+            background: #fef2f2;
+            color: #7f1d1d;
+        }
+
+        .flash-stack {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 70;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: min(92vw, 24rem);
+            pointer-events: none;
+        }
+
+        .flash-close {
+            border: 0;
+            border-radius: 0.45rem;
+            background: transparent;
+            color: inherit;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0.15rem 0.4rem;
+            cursor: pointer;
+        }
+
+        .flash-close:hover {
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        .flash-text {
+            flex: 1;
         }
 
         [x-cloak] {
@@ -109,18 +266,46 @@
 </head>
 
 <body class="antialiased">
+    <?php
+    $successMessage = session()->getFlashdata('success');
+    $errorMessage = session()->getFlashdata('error');
+    ?>
+
+    <?php if ($successMessage || $errorMessage): ?>
+        <div class="flash-stack">
+            <?php if ($successMessage): ?>
+                <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-success" x-cloak>
+                    <div class="flash-text">
+                        <?= esc($successMessage) ?>
+                    </div>
+                    <button class="flash-close" type="button" aria-label="Dismiss success message" @click="open = false">&times;</button>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($errorMessage): ?>
+                <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-error" x-cloak>
+                    <div class="flash-text">
+                        <?= esc($errorMessage) ?>
+                    </div>
+                    <button class="flash-close" type="button" aria-label="Dismiss error message" @click="open = false">&times;</button>
+                </div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <div class="min-h-screen">
-        <header class="border-b border-gray-300">
+        <header class="site-header">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
                 <div class="text-lg font-semibold">AR Admin</div>
                 <?php if (session()->get('user_id')): ?>
-                    <nav class="flex items-center gap-4 text-sm">
+                    <nav class="flex flex-wrap items-center gap-1 text-sm">
                         <a href="<?= base_url('clients') ?>" class="nav-link">Clients</a>
                         <a href="<?= base_url('products') ?>" class="nav-link">Products</a>
                         <a href="<?= base_url('banks') ?>" class="nav-link">Banks</a>
                         <a href="<?= base_url('cashiers') ?>" class="nav-link">Cashiers</a>
                         <a href="<?= base_url('deliveries') ?>" class="nav-link">Deliveries</a>
                         <a href="<?= base_url('payments') ?>" class="nav-link">Payments</a>
+                        <a href="<?= base_url('other-accounts') ?>" class="nav-link">Other Accounts</a>
                         <a href="<?= base_url('boa') ?>" class="nav-link">BOA</a>
                         <a href="<?= base_url('excess') ?>" class="nav-link">Excess</a>
                         <a href="<?= base_url('logout') ?>" class="nav-link">Logout</a>
@@ -129,16 +314,6 @@
             </div>
         </header>
         <main class="mx-auto max-w-6xl px-6 py-6">
-            <?php if ($message = session()->getFlashdata('success')): ?>
-                <div class="card mb-4 px-4 py-2 text-sm">
-                    <?= esc($message) ?>
-                </div>
-            <?php endif; ?>
-            <?php if ($message = session()->getFlashdata('error')): ?>
-                <div class="card mb-4 px-4 py-2 text-sm">
-                    <?= esc($message) ?>
-                </div>
-            <?php endif; ?>
             <?= $this->renderSection('content') ?>
         </main>
     </div>
