@@ -5,8 +5,81 @@ $itemsJson = json_encode($itemsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | 
 $deliveryAllocJson = json_encode($allocationsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 ?>
+<script>
+    // Store data in window before Alpine initializes
+    window.ledgerData = {
+        itemsByDelivery: <?= $itemsJson ?>,
+        allocationsByDelivery: <?= $deliveryAllocJson ?>,
+        allocationsByPayment: <?= $paymentAllocJson ?>
+    };
+    
+    function ledgerItems() {
+        console.log('Ledger data:', window.ledgerData);
+        return {
+            itemsByDelivery: window.ledgerData.itemsByDelivery,
+            allocationsByDelivery: window.ledgerData.allocationsByDelivery,
+            allocationsByPayment: window.ledgerData.allocationsByPayment,
+            itemsOpen: false,
+            allocOpen: false,
+            allocType: '',
+            selectedItemId: null,
+            selectedAllocId: null,
+            openItems(id) {
+                this.selectedItemId = id;
+                this.itemsOpen = true;
+                this.allocOpen = false;
+            },
+            closeItems() {
+                this.itemsOpen = false;
+                this.selectedItemId = null;
+            },
+            selectedItems() {
+                return this.itemsByDelivery[this.selectedItemId] || [];
+            },
+            itemsTotal() {
+                return this.selectedItems()
+                    .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
+                    .toFixed(2);
+            },
+            openDeliveryAllocations(id) {
+                this.allocType = 'delivery';
+                this.selectedAllocId = id;
+                this.allocOpen = true;
+                this.itemsOpen = false;
+            },
+            openPaymentAllocations(id) {
+                this.allocType = 'payment';
+                this.selectedAllocId = id;
+                this.allocOpen = true;
+                this.itemsOpen = false;
+            },
+            closeAllocations() {
+                this.allocOpen = false;
+                this.allocType = '';
+                this.selectedAllocId = null;
+            },
+            selectedAllocations() {
+                if (this.allocType === 'delivery') {
+                    return this.allocationsByDelivery[this.selectedAllocId] || [];
+                }
+                if (this.allocType === 'payment') {
+                    return this.allocationsByPayment[this.selectedAllocId] || [];
+                }
+                return [];
+            },
+            allocTotal() {
+                return this.selectedAllocations()
+                    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+                    .toFixed(2);
+            },
+            allocTitle() {
+                return this.allocType === 'delivery' ? 'DR Allocations' : 'PR Allocations';
+            }
+        };
+    }
+</script>
 
-<div x-data="ledgerItems(<?= $itemsJson ?>, <?= $deliveryAllocJson ?>, <?= $paymentAllocJson ?>)">
+<div x-data="ledgerItems()">
     <h1 class="text-xl font-semibold">Client Ledger</h1>
     <p class="mt-1 text-sm muted">Shows overall balance with optional date range.</p>
 
@@ -30,7 +103,7 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
     </form>
 
     <?php if ($selectedClient): ?>
-        <div class="mt-6 card p-4 text-sm">
+        <!-- <div class="mt-6 card p-4 text-sm">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <div class="font-semibold">Import Ledger</div>
@@ -41,7 +114,7 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
                     <button class="btn btn-secondary" type="button" disabled>Import</button>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <div class="mt-6 card p-4 text-sm">
             <div class="flex justify-between">
@@ -193,69 +266,4 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
     </div>
 </div>
 
-<script>
-    function ledgerItems(itemsByDelivery, allocationsByDelivery, allocationsByPayment) {
-        return {
-            itemsByDelivery,
-            allocationsByDelivery,
-            allocationsByPayment,
-            itemsOpen: false,
-            allocOpen: false,
-            allocType: '',
-            selectedItemId: null,
-            selectedAllocId: null,
-            openItems(id) {
-                this.selectedItemId = id;
-                this.itemsOpen = true;
-                this.allocOpen = false;
-            },
-            closeItems() {
-                this.itemsOpen = false;
-                this.selectedItemId = null;
-            },
-            selectedItems() {
-                return this.itemsByDelivery[this.selectedItemId] || [];
-            },
-            itemsTotal() {
-                return this.selectedItems()
-                    .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
-                    .toFixed(2);
-            },
-            openDeliveryAllocations(id) {
-                this.allocType = 'delivery';
-                this.selectedAllocId = id;
-                this.allocOpen = true;
-                this.itemsOpen = false;
-            },
-            openPaymentAllocations(id) {
-                this.allocType = 'payment';
-                this.selectedAllocId = id;
-                this.allocOpen = true;
-                this.itemsOpen = false;
-            },
-            closeAllocations() {
-                this.allocOpen = false;
-                this.allocType = '';
-                this.selectedAllocId = null;
-            },
-            selectedAllocations() {
-                if (this.allocType === 'delivery') {
-                    return this.allocationsByDelivery[this.selectedAllocId] || [];
-                }
-                if (this.allocType === 'payment') {
-                    return this.allocationsByPayment[this.selectedAllocId] || [];
-                }
-                return [];
-            },
-            allocTotal() {
-                return this.selectedAllocations()
-                    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
-                    .toFixed(2);
-            },
-            allocTitle() {
-                return this.allocType === 'delivery' ? 'DR Allocations' : 'PR Allocations';
-            }
-        };
-    }
-</script>
 <?= $this->endSection() ?>
