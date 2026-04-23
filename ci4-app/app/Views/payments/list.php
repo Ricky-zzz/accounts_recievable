@@ -8,12 +8,20 @@ $allocationsJson = json_encode($allocationsByPayment ?? [], $jsonFlags);
 <div x-data="paymentList()">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h1 class="text-xl font-semibold">Payments</h1>
+            <h2 class="text-lg font-semibold">Payments for <?= esc($client['name'] ?? '') ?></h2>
             <p class="mt-1 text-sm muted">Filter payments by date range.</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <?php if (! empty($client['id'])): ?>
+                <a class="btn" href="<?= base_url('payments/client/' . $client['id'] . '/create') ?>">Pay</a>
+                <a class="btn btn-secondary" target="_blank" href="<?= base_url('payments/client/' . $client['id'] . '/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>">Print PDF</a>
+            <?php endif; ?>
+            <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
         </div>
     </div>
 
-    <form method="get" action="<?= base_url('payments') ?>" class="mt-4 grid gap-4 sm:grid-cols-3">
+    <form method="get" action="<?= base_url('payments/client/' . ($client['id'] ?? 0)) ?>" class="mt-4 grid gap-4 sm:grid-cols-3">
         <div>
             <label class="block text-sm font-medium" for="from_date">From Date</label>
             <input
@@ -34,7 +42,7 @@ $allocationsJson = json_encode($allocationsByPayment ?? [], $jsonFlags);
         </div>
         <div class="flex items-end gap-2">
             <button class="btn btn-secondary" type="submit">Filter</button>
-            <a class="btn btn-secondary" href="<?= base_url('payments') ?>">Clear</a>
+            <a class="btn btn-secondary" href="<?= base_url('payments/client/' . ($client['id'] ?? 0)) ?>">Clear</a>
         </div>
     </form>
 

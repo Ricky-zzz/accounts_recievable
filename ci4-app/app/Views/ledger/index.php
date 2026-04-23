@@ -12,7 +12,7 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
         allocationsByDelivery: <?= $deliveryAllocJson ?>,
         allocationsByPayment: <?= $paymentAllocJson ?>
     };
-    
+
     function ledgerItems() {
         console.log('Ledger data:', window.ledgerData);
         return {
@@ -99,6 +99,9 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
         </div>
         <div class="sm:col-span-4">
             <button class="btn" type="submit">Filter</button>
+            <?php if ($selectedClient): ?>
+                <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc($clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print PDF</a>
+            <?php endif; ?>
         </div>
     </form>
 

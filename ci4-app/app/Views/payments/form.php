@@ -12,8 +12,14 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
     data-deliveries="<?= esc($deliveriesJson, 'attr') ?>"
     data-other-accounts="<?= esc($otherAccountsJson, 'attr') ?>"
     data-current-excess="<?= esc((string) $currentExcess, 'attr') ?>">
-    <h1 class="text-xl font-semibold">Payment for <?= esc($client['name']) ?></h1>
-    <p class="mt-1 text-sm muted">Allocate receipts and commit when ready.</p>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h1 class="text-xl font-semibold">Payment for <?= esc($client['name']) ?></h1>
+            <p class="mt-1 text-sm muted">Allocate receipts and commit when ready.</p>
+        </div>
+
+        <a class="btn btn-secondary" href="<?= base_url('payments/client/' . $client['id']) ?>">Back</a>
+    </div>
 
     <form class="mt-6 space-y-6" method="post" action="<?= base_url('payments') ?>">
         <?= csrf_field() ?>
@@ -86,7 +92,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
             </div>
         </div>
 
-        <div class="mt-6 overflow-x-auto">
+        <div class="mt-6 overflow-x-auto pb-4">
             <div class="flex gap-10 min-w-[1700px]">
                 <div class="min-w-[320px]">
                     <div class="flex items-center justify-between">
@@ -122,7 +128,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     </table>
                     <div class="mt-4 space-y-2 text-sm">
                         <div class="flex justify-between">
-                            <span>Total Balance</span>
+                            <span>Total </span>
                             <span x-text="unpaidTotal().toFixed(2)"></span>
                         </div>
                     </div>
@@ -169,17 +175,14 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                             <span x-text="allocatedTotal().toFixed(2)"></span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Balance</span>
-                            <span x-text="balanceAmount().toFixed(2)"></span>
+                            <span>Other Accounts Total</span>
+                            <span x-text="diffDrCr().toFixed(2)"></span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Excess</span>
-                            <span x-text="currentExcess.toFixed(2)"></span>
+                            <span>A/R Trade Total</span>
+                            <span x-text="arTradeTotal().toFixed(2)"></span>
                         </div>
-                        <div class="flex justify-between">
-                            <span>Available + DR (affects)</span>
-                            <span x-text="availableToAllocate().toFixed(2)"></span>
-                        </div>
+
                     </div>
                 </div>
 
@@ -250,7 +253,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                         <thead>
                             <tr>
                                 <th>Description</th>
-                                <th>Impact</th>
                                 <th>Amount</th>
                                 <th class="text-right">Remove</th>
                             </tr>
@@ -258,19 +260,17 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                         <tbody>
                             <template x-if="arOtherRows.length === 0">
                                 <tr>
-                                    <td class="py-3" colspan="4">No A/R other yet.</td>
+                                    <td class="py-3" colspan="3">No A/R other yet.</td>
                                 </tr>
                             </template>
                             <template x-for="(row, index) in arOtherRows" :key="row.description + '-' + index">
                                 <tr>
                                     <td x-text="row.description || '-'" class="text-xs"></td>
-                                    <td x-text="row.affects_trade ? 'Add' : 'Independent'"></td>
                                     <td x-text="Number(row.amount).toFixed(2)"></td>
                                     <td class="text-right">
                                         <button class="btn-link" type="button" @click="removeArOther(index)">Remove</button>
                                         <input type="hidden" :name="'ar_others[' + index + '][description]'" :value="row.description">
                                         <input type="hidden" :name="'ar_others[' + index + '][amount]'" :value="row.amount">
-                                        <input type="hidden" :name="'ar_others[' + index + '][affects_trade]'" :value="row.affects_trade ? 1 : 0">
                                     </td>
                                 </tr>
                             </template>
@@ -279,7 +279,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
 
                     <div class="mt-4 space-y-2 text-sm">
                         <div class="flex justify-between">
-                            <span>Total</span>
+                            <span>A/R Others Total</span>
                             <span x-text="arOtherTotal().toFixed(2)"></span>
                         </div>
                     </div>
@@ -287,7 +287,16 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
             </div>
         </div>
 
-        <div class="flex gap-3">
+        <div class="flex flex-wrap items-end gap-3">
+            <div class="min-w-[240px]">
+                <label class="block text-sm font-medium" for="unallocated_amount">Unallocated Amount</label>
+                <input
+                    class="input mt-1 text-right"
+                    id="unallocated_amount"
+                    type="text"
+                    :value="balanceAmount().toFixed(2)"
+                    readonly>
+            </div>
             <button class="btn" type="submit">Commit Transaction</button>
             <a class="btn btn-secondary" href="<?= base_url('payments') ?>">Cancel</a>
         </div>
@@ -351,13 +360,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                         <input class="input mt-1" id="modal_ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherForm.amount">
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium" for="modal_ar_other_affects_trade">AR Trade Impact</label>
-                    <select class="input mt-1" id="modal_ar_other_affects_trade" x-model="arOtherForm.affects_trade">
-                        <option value="0">Independent</option>
-                        <option value="1">Adds to AR Trade</option>
-                    </select>
-                </div>
+                <div class="text-xs muted">A/R Other entries do not affect AR Trade.</div>
             </div>
             <div class="mt-4 flex gap-3">
                 <button class="btn" type="button" @click="addArOther()">Add Entry</button>
@@ -424,7 +427,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
             arOtherForm: {
                 description: '',
                 amount: '',
-                affects_trade: '0',
             },
             init() {
                 const root = this.$el;
@@ -476,6 +478,9 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     .filter((row) => row.type === 'cr')
                     .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
             },
+            diffDrCr() {
+                return this.otherDrTotal() - this.otherCrTotal();
+            },
             otherDrAffectTotal() {
                 return this.otherAccountRows
                     .filter((row) => row.type === 'dr' && row.affects_trade)
@@ -489,19 +494,17 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
             arOtherTotal() {
                 return this.arOtherRows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
             },
-            arOtherAffectTotal() {
-                return this.arOtherRows
-                    .filter((row) => row.affects_trade)
-                    .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+            arTradeTotal() {
+                return this.allocatedTotal() + this.otherDrAffectTotal() - this.otherCrAffectTotal();
             },
             balanceAmount() {
-                return (parseFloat(this.amountReceived) || 0) - this.allocatedTotal();
+                return (parseFloat(this.amountReceived) || 0) - this.allocatedTotal() - this.arOtherTotal();
             },
             availableToAllocate() {
-                return (parseFloat(this.amountReceived) || 0)
-                    + Math.max(0, this.currentExcess)
-                    + this.otherDrAffectTotal()
-                    - this.allocatedTotal();
+                return (parseFloat(this.amountReceived) || 0) +
+                    Math.max(0, this.currentExcess) +
+                    this.otherDrAffectTotal() -
+                    this.allocatedTotal();
             },
             openPayModal(delivery) {
                 this.modalDelivery = delivery;
@@ -612,7 +615,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     return;
                 }
                 const row = this.otherAccountRows[index];
-                
+
                 // If this was a discount linked to a delivery, restore its balance
                 if (row.reference && row.type === 'dr') {
                     const allocation = this.allocations.find((a) => a.dr_no === row.reference);
@@ -624,14 +627,12 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                         }
                     }
                 }
-                
+
                 this.otherAccountRows.splice(index, 1);
             },
             addArOther() {
                 const description = (this.arOtherForm.description || '').trim();
                 const amount = parseFloat(this.arOtherForm.amount) || 0;
-                const affectsTrade = this.arOtherForm.affects_trade === '1';
-
                 if (amount <= 0) {
                     alert('Enter a valid amount.');
                     return;
@@ -640,7 +641,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 this.arOtherRows.push({
                     description: description,
                     amount: amount,
-                    affects_trade: affectsTrade,
                 });
 
                 this.closeArOtherModal();
@@ -649,7 +649,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 this.arOtherForm = {
                     description: '',
                     amount: '',
-                    affects_trade: '0',
                 };
             },
             removeArOther(index) {

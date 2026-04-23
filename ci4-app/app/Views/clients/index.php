@@ -36,7 +36,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
-                <th>Ledger</th>
+                <th>Transactions</th>
                 <th class="text-right">Actions</th>
             </tr>
         </thead>
@@ -52,7 +52,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td><?= esc($client['email'] ?? '') ?></td>
                         <td><?= esc($client['phone'] ?? '') ?></td>
                         <td>
-                            <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">View Ledger</a>
+                            <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a> |
+                            <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a> |
+                            <a class="btn-link" href="<?= base_url('payments/client/' . $client['id']) ?>">Payments</a>
                         </td>
                         <td class="text-left">
                             <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $client['id'] ?>)">Edit</button>

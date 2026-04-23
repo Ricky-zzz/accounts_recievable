@@ -12,28 +12,93 @@ use App\Models\OtherAccountModel;
 use App\Models\PaymentAllocationModel;
 use App\Models\PaymentModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class Payments extends BaseController
 {
     public function index(): string
     {
-        $clientModel = new ClientModel();
-        $query = trim((string) $this->request->getGet('q'));
-        $builder = $clientModel->orderBy('name', 'asc');
-
-        if ($query !== '') {
-            $builder
-                ->groupStart()
-                ->like('name', $query)
-                ->orLike('email', $query)
-                ->orLike('phone', $query)
-                ->groupEnd();
-        }
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchPayments(null, $fromDate, $toDate);
 
         return view('payments/index', [
-            'clients' => $builder->findAll(),
-            'query' => $query,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'payments' => $result['payments'],
+            'allocationsByPayment' => $result['allocationsByPayment'],
+            'totalCollections' => $result['totalCollections'],
         ]);
+    }
+
+    public function clientList(int $clientId): string
+    {
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($clientId);
+
+        if (! $client) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchPayments($clientId, $fromDate, $toDate);
+
+        return view('payments/list', [
+            'client' => $client,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'payments' => $result['payments'],
+            'allocationsByPayment' => $result['allocationsByPayment'],
+            'totalCollections' => $result['totalCollections'],
+        ]);
+    }
+
+    public function listPrint(int $clientId)
+    {
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($clientId);
+
+        if (! $client) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchPayments($clientId, $fromDate, $toDate);
+
+        $html = view('payments/listprint', [
+            'client' => $client,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'payments' => $result['payments'],
+            'totalCollections' => $result['totalCollections'],
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="payments-list-report.pdf"')
+            ->setBody($dompdf->output());
+    }
+
+    private function resolveDateRange(): array
+    {
+        $fromDate = trim((string) ($this->request->getGet('from_date') ?? ''));
+        $toDate = trim((string) ($this->request->getGet('to_date') ?? ''));
+
+        if ($fromDate === '' && $toDate === '') {
+            $fromDate = date('Y-m-d');
+            $toDate = date('Y-m-d');
+        }
+
+        return [$fromDate, $toDate];
     }
 
     public function createForm(int $clientId): string
@@ -193,8 +258,6 @@ class Payments extends BaseController
         }
 
         $arOtherData = [];
-        $arOtherTotal = 0.0;
-        $arOtherAffectTotal = 0.0;
 
         if (is_array($arOtherRows) && ! empty($arOtherRows)) {
             foreach ($arOtherRows as $row) {
@@ -203,18 +266,10 @@ class Payments extends BaseController
                     continue;
                 }
                 $description = trim((string) ($row['description'] ?? ''));
-                $affectsTrade = ((string) ($row['affects_trade'] ?? '0')) === '1';
-
                 $arOtherData[] = [
                     'description' => $description,
                     'amount' => $amount,
-                    'affects_trade' => $affectsTrade,
                 ];
-
-                $arOtherTotal += $amount;
-                if ($affectsTrade) {
-                    $arOtherAffectTotal += $amount;
-                }
             }
         }
 
@@ -346,7 +401,7 @@ class Payments extends BaseController
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $arTradeTotal = $allocatedTotal + $otherDrAffectTotal - $otherCrAffectTotal + $arOtherAffectTotal;
+        $arTradeTotal = $allocatedTotal + $otherDrAffectTotal - $otherCrAffectTotal;
 
         $boaModel->protect(false)->insert([
             'date' => $date,
@@ -396,7 +451,7 @@ class Payments extends BaseController
             return redirect()->back()->withInput()->with('error', 'Failed to save payment.');
         }
 
-        return redirect()->to('/payments')->with('success', 'Payment saved.');
+        return redirect()->to('payments/client/' . $clientId)->with('success', 'Payment saved.');
     }
 
     private function fetchUnpaidDeliveries(int $clientId): array
@@ -416,5 +471,62 @@ class Payments extends BaseController
             ->orderBy('d.date', 'asc');
 
         return $builder->get()->getResultArray();
+    }
+
+    private function fetchPayments(?int $clientId, string $fromDate, string $toDate): array
+    {
+        $db = db_connect();
+
+        $builder = $db->table('payments p');
+        $builder
+            ->select('p.id, p.client_id, p.pr_no, p.date, p.amount_received')
+            ->where('p.status', 'posted');
+
+        if ($clientId !== null) {
+            $builder->where('p.client_id', $clientId);
+        }
+
+        if ($fromDate !== '') {
+            $builder->where('p.date >=', $fromDate);
+        }
+
+        if ($toDate !== '') {
+            $builder->where('p.date <=', $toDate);
+        }
+
+        $payments = $builder
+            ->orderBy('p.date', 'desc')
+            ->orderBy('p.id', 'desc')
+            ->get()
+            ->getResultArray();
+
+        $paymentIds = array_filter(array_map('intval', array_column($payments, 'id')));
+        $allocationsByPayment = [];
+
+        if (! empty($paymentIds)) {
+            $allocations = $db->table('payment_allocations pa')
+                ->select('pa.payment_id, pa.amount, d.dr_no, d.date')
+                ->join('deliveries d', 'd.id = pa.delivery_id', 'left')
+                ->whereIn('pa.payment_id', $paymentIds)
+                ->orderBy('d.date', 'asc')
+                ->get()
+                ->getResultArray();
+
+            foreach ($allocations as $allocation) {
+                $paymentId = (int) $allocation['payment_id'];
+                $allocationsByPayment[$paymentId][] = $allocation;
+            }
+        }
+
+        $totalCollections = 0.0;
+        foreach ($payments as $payment) {
+            $totalCollections += (float) $payment['amount_received'];
+        }
+
+        return [
+            'payments' => $payments,
+            'allocationsByPayment' => $allocationsByPayment,
+            'totalCollections' => $totalCollections,
+        ];
     }
 }

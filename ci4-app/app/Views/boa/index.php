@@ -15,6 +15,7 @@
             <input class="input" type="date" name="to" value="<?= esc($to) ?>">
         </div>
         <button class="btn btn-secondary" type="submit">Filter</button>
+        <a class="btn" target="_blank" href="<?= base_url('boa/print') ?>?from=<?= esc($from) ?>&to=<?= esc($to) ?>">Print PDF</a>
     </form>
 </div>
 
@@ -66,6 +67,25 @@
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
+        <?php if (! empty($records)): ?>
+            <tfoot>
+                <tr class="border-t border-gray-300 font-semibold">
+                    <td>Totals:</td>
+                    <td></td>
+                    <td></td>
+                    <?php foreach ($bankColumns as $column): ?>
+                        <td class="text-left"><?= number_format((float) ($totals['bankColumns'][$column] ?? 0), 2) ?></td>
+                    <?php endforeach; ?>
+                    <td class="text-left"><?= number_format((float) ($totals['ar_trade'] ?? 0), 2) ?></td>
+                    <td class="text-left"><?= number_format((float) ($totals['ar_others'] ?? 0), 2) ?></td>
+                    <td></td>
+                    <td class="text-left"><?= number_format((float) ($totals['dr'] ?? 0), 2) ?></td>
+                    <td class="text-left"><?= number_format((float) ($totals['cr'] ?? 0), 2) ?></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        <?php endif; ?>
     </table>
 <?php endif; ?>
 <?= $this->endSection() ?>

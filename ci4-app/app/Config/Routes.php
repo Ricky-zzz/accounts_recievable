@@ -32,8 +32,10 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('cashiers/assign-range', 'Cashiers::assignRange');
 
     $routes->get('deliveries', 'Deliveries::index');
-    $routes->get('deliveries/list', 'Deliveries::list');
+    $routes->get('deliveries/list', 'Deliveries::index');
     $routes->get('deliveries/client/(:num)', 'Deliveries::createForm/$1');
+    $routes->get('clients/(:num)/deliveries', 'Deliveries::clientList/$1');
+    $routes->get('clients/(:num)/deliveries/print', 'Deliveries::listPrint/$1');
     $routes->post('deliveries', 'Deliveries::create');
 
     $routes->get('other-accounts', 'OtherAccounts::index');
@@ -43,12 +45,16 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('other-accounts/(:num)/get', 'OtherAccounts::getAccount/$1');
 
     $routes->get('ledger', 'Ledger::index');
+    $routes->get('ledger/print', 'Ledger::print');
 
     $routes->get('payments', 'Payments::index');
-    $routes->get('payments/client/(:num)', 'Payments::createForm/$1');
+    $routes->get('payments/client/(:num)', 'Payments::clientList/$1');
+    $routes->get('payments/client/(:num)/print', 'Payments::listPrint/$1');
+    $routes->get('payments/client/(:num)/create', 'Payments::createForm/$1');
     $routes->post('payments', 'Payments::store');
 
     $routes->get('boa', 'Boa::index');
+    $routes->get('boa/print', 'Boa::print');
 
     $routes->get('excess', 'Excess::index');
 });

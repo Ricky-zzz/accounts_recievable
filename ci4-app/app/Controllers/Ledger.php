@@ -5,17 +5,70 @@ namespace App\Controllers;
 use App\Models\ClientModel;
 use App\Models\DeliveryItemModel;
 use App\Models\LedgerModel;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class Ledger extends BaseController
 {
     public function index(): string
     {
-        $clientModel = new ClientModel();
-        $clients = $clientModel->orderBy('name', 'asc')->findAll();
-
         $clientId = (int) $this->request->getGet('client_id');
         $start = (string) $this->request->getGet('start');
         $end = (string) $this->request->getGet('end');
+
+        $data = $this->buildReportData($clientId, $start, $end);
+        return view('ledger/index', $data);
+    }
+
+    public function print()
+    {
+        $clientId = (int) $this->request->getGet('client_id');
+        $start = (string) $this->request->getGet('start');
+        $end = (string) $this->request->getGet('end');
+
+        $data = $this->buildReportData($clientId, $start, $end);
+
+        if (! $data['selectedClient']) {
+            return redirect()->to(base_url('ledger'));
+        }
+
+        $amountTotal = 0.0;
+        $collectionTotal = 0.0;
+        $endingBalance = (float) ($data['openingBalance'] ?? 0);
+
+        foreach ($data['rows'] as $row) {
+            $amountTotal += (float) ($row['amount'] ?? 0);
+            $collectionTotal += (float) ($row['collection'] ?? 0);
+            $endingBalance = (float) ($row['balance'] ?? $endingBalance);
+        }
+
+        $data['totals'] = [
+            'amount' => $amountTotal,
+            'collection' => $collectionTotal,
+            'ending_balance' => $endingBalance,
+        ];
+
+        $html = view('ledger/print', $data);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="ledger-report.pdf"')
+            ->setBody($dompdf->output());
+    }
+
+    private function buildReportData(int $clientId, string $start, string $end): array
+    {
+        $clientModel = new ClientModel();
+        $clients = $clientModel->orderBy('name', 'asc')->findAll();
 
         $selectedClient = null;
         $openingBalance = 0.0;
@@ -112,7 +165,7 @@ class Ledger extends BaseController
             }
         }
 
-        return view('ledger/index', [
+        return [
             'clients' => $clients,
             'selectedClient' => $selectedClient,
             'clientId' => $clientId,
@@ -124,6 +177,6 @@ class Ledger extends BaseController
             'itemCounts' => $itemCounts,
             'allocationsByDelivery' => $allocationsByDelivery,
             'allocationsByPayment' => $allocationsByPayment,
-        ]);
+        ];
     }
 }

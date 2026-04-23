@@ -7,63 +7,84 @@ use App\Models\DeliveryItemModel;
 use App\Models\DeliveryModel;
 use App\Models\LedgerModel;
 use App\Models\ProductModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class Deliveries extends BaseController
 {
     public function index(): string
     {
-        $query = trim((string) ($this->request->getGet('q') ?? ''));
-        $clients = [];
-
-        if ($query !== '') {
-            $clientModel = new ClientModel();
-            $clients = $clientModel
-                ->like('name', $query)
-                ->orderBy('name', 'asc')
-                ->findAll();
-        }
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchDeliveries(null, $fromDate, $toDate);
 
         return view('deliveries/index', [
-            'query' => $query,
-            'clients' => $clients,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'deliveries' => $result['deliveries'],
+            'itemsByDelivery' => $result['itemsByDelivery'],
+            'allocationsByDelivery' => $result['allocationsByDelivery'],
+            'totalAmount' => $result['totalAmount'],
+            'totalBalance' => $result['totalBalance'],
         ]);
     }
 
-    public function list(): string
+    public function clientList(int $clientId): string
     {
-        $fromDate = trim((string) ($this->request->getGet('from_date') ?? ''));
-        $toDate = trim((string) ($this->request->getGet('to_date') ?? ''));
-        $deliveries = [];
-
-        // Default to today's date
-        if ($fromDate === '' && $toDate === '') {
-            $fromDate = date('Y-m-d');
-            $toDate = date('Y-m-d');
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($clientId);
+        if (! $client) {
+            throw PageNotFoundException::forPageNotFound();
         }
 
-        if ($fromDate !== '' || $toDate !== '') {
-            $db = db_connect();
-            $builder = $db->table('deliveries');
-            $builder
-                ->select('deliveries.*, clients.name as client_name')
-                ->join('clients', 'clients.id = deliveries.client_id', 'left');
-
-            if ($fromDate !== '') {
-                $builder->where('deliveries.date >=', $fromDate);
-            }
-            if ($toDate !== '') {
-                $builder->where('deliveries.date <=', $toDate);
-            }
-
-            $builder->orderBy('deliveries.date', 'desc')->orderBy('deliveries.id', 'desc');
-            $deliveries = $builder->get()->getResultArray();
-        }
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchDeliveries($clientId, $fromDate, $toDate);
 
         return view('deliveries/list', [
+            'client' => $client,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
-            'deliveries' => $deliveries,
+            'deliveries' => $result['deliveries'],
+            'itemsByDelivery' => $result['itemsByDelivery'],
+            'allocationsByDelivery' => $result['allocationsByDelivery'],
+            'totalAmount' => $result['totalAmount'],
+            'totalBalance' => $result['totalBalance'],
         ]);
+    }
+
+    public function listPrint(int $clientId)
+    {
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($clientId);
+        if (! $client) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchDeliveries($clientId, $fromDate, $toDate);
+
+        $html = view('deliveries/listprint', [
+            'client' => $client,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'deliveries' => $result['deliveries'],
+            'totalAmount' => $result['totalAmount'],
+            'totalBalance' => $result['totalBalance'],
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="deliveries-list-report.pdf"')
+            ->setBody($dompdf->output());
     }
 
     public function createForm($clientId = null)
@@ -201,7 +222,7 @@ class Deliveries extends BaseController
             return redirect()->back()->withInput()->with('error', 'Failed to save delivery.');
         }
 
-        return redirect()->to('/deliveries')->with('success', 'Delivery saved.');
+        return redirect()->to('clients/' . $postedClientId . '/deliveries')->with('success', 'Delivery saved.');
     }
 
     private function createFormWithErrors($validation = null, array $errors = [], $clientId = null)
@@ -228,5 +249,101 @@ class Deliveries extends BaseController
             'validation' => $validation,
             'extraErrors' => $errors,
         ]);
+    }
+
+    private function resolveDateRange(): array
+    {
+        $fromDate = trim((string) ($this->request->getGet('from_date') ?? ''));
+        $toDate = trim((string) ($this->request->getGet('to_date') ?? ''));
+
+        if ($fromDate === '' && $toDate === '') {
+            $fromDate = date('Y-m-d');
+            $toDate = date('Y-m-d');
+        }
+
+        return [$fromDate, $toDate];
+    }
+
+    private function fetchDeliveries(?int $clientId, string $fromDate, string $toDate): array
+    {
+        $db = db_connect();
+        $builder = $db->table('deliveries d');
+        $builder
+            ->select('d.id, d.client_id, d.dr_no, d.date, d.total_amount')
+            ->select('c.name as client_name')
+            ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
+            ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
+            ->join('clients c', 'c.id = d.client_id', 'left')
+            ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
+            ->join('payments p', 'p.id = pa.payment_id', 'left')
+            ->where('d.voided_at', null);
+
+        if ($clientId !== null) {
+            $builder->where('d.client_id', $clientId);
+        }
+
+        if ($fromDate !== '') {
+            $builder->where('d.date >=', $fromDate);
+        }
+
+        if ($toDate !== '') {
+            $builder->where('d.date <=', $toDate);
+        }
+
+        $deliveries = $builder
+            ->groupBy('d.id')
+            ->orderBy('d.date', 'desc')
+            ->orderBy('d.id', 'desc')
+            ->get()
+            ->getResultArray();
+
+        $deliveryIds = array_filter(array_map('intval', array_column($deliveries, 'id')));
+        $itemsByDelivery = [];
+        $allocationsByDelivery = [];
+
+        if (! empty($deliveryIds)) {
+            $itemModel = new DeliveryItemModel();
+            $items = $itemModel
+                ->select('delivery_items.*, products.product_name')
+                ->join('products', 'products.id = delivery_items.product_id', 'left')
+                ->whereIn('delivery_id', $deliveryIds)
+                ->orderBy('delivery_id', 'asc')
+                ->orderBy('id', 'asc')
+                ->findAll();
+
+            foreach ($items as $item) {
+                $deliveryId = (int) $item['delivery_id'];
+                $itemsByDelivery[$deliveryId][] = $item;
+            }
+
+            $allocations = $db->table('payment_allocations pa')
+                ->select('pa.delivery_id, pa.amount, p.pr_no, p.date')
+                ->join('payments p', 'p.id = pa.payment_id', 'left')
+                ->where('p.status', 'posted')
+                ->whereIn('pa.delivery_id', $deliveryIds)
+                ->orderBy('p.date', 'asc')
+                ->get()
+                ->getResultArray();
+
+            foreach ($allocations as $allocation) {
+                $deliveryId = (int) $allocation['delivery_id'];
+                $allocationsByDelivery[$deliveryId][] = $allocation;
+            }
+        }
+
+        $totalAmount = 0.0;
+        $totalBalance = 0.0;
+        foreach ($deliveries as $delivery) {
+            $totalAmount += (float) $delivery['total_amount'];
+            $totalBalance += (float) $delivery['balance'];
+        }
+
+        return [
+            'deliveries' => $deliveries,
+            'itemsByDelivery' => $itemsByDelivery,
+            'allocationsByDelivery' => $allocationsByDelivery,
+            'totalAmount' => $totalAmount,
+            'totalBalance' => $totalBalance,
+        ];
     }
 }

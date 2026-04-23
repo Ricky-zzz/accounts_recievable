@@ -1,7 +1,12 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<h1 class="text-xl font-semibold">New Delivery</h1>
-<p class="mt-1 text-sm muted">Add a delivery receipt with one or more items.</p>
+<div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+        <h1 class="text-xl font-semibold">New Delivery</h1>
+        <p class="mt-1 text-sm muted">Add a delivery receipt with one or more items.</p>
+    </div>
+    <a class="btn btn-secondary" href="<?= base_url(($selectedClient['id'] ?? $clientId ?? 0) ? 'clients/' . ($selectedClient['id'] ?? $clientId) . '/deliveries' : 'deliveries') ?>">Back</a>
+</div>
 
 <?php if (isset($validation)): ?>
     <div class="card mt-4 px-4 py-2 text-sm">
