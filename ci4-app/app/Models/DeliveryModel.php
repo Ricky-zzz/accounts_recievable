@@ -13,6 +13,8 @@ class DeliveryModel extends Model
         'client_id',
         'dr_no',
         'date',
+        'payment_term',
+        'due_date',
         'total_amount',
         'status',
         'void_reason',

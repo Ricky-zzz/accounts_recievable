@@ -3,15 +3,12 @@
 <?php
 $cashiersJson = json_encode($cashiers ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
 $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
-$otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
 ?>
 
 <div
     x-data="paymentForm()"
     data-cashiers="<?= esc($cashiersJson, 'attr') ?>"
-    data-deliveries="<?= esc($deliveriesJson, 'attr') ?>"
-    data-other-accounts="<?= esc($otherAccountsJson, 'attr') ?>"
-    data-current-excess="<?= esc((string) $currentExcess, 'attr') ?>">
+    data-deliveries="<?= esc($deliveriesJson, 'attr') ?>">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold">Payment for <?= esc($client['name']) ?></h1>
@@ -93,7 +90,7 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
         </div>
 
         <div class="mt-6 overflow-x-auto pb-4">
-            <div class="flex gap-10 min-w-[1700px]">
+            <div class="flex gap-10 min-w-[1100px]">
                 <div class="min-w-[320px]">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold">Unpaid Delivery Receipts</h2>
@@ -109,104 +106,44 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-if="deliveries.length === 0">
-                                <tr>
-                                    <td class="py-3" colspan="4">No unpaid deliveries.</td>
-                                </tr>
-                            </template>
-                            <template x-for="delivery in deliveries" :key="delivery.id">
-                                <tr x-show="delivery.working_balance > 0">
-                                    <td x-text="delivery.date"></td>
-                                    <td x-text="delivery.dr_no"></td>
-                                    <td x-text="Number(delivery.working_balance).toFixed(2)"></td>
-                                    <td class="text-left">
-                                        <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)">Pay</button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span>Total </span>
-                            <span x-text="unpaidTotal().toFixed(2)"></span>
-                        </div>
-                    </div>
-                </div>
+                            <div class="min-w-[420px]">
+                                <div class="flex items-center justify-between gap-3">
+                                    <h2 class="text-sm font-semibold">Other Accounts</h2>
+                                </div>
+                                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="block text-sm font-medium" for="sales_discount">Sales Discount</label>
+                                        <input class="input mt-1" id="sales_discount" name="sales_discount" type="number" step="0.01" min="0" x-model="salesDiscount">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium" for="delivery_charges">Delivery Charges</label>
+                                        <input class="input mt-1" id="delivery_charges" name="delivery_charges" type="number" step="0.01" min="0" x-model="deliveryCharges">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium" for="taxes">Taxes</label>
+                                        <input class="input mt-1" id="taxes" name="taxes" type="number" step="0.01" min="0" x-model="taxes">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium" for="commissions">Commissions</label>
+                                        <input class="input mt-1" id="commissions" name="commissions" type="number" step="0.01" min="0" x-model="commissions">
+                                    </div>
+                                </div>
+                            </div>
 
-                <div class="min-w-[320px]">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold">Allocations</h2>
-                        <span class="text-xs muted" x-text="allocations.length + ' allocations'"></span>
-                    </div>
-                    <table class="table mt-4">
-                        <thead>
-                            <tr>
-                                <th>DR#</th>
-                                <th>Amount</th>
-                                <th>Balance</th>
-                                <th class="text-right">Remove</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="allocations.length === 0">
-                                <tr>
-                                    <td class="py-3" colspan="4">No allocations yet.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(allocation, index) in allocations" :key="allocation.delivery_id + '-' + index">
-                                <tr>
-                                    <td x-text="allocation.dr_no"></td>
-                                    <td x-text="Number(allocation.amount).toFixed(2)"></td>
-                                    <td x-text="Number(allocation.balance_after).toFixed(2)"></td>
-                                    <td class="text-right">
-                                        <button class="btn-link" type="button" @click="removeAllocation(index)">Remove</button>
-                                        <input type="hidden" :name="'allocations[' + index + '][delivery_id]'" :value="allocation.delivery_id">
-                                        <input type="hidden" :name="'allocations[' + index + '][amount]'" :value="allocation.amount">
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-
-                    <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span>Allocated</span>
-                            <span x-text="allocatedTotal().toFixed(2)"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Other Accounts Total</span>
-                            <span x-text="diffDrCr().toFixed(2)"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>A/R Trade Total</span>
-                            <span x-text="arTradeTotal().toFixed(2)"></span>
-                        </div>
-
-                    </div>
-                </div>
-
-                <div class="min-w-[440px]">
-                    <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-sm font-semibold">Other Accounts</h2>
-                        <button class="btn btn-secondary" type="button" @click="openOtherAccountModal()">+ Other Account</button>
-                    </div>
-                    <p class="mt-1 text-xs muted" x-text="otherAccountRows.length + ' items'"></p>
-
-                    <table class="table mt-4">
-                        <thead>
-                            <tr>
-                                <th>Account</th>
-                                <th>Reference</th>
-                                <th>Type</th>
-                                <th>Impact</th>
-                                <th>Amount</th>
-                                <th class="text-right">Remove</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="otherAccountRows.length === 0">
-                                <tr>
+                            <div class="min-w-[320px]">
+                                <div class="flex items-center justify-between gap-3">
+                                    <h2 class="text-sm font-semibold">A/R Other</h2>
+                                </div>
+                                <div class="mt-4 grid gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium" for="ar_other_description">A/R Other Description</label>
+                                        <input class="input mt-1" id="ar_other_description" name="ar_other_description" type="text" x-model="arOtherDescription">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium" for="ar_other_amount">A/R Other Amount</label>
+                                        <input class="input mt-1" id="ar_other_amount" name="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherAmount">
+                                    </div>
+                                </div>
                                     <td class="py-3" colspan="6">No other accounts yet.</td>
                                 </tr>
                             </template>
@@ -302,73 +239,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
         </div>
     </form>
 
-    <div class="modal-backdrop" x-show="otherAccountModalOpen" x-cloak>
-        <div class="modal-panel max-w-md p-6">
-            <h2 class="text-lg font-semibold">Add Other Account</h2>
-            <div class="mt-4 grid gap-3">
-                <div>
-                    <label class="block text-sm font-medium" for="modal_other_account_id">Account</label>
-                    <select class="input mt-1" id="modal_other_account_id" x-model="otherAccountForm.account_id">
-                        <option value="">Select account</option>
-                        <template x-for="account in otherAccounts" :key="account.id">
-                            <option :value="account.id" x-text="`${account.name} - ${account.type}`"></option>
-                        </template>
-                    </select>
-                </div>
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium" for="modal_other_reference">Reference</label>
-                        <input class="input mt-1" id="modal_other_reference" type="text" x-model="otherAccountForm.reference" placeholder="DR101">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="modal_other_amount">Amount</label>
-                        <input class="input mt-1" id="modal_other_amount" type="number" step="0.01" min="0" x-model="otherAccountForm.amount">
-                    </div>
-                </div>
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium" for="modal_other_note">Note</label>
-                        <input class="input mt-1" id="modal_other_note" type="text" x-model="otherAccountForm.note" placeholder="Optional note">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="modal_other_affects_trade">AR Trade Impact</label>
-                        <select class="input mt-1" id="modal_other_affects_trade" x-model="otherAccountForm.affects_trade">
-                            <option value="1">Affects AR Trade</option>
-                            <option value="0">Independent</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4 flex gap-3">
-                <button class="btn" type="button" @click="addOtherAccount()">Add Entry</button>
-                <button class="btn btn-secondary" type="button" @click="closeOtherAccountModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop" x-show="arOtherModalOpen" x-cloak>
-        <div class="modal-panel max-w-md p-6">
-            <h2 class="text-lg font-semibold">Add A/R Other</h2>
-            <div class="mt-4 grid gap-3">
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium" for="modal_ar_other_description">Description</label>
-                        <input class="input mt-1" id="modal_ar_other_description" type="text" x-model="arOtherForm.description" placeholder="Description">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="modal_ar_other_amount">Amount</label>
-                        <input class="input mt-1" id="modal_ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherForm.amount">
-                    </div>
-                </div>
-                <div class="text-xs muted">A/R Other entries do not affect AR Trade.</div>
-            </div>
-            <div class="mt-4 flex gap-3">
-                <button class="btn" type="button" @click="addArOther()">Add Entry</button>
-                <button class="btn btn-secondary" type="button" @click="closeArOtherModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <div class="modal-backdrop" x-show="modalOpen" x-cloak>
         <div class="modal-panel max-w-md p-6">
             <h2 class="text-lg font-semibold">Allocate Payment</h2>
@@ -402,32 +272,21 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
         return {
             cashiers: [],
             deliveries: [],
-            otherAccounts: [],
-            currentExcess: 0,
             allocations: [],
-            otherAccountRows: [],
-            arOtherRows: [],
             selectedCashierId: '<?= esc(old('cashier_id')) ?>',
             activeReceipt: '',
             method: '<?= esc(old('method') ?: 'cash') ?>',
             amountReceived: '<?= esc(old('amount_received')) ?>',
             depositBankId: '<?= esc(old('deposit_bank_id')) ?>',
+            arOtherDescription: '<?= esc(old('ar_other_description')) ?>',
+            arOtherAmount: '<?= esc(old('ar_other_amount')) ?>',
+            salesDiscount: '<?= esc(old('sales_discount')) ?>',
+            deliveryCharges: '<?= esc(old('delivery_charges')) ?>',
+            taxes: '<?= esc(old('taxes')) ?>',
+            commissions: '<?= esc(old('commissions')) ?>',
             modalOpen: false,
             modalDelivery: null,
             modalAmount: '',
-            otherAccountModalOpen: false,
-            arOtherModalOpen: false,
-            otherAccountForm: {
-                account_id: '',
-                reference: '',
-                note: '',
-                amount: '',
-                affects_trade: '1',
-            },
-            arOtherForm: {
-                description: '',
-                amount: '',
-            },
             init() {
                 const root = this.$el;
                 this.cashiers = this.parseJson(root.dataset.cashiers, []);
@@ -437,10 +296,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                     ...delivery,
                     working_balance: parseFloat(delivery.balance) || 0
                 }));
-
-                this.otherAccounts = this.parseJson(root.dataset.otherAccounts, []);
-
-                this.currentExcess = parseFloat(root.dataset.currentExcess) || 0;
                 this.updateReceipt();
                 this.$watch('selectedCashierId', () => {
                     this.updateReceipt();
@@ -463,48 +318,20 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
             allocatedTotal() {
                 return this.allocations.reduce((sum, allocation) => sum + (parseFloat(allocation.amount) || 0), 0);
             },
+            fixedAccountsTotal() {
+                return [this.salesDiscount, this.deliveryCharges, this.taxes, this.commissions]
+                    .reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
+            },
             unpaidTotal() {
                 return this.deliveries
                     .filter((row) => parseFloat(row.working_balance) > 0)
                     .reduce((sum, row) => sum + (parseFloat(row.working_balance) || 0), 0);
             },
-            otherDrTotal() {
-                return this.otherAccountRows
-                    .filter((row) => row.type === 'dr')
-                    .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
-            },
-            otherCrTotal() {
-                return this.otherAccountRows
-                    .filter((row) => row.type === 'cr')
-                    .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
-            },
-            diffDrCr() {
-                return this.otherDrTotal() - this.otherCrTotal();
-            },
-            otherDrAffectTotal() {
-                return this.otherAccountRows
-                    .filter((row) => row.type === 'dr' && row.affects_trade)
-                    .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
-            },
-            otherCrAffectTotal() {
-                return this.otherAccountRows
-                    .filter((row) => row.type === 'cr' && row.affects_trade)
-                    .reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
-            },
-            arOtherTotal() {
-                return this.arOtherRows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
-            },
             arTradeTotal() {
-                return this.allocatedTotal() + this.otherDrAffectTotal() - this.otherCrAffectTotal();
+                return this.allocatedTotal() - this.fixedAccountsTotal();
             },
             balanceAmount() {
-                return (parseFloat(this.amountReceived) || 0) - this.allocatedTotal() - this.arOtherTotal();
-            },
-            availableToAllocate() {
-                return (parseFloat(this.amountReceived) || 0) +
-                    Math.max(0, this.currentExcess) +
-                    this.otherDrAffectTotal() -
-                    this.allocatedTotal();
+                return (parseFloat(this.amountReceived) || 0) - this.allocatedTotal() - (parseFloat(this.arOtherAmount) || 0);
             },
             openPayModal(delivery) {
                 this.modalDelivery = delivery;
@@ -516,20 +343,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 this.modalDelivery = null;
                 this.modalAmount = '';
             },
-            openOtherAccountModal() {
-                this.otherAccountModalOpen = true;
-            },
-            closeOtherAccountModal() {
-                this.otherAccountModalOpen = false;
-                this.clearOtherAccountForm();
-            },
-            openArOtherModal() {
-                this.arOtherModalOpen = true;
-            },
-            closeArOtherModal() {
-                this.arOtherModalOpen = false;
-                this.clearArOtherForm();
-            },
             confirmAllocation() {
                 const amount = parseFloat(this.modalAmount) || 0;
                 if (!this.modalDelivery || amount <= 0) {
@@ -537,10 +350,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 }
                 if (amount > this.modalDelivery.working_balance) {
                     alert('Amount exceeds delivery balance.');
-                    return;
-                }
-                if (amount > this.availableToAllocate()) {
-                    alert('Amount exceeds available allocation.');
                     return;
                 }
 
@@ -553,109 +362,6 @@ $otherAccountsJson = json_encode($otherAccounts ?? [], JSON_HEX_TAG | JSON_HEX_A
                 });
 
                 this.closePayModal();
-            },
-            addOtherAccount() {
-                const accountId = parseInt(this.otherAccountForm.account_id, 10);
-                const amount = parseFloat(this.otherAccountForm.amount) || 0;
-                const affectsTrade = this.otherAccountForm.affects_trade === '1';
-                const reference = (this.otherAccountForm.reference || '').trim();
-
-                if (!accountId || amount <= 0) {
-                    alert('Select an account and enter a valid amount.');
-                    return;
-                }
-
-                const account = this.otherAccounts.find((row) => String(row.id) === String(accountId));
-                if (!account) {
-                    alert('Selected account not found.');
-                    return;
-                }
-
-                // If reference matches a delivery DR# and account is DR type, deduct from that delivery
-                if (reference && account.type === 'dr') {
-                    const allocation = this.allocations.find((row) => row.dr_no === reference);
-                    if (allocation) {
-                        // Find the original delivery to verify sufficient balance
-                        const delivery = this.deliveries.find((row) => String(row.id) === String(allocation.delivery_id));
-                        if (delivery && delivery.working_balance >= 0) {
-                            if (amount > delivery.working_balance) {
-                                alert(`Discount amount (${amount}) exceeds remaining balance (${delivery.working_balance.toFixed(2)}) for ${reference}.`);
-                                return;
-                            }
-                            // Deduct discount from delivery's working balance
-                            delivery.working_balance = parseFloat((delivery.working_balance - amount).toFixed(2));
-                            allocation.balance_after = delivery.working_balance;
-                        }
-                    }
-                }
-
-                this.otherAccountRows.push({
-                    account_id: account.id,
-                    account_name: account.name,
-                    type: account.type,
-                    reference: reference,
-                    note: (this.otherAccountForm.note || '').trim(),
-                    amount: amount,
-                    affects_trade: affectsTrade,
-                });
-
-                this.closeOtherAccountModal();
-            },
-            clearOtherAccountForm() {
-                this.otherAccountForm = {
-                    account_id: '',
-                    reference: '',
-                    note: '',
-                    amount: '',
-                    affects_trade: '1',
-                };
-            },
-            removeOtherAccount(index) {
-                if (index < 0 || index >= this.otherAccountRows.length) {
-                    return;
-                }
-                const row = this.otherAccountRows[index];
-
-                // If this was a discount linked to a delivery, restore its balance
-                if (row.reference && row.type === 'dr') {
-                    const allocation = this.allocations.find((a) => a.dr_no === row.reference);
-                    if (allocation) {
-                        const delivery = this.deliveries.find((d) => String(d.id) === String(allocation.delivery_id));
-                        if (delivery) {
-                            delivery.working_balance = parseFloat((delivery.working_balance + parseFloat(row.amount)).toFixed(2));
-                            allocation.balance_after = delivery.working_balance;
-                        }
-                    }
-                }
-
-                this.otherAccountRows.splice(index, 1);
-            },
-            addArOther() {
-                const description = (this.arOtherForm.description || '').trim();
-                const amount = parseFloat(this.arOtherForm.amount) || 0;
-                if (amount <= 0) {
-                    alert('Enter a valid amount.');
-                    return;
-                }
-
-                this.arOtherRows.push({
-                    description: description,
-                    amount: amount,
-                });
-
-                this.closeArOtherModal();
-            },
-            clearArOtherForm() {
-                this.arOtherForm = {
-                    description: '',
-                    amount: '',
-                };
-            },
-            removeArOther(index) {
-                if (index < 0 || index >= this.arOtherRows.length) {
-                    return;
-                }
-                this.arOtherRows.splice(index, 1);
             },
             removeAllocation(index) {
                 const allocation = this.allocations[index];

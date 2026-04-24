@@ -8,7 +8,6 @@ use App\Models\CashierModel;
 use App\Models\CashierReceiptRangeModel;
 use App\Models\ClientModel;
 use App\Models\LedgerModel;
-use App\Models\OtherAccountModel;
 use App\Models\PaymentAllocationModel;
 use App\Models\PaymentModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
@@ -107,8 +106,6 @@ class Payments extends BaseController
         $cashierModel = new CashierModel();
         $rangeModel = new CashierReceiptRangeModel();
         $bankModel = new BankModel();
-        $paymentModel = new PaymentModel();
-        $otherAccountModel = new OtherAccountModel();
 
         $client = $clientModel->find($clientId);
         if (! $client) {
@@ -136,13 +133,6 @@ class Payments extends BaseController
             ];
         }
 
-        $excessRow = $paymentModel
-            ->select('SUM(amount_received - amount_allocated) as excess')
-            ->where('client_id', $clientId)
-            ->where('status', 'posted')
-            ->first();
-        $currentExcess = (float) ($excessRow['excess'] ?? 0);
-
         $unpaidDeliveries = $this->fetchUnpaidDeliveries($clientId);
 
         return view('payments/form', [
@@ -150,8 +140,6 @@ class Payments extends BaseController
             'cashiers' => $cashierData,
             'banks' => $bankModel->orderBy('bank_name', 'asc')->findAll(),
             'unpaidDeliveries' => $unpaidDeliveries,
-            'currentExcess' => $currentExcess,
-            'otherAccounts' => $otherAccountModel->orderBy('name', 'asc')->findAll(),
         ]);
     }
 
@@ -166,8 +154,12 @@ class Payments extends BaseController
         $payerBank = trim((string) $this->request->getPost('payer_bank'));
         $checkNo = trim((string) $this->request->getPost('check_no'));
         $allocations = $this->request->getPost('allocations');
-        $otherAccountRows = $this->request->getPost('other_accounts');
-        $arOtherRows = $this->request->getPost('ar_others');
+        $arOtherDescription = trim((string) $this->request->getPost('ar_other_description'));
+        $arOtherAmount = (float) $this->request->getPost('ar_other_amount');
+        $salesDiscount = (float) $this->request->getPost('sales_discount');
+        $deliveryCharges = (float) $this->request->getPost('delivery_charges');
+        $taxes = (float) $this->request->getPost('taxes');
+        $commissions = (float) $this->request->getPost('commissions');
 
         if ($clientId <= 0 || $cashierId <= 0 || $date === '' || $amountReceived <= 0) {
             return redirect()->back()->withInput()->with('error', 'Please complete the payment form.');
@@ -191,87 +183,29 @@ class Payments extends BaseController
 
         $allocations = is_array($allocations) ? $allocations : [];
 
-        $otherAccountsData = [];
-        $otherDrTotal = 0.0;
-        $otherCrTotal = 0.0;
-        $otherDrAffectTotal = 0.0;
-        $otherCrAffectTotal = 0.0;
-
-        if (is_array($otherAccountRows) && ! empty($otherAccountRows)) {
-            $accountIds = [];
-            foreach ($otherAccountRows as $row) {
-                $accountIds[] = (int) ($row['account_id'] ?? 0);
-            }
-
-            $accountIds = array_values(array_filter(array_unique($accountIds)));
-            if (! empty($accountIds)) {
-                $otherAccountModel = new OtherAccountModel();
-                $accounts = $otherAccountModel->whereIn('id', $accountIds)->findAll();
-                $accountMap = [];
-                foreach ($accounts as $account) {
-                    $accountMap[(int) $account['id']] = $account;
-                }
-
-                foreach ($otherAccountRows as $row) {
-                    $accountId = (int) ($row['account_id'] ?? 0);
-                    $amount = (float) ($row['amount'] ?? 0);
-                    if ($accountId <= 0 || $amount <= 0) {
-                        continue;
-                    }
-
-                    $account = $accountMap[$accountId] ?? null;
-                    if (! $account) {
-                        return redirect()->back()->withInput()->with('error', 'Selected other account not found.');
-                    }
-
-                    $type = (string) ($account['type'] ?? '');
-                    if (! in_array($type, ['dr', 'cr'], true)) {
-                        return redirect()->back()->withInput()->with('error', 'Invalid other account type.');
-                    }
-
-                    $reference = trim((string) ($row['reference'] ?? ''));
-                    $note = trim((string) ($row['note'] ?? ''));
-                    $affectsTrade = ((string) ($row['affects_trade'] ?? '0')) === '1';
-
-                    $otherAccountsData[] = [
-                        'account_title' => (string) $account['name'],
-                        'type' => $type,
-                        'amount' => $amount,
-                        'reference' => $reference,
-                        'note' => $note,
-                        'affects_trade' => $affectsTrade,
-                    ];
-
-                    if ($type === 'dr') {
-                        $otherDrTotal += $amount;
-                        if ($affectsTrade) {
-                            $otherDrAffectTotal += $amount;
-                        }
-                    } else {
-                        $otherCrTotal += $amount;
-                        if ($affectsTrade) {
-                            $otherCrAffectTotal += $amount;
-                        }
-                    }
-                }
-            }
+        $fixedAccountRows = [
+            [
+                'title' => 'Sales Discount',
+                'amount' => max(0.0, $salesDiscount),
+            ],
+            [
+                'title' => 'Delivery Charges',
+                'amount' => max(0.0, $deliveryCharges),
+            ],
+            [
+                'title' => 'Taxes',
+                'amount' => max(0.0, $taxes),
+            ],
+            [
+                'title' => 'Commissions',
+                'amount' => max(0.0, $commissions),
+            ],
+        ];
+        $fixedAccountsTotal = 0.0;
+        foreach ($fixedAccountRows as $row) {
+            $fixedAccountsTotal += (float) $row['amount'];
         }
-
-        $arOtherData = [];
-
-        if (is_array($arOtherRows) && ! empty($arOtherRows)) {
-            foreach ($arOtherRows as $row) {
-                $amount = (float) ($row['amount'] ?? 0);
-                if ($amount <= 0) {
-                    continue;
-                }
-                $description = trim((string) ($row['description'] ?? ''));
-                $arOtherData[] = [
-                    'description' => $description,
-                    'amount' => $amount,
-                ];
-            }
-        }
+        $arOtherAmount = max(0.0, $arOtherAmount);
 
         helper('boa');
 
@@ -321,20 +255,8 @@ class Payments extends BaseController
             $allocatedTotal += $amount;
         }
 
-        if (empty($cleanAllocations) && empty($otherAccountsData) && empty($arOtherData)) {
-            return redirect()->back()->withInput()->with('error', 'Add a valid allocation or other entries.');
-        }
-
-        $excessRow = $paymentModel
-            ->select('SUM(amount_received - amount_allocated) as excess')
-            ->where('client_id', $clientId)
-            ->where('status', 'posted')
-            ->first();
-        $currentExcess = (float) ($excessRow['excess'] ?? 0);
-        $availableExcess = max(0.0, $currentExcess);
-
-        if ($allocatedTotal > ($amountReceived + $availableExcess + $otherDrAffectTotal)) {
-            return redirect()->back()->withInput()->with('error', 'Allocations exceed amount received plus excess and DR adjustments.');
+        if (empty($cleanAllocations) && $fixedAccountsTotal <= 0 && $arOtherAmount <= 0) {
+            return redirect()->back()->withInput()->with('error', 'Add a valid allocation, A/R other, or other account amount.');
         }
 
         $range = $rangeModel
@@ -355,7 +277,6 @@ class Payments extends BaseController
         $db->transStart();
 
         $prNo = (int) $range['next_no'];
-        $excessUsed = max(0.0, min($availableExcess, $allocatedTotal - $amountReceived - $otherDrAffectTotal));
 
         $paymentId = $paymentModel->insert([
             'client_id' => $clientId,
@@ -365,7 +286,7 @@ class Payments extends BaseController
             'method' => $method,
             'amount_received' => $amountReceived,
             'amount_allocated' => $allocatedTotal,
-            'excess_used' => $excessUsed,
+            'excess_used' => 0,
             'payer_bank' => $payerBank !== '' ? $payerBank : null,
             'check_no' => $checkNo !== '' ? $checkNo : null,
             'deposit_bank_id' => (int) $depositBankId ?: null,
@@ -401,7 +322,7 @@ class Payments extends BaseController
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $arTradeTotal = $allocatedTotal + $otherDrAffectTotal - $otherCrAffectTotal;
+        $arTradeTotal = $allocatedTotal - $fixedAccountsTotal;
 
         $boaModel->protect(false)->insert([
             'date' => $date,
@@ -412,27 +333,30 @@ class Payments extends BaseController
             $boaColumn => $amountReceived,
         ]);
 
-        foreach ($otherAccountsData as $row) {
-            $boaModel->protect(false)->insert([
-                'date' => $date,
-                'payor' => $clientId,
-                'reference' => $row['reference'] !== '' ? $row['reference'] : null,
-                'payment_id' => $paymentId,
-                'account_title' => $row['account_title'],
-                'note' => $row['note'] !== '' ? $row['note'] : null,
-                'dr' => $row['type'] === 'dr' ? $row['amount'] : 0,
-                'cr' => $row['type'] === 'cr' ? $row['amount'] : 0,
-            ]);
-        }
-
-        foreach ($arOtherData as $row) {
+        if ($arOtherAmount > 0) {
             $boaModel->protect(false)->insert([
                 'date' => $date,
                 'payor' => $clientId,
                 'reference' => (string) $prNo,
                 'payment_id' => $paymentId,
-                'ar_others' => $row['amount'],
-                'description' => $row['description'] !== '' ? $row['description'] : null,
+                'ar_others' => $arOtherAmount,
+                'description' => $arOtherDescription !== '' ? $arOtherDescription : null,
+            ]);
+        }
+
+        foreach ($fixedAccountRows as $row) {
+            if ((float) $row['amount'] <= 0) {
+                continue;
+            }
+
+            $boaModel->protect(false)->insert([
+                'date' => $date,
+                'payor' => $clientId,
+                'reference' => (string) $prNo,
+                'payment_id' => $paymentId,
+                'account_title' => $row['title'],
+                'dr' => $row['amount'],
+                'cr' => 0,
             ]);
         }
 

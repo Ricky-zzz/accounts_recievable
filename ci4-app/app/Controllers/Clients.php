@@ -51,13 +51,20 @@ class Clients extends BaseController
             'name' => 'required|min_length[2]',
             'email' => 'permit_empty|valid_email',
             'phone' => 'permit_empty|max_length[50]',
+            'credit_limit' => 'permit_empty|decimal|greater_than_equal_to[0]',
+            'payment_term' => 'permit_empty|is_natural',
         ];
+
+        $creditLimit = trim((string) $this->request->getPost('credit_limit'));
+        $paymentTerm = trim((string) $this->request->getPost('payment_term'));
 
         $client = [
             'name' => trim((string) $this->request->getPost('name')),
             'address' => trim((string) $this->request->getPost('address')),
             'email' => trim((string) $this->request->getPost('email')),
             'phone' => trim((string) $this->request->getPost('phone')),
+            'credit_limit' => $creditLimit === '' ? null : $creditLimit,
+            'payment_term' => $paymentTerm === '' ? null : (int) $paymentTerm,
         ];
 
         if (! $this->validate($rules)) {
@@ -88,13 +95,20 @@ class Clients extends BaseController
             'name' => 'required|min_length[2]',
             'email' => 'permit_empty|valid_email',
             'phone' => 'permit_empty|max_length[50]',
+            'credit_limit' => 'permit_empty|decimal|greater_than_equal_to[0]',
+            'payment_term' => 'permit_empty|is_natural',
         ];
+
+        $creditLimit = trim((string) $this->request->getPost('credit_limit'));
+        $paymentTerm = trim((string) $this->request->getPost('payment_term'));
 
         $client = [
             'name' => trim((string) $this->request->getPost('name')),
             'address' => trim((string) $this->request->getPost('address')),
             'email' => trim((string) $this->request->getPost('email')),
             'phone' => trim((string) $this->request->getPost('phone')),
+            'credit_limit' => $creditLimit === '' ? null : $creditLimit,
+            'payment_term' => $paymentTerm === '' ? null : (int) $paymentTerm,
         ];
 
         if (! $this->validate($rules)) {

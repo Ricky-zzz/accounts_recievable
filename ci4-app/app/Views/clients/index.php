@@ -13,6 +13,8 @@ $oldForm = [
     'address' => old('address'),
     'email' => old('email'),
     'phone' => old('phone'),
+    'credit_limit' => old('credit_limit'),
+    'payment_term' => old('payment_term'),
 ];
 
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
@@ -99,6 +101,16 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <input class="input mt-1" id="phone" name="phone" x-model="form.phone">
                         <span class="field-error" x-show="errors.phone" x-text="errors.phone"></span>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="credit_limit">Credit Limit</label>
+                        <input class="input mt-1" id="credit_limit" name="credit_limit" type="number" step="0.01" min="0" x-model="form.credit_limit">
+                        <span class="field-error" x-show="errors.credit_limit" x-text="errors.credit_limit"></span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="payment_term">Default Payment Term (days)</label>
+                        <input class="input mt-1" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
+                        <span class="field-error" x-show="errors.payment_term" x-text="errors.payment_term"></span>
+                    </div>
                 </div>
                 <div class="flex gap-3">
                     <button class="btn" type="submit" x-text="isEdit ? 'Update Client' : 'Create Client'"></button>
@@ -129,6 +141,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 address: '',
                 email: '',
                 phone: '',
+                credit_limit: '',
+                payment_term: '',
             },
             init() {
                 if (formMode === 'edit' && formId > 0) {
@@ -163,6 +177,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     address: '',
                     email: '',
                     phone: '',
+                    credit_limit: '',
+                    payment_term: '',
                 };
                 this.open = true;
             },
@@ -180,6 +196,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     address: client.address || '',
                     email: client.email || '',
                     phone: client.phone || '',
+                    credit_limit: client.credit_limit || '',
+                    payment_term: client.payment_term || '',
                 };
                 this.open = true;
             },

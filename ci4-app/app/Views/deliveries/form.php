@@ -28,21 +28,33 @@
     </div>
 <?php endif; ?>
 
+<?php
+$selectedClientId = (string) (old('client_id') ?: ($selectedClient['id'] ?? ''));
+$dateValue = (string) (old('date') ?: date('Y-m-d'));
+$termValue = old('payment_term');
+if (($termValue === null || $termValue === '') && isset($defaultPaymentTerm)) {
+    $termValue = (string) $defaultPaymentTerm;
+}
+if ($termValue === null) {
+    $termValue = '';
+}
+?>
+
 <form class="mt-6 space-y-6" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()">
     <?= csrf_field() ?>
-    <div class="grid gap-4 sm:grid-cols-3">
+    <div class="grid gap-4 sm:grid-cols-4">
         <?php if ($selectedClient): ?>
             <div>
                 <label class="block text-sm font-medium">Client</label>
                 <div class="mt-1 rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
                     <?= esc($selectedClient['name']) ?>
                 </div>
-                <input type="hidden" name="client_id" value="<?= esc($selectedClient['id']) ?>">
+                <input type="hidden" name="client_id" :value="selectedClientId">
             </div>
         <?php else: ?>
             <div>
                 <label class="block text-sm font-medium" for="client_id">Client</label>
-                <select class="input mt-1" id="client_id" name="client_id" required>
+                <select class="input mt-1" id="client_id" name="client_id" x-model="selectedClientId" @change="onClientChange()" required>
                     <option value="">Select client</option>
                     <?php foreach ($clients as $client): ?>
                         <option value="<?= esc($client['id']) ?>" <?= old('client_id') == $client['id'] ? 'selected' : '' ?>>
@@ -58,7 +70,15 @@
         </div>
         <div>
             <label class="block text-sm font-medium" for="date">Date</label>
-            <input class="input mt-1" id="date" name="date" type="date" value="<?= esc(old('date') ?: date('Y-m-d')) ?>" required>
+            <input class="input mt-1" id="date" name="date" type="date" value="<?= esc($dateValue) ?>" x-model="deliveryDate" @input="recomputeDueDate()" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium" for="payment_term">Payment Term (days)</label>
+            <input class="input mt-1" id="payment_term" name="payment_term" type="number" step="1" min="0" value="<?= esc((string) $termValue) ?>" x-model="paymentTerm" @input="recomputeDueDate()">
+        </div>
+        <div>
+            <label class="block text-sm font-medium" for="due_date_preview">Due Date</label>
+            <input class="input mt-1" id="due_date_preview" type="date" x-model="dueDate" readonly>
         </div>
     </div>
 
@@ -115,12 +135,51 @@
     function deliveryForm() {
         return {
             products: <?= $productsJson ?>,
+            clients: <?= $clientsJson ?? '[]' ?>,
+            selectedClientId: '<?= esc($selectedClientId, 'js') ?>',
+            paymentTerm: '<?= esc((string) $termValue, 'js') ?>',
+            deliveryDate: '<?= esc($dateValue, 'js') ?>',
+            dueDate: '',
             items: [{
                 product_id: '',
                 qty: 1,
                 unit_price: '',
                 line_total: '0.00'
             }],
+            init() {
+                if (this.paymentTerm === '' && this.selectedClientId !== '') {
+                    this.applyClientDefaultTerm();
+                }
+                this.recomputeDueDate();
+            },
+            onClientChange() {
+                this.applyClientDefaultTerm();
+                this.recomputeDueDate();
+            },
+            applyClientDefaultTerm() {
+                const selected = this.clients.find((client) => String(client.id) === String(this.selectedClientId));
+                this.paymentTerm = selected && selected.payment_term !== null ? String(selected.payment_term) : '';
+            },
+            recomputeDueDate() {
+                if (!this.deliveryDate) {
+                    this.dueDate = '';
+                    return;
+                }
+
+                const term = parseInt(this.paymentTerm, 10);
+                const days = Number.isFinite(term) && term >= 0 ? term : 0;
+                const date = new Date(this.deliveryDate + 'T00:00:00');
+                if (Number.isNaN(date.getTime())) {
+                    this.dueDate = '';
+                    return;
+                }
+
+                date.setDate(date.getDate() + days);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                this.dueDate = `${year}-${month}-${day}`;
+            },
             addItem() {
                 this.items.push({
                     product_id: '',

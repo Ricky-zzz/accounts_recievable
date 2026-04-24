@@ -43,6 +43,8 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
         <thead>
             <tr>
                 <th>Date</th>
+                <th>Due Date</th>
+                <th>Term</th>
                 <th>DR #</th>
                 <th>Client</th>
                 <th>Total Amount</th>
@@ -52,12 +54,14 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="py-3" colspan="5">No deliveries found for the selected date range.</td>
+                    <td class="py-3" colspan="7">No deliveries found for the selected date range.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($deliveries as $delivery): ?>
                     <tr>
                         <td><?= esc($delivery['date']) ?></td>
+                        <td><?= esc($delivery['due_date'] ?? '') ?></td>
+                        <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td>
                             <?php if (! empty($allocationsByDelivery[$delivery['id']])): ?>
                                 <button class="btn-link" type="button" @click="openAllocations(<?= (int) $delivery['id'] ?>)">

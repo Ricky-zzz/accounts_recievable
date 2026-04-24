@@ -69,6 +69,8 @@
         <thead>
             <tr>
                 <th>Date</th>
+                <th>Due Date</th>
+                <th>Term</th>
                 <th>DR #</th>
                 <th class="text-right">Total Amount</th>
                 <th class="text-right">Balance</th>
@@ -77,12 +79,14 @@
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="text-center" colspan="4">No deliveries found for the selected date range.</td>
+                    <td class="text-center" colspan="6">No deliveries found for the selected date range.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($deliveries as $delivery): ?>
                     <tr>
                         <td><?= esc($delivery['date']) ?></td>
+                        <td><?= esc($delivery['due_date'] ?? '') ?></td>
+                        <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td><?= esc($delivery['dr_no'] ?? '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($delivery['total_amount'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($delivery['balance'] ?? 0), 2)) ?></td>
@@ -93,7 +97,7 @@
         <?php if (! empty($deliveries)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="2">Totals</th>
+                    <th colspan="4">Totals</th>
                     <th class="text-right"><?= esc(number_format((float) ($totalAmount ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
                 </tr>

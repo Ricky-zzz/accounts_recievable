@@ -94,12 +94,18 @@ class Deliveries extends BaseController
 
         $products = $productModel->orderBy('product_name', 'asc')->findAll();
         $productsJson = json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+        $clients = $clientModel->orderBy('name', 'asc')->findAll();
 
         $selectedClient = null;
+        $defaultPaymentTerm = old('payment_term');
         if ($clientId) {
             $selectedClient = $clientModel->find((int) $clientId);
             if (! $selectedClient) {
                 return redirect()->to('/deliveries')->with('error', 'Client not found.');
+            }
+
+            if ($defaultPaymentTerm === null || $defaultPaymentTerm === '') {
+                $defaultPaymentTerm = $selectedClient['payment_term'] ?? '';
             }
         }
 
@@ -108,7 +114,9 @@ class Deliveries extends BaseController
             'action' => base_url('deliveries'),
             'clientId' => $clientId,
             'selectedClient' => $selectedClient,
-            'clients' => $clientModel->orderBy('name', 'asc')->findAll(),
+            'clients' => $clients,
+            'clientsJson' => json_encode($clients, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT),
+            'defaultPaymentTerm' => $defaultPaymentTerm,
             'products' => $products,
             'productsJson' => $productsJson,
         ]);
@@ -122,6 +130,7 @@ class Deliveries extends BaseController
             'client_id' => 'required|is_natural_no_zero',
             'dr_no' => 'required|max_length[50]',
             'date' => 'required|valid_date',
+            'payment_term' => 'permit_empty|is_natural',
         ];
 
         if (! $this->validate($rules)) {
@@ -131,7 +140,14 @@ class Deliveries extends BaseController
         $clientId = (int) $this->request->getPost('client_id');
         $drNo = trim((string) $this->request->getPost('dr_no'));
         $date = (string) $this->request->getPost('date');
+        $postedPaymentTerm = trim((string) $this->request->getPost('payment_term'));
         $items = $this->request->getPost('items');
+
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($clientId);
+        if (! $client) {
+            return $this->createFormWithErrors(null, ['Client not found.'], $clientId);
+        }
 
         if (! is_array($items) || count($items) === 0) {
             return $this->createFormWithErrors(null, ['At least one item is required.'], $clientId);
@@ -174,23 +190,6 @@ class Deliveries extends BaseController
             return $this->createFormWithErrors(null, ['Add at least one valid item with quantity.'], $clientId);
         }
 
-        $db = db_connect();
-        $db->transStart();
-
-        $deliveryId = $deliveryModel->insert([
-            'client_id' => $clientId,
-            'dr_no' => $drNo,
-            'date' => $date,
-            'total_amount' => $total,
-            'status' => 'open',
-        ], true);
-
-        $deliveryItemModel = new DeliveryItemModel();
-        foreach ($cleanItems as $index => $item) {
-            $cleanItems[$index]['delivery_id'] = $deliveryId;
-        }
-        $deliveryItemModel->insertBatch($cleanItems);
-
         $ledgerModel = new LedgerModel();
         $lastLedger = $ledgerModel
             ->select('balance')
@@ -199,6 +198,47 @@ class Deliveries extends BaseController
             ->orderBy('id', 'desc')
             ->first();
         $previousBalance = (float) ($lastLedger['balance'] ?? 0);
+
+        $creditLimit = $client['credit_limit'] ?? null;
+        if ($creditLimit !== null && $creditLimit !== '' && (float) $creditLimit > 0) {
+            $projectedBalance = $previousBalance + $total;
+            if ($projectedBalance > (float) $creditLimit) {
+                return $this->createFormWithErrors(
+                    null,
+                    [
+                        'Credit limit exceeded. Projected balance ' . number_format($projectedBalance, 2)
+                        . ' is greater than client credit limit ' . number_format((float) $creditLimit, 2) . '.',
+                    ],
+                    $clientId
+                );
+            }
+        }
+
+        $effectivePaymentTerm = $postedPaymentTerm === ''
+            ? (int) ($client['payment_term'] ?? 0)
+            : (int) $postedPaymentTerm;
+        $effectivePaymentTerm = max(0, $effectivePaymentTerm);
+        $dueDate = $this->calculateDueDate($date, $effectivePaymentTerm);
+
+        $db = db_connect();
+        $db->transStart();
+
+        $deliveryId = $deliveryModel->insert([
+            'client_id' => $clientId,
+            'dr_no' => $drNo,
+            'date' => $date,
+            'payment_term' => $effectivePaymentTerm,
+            'due_date' => $dueDate,
+            'total_amount' => $total,
+            'status' => 'active',
+        ], true);
+
+        $deliveryItemModel = new DeliveryItemModel();
+        foreach ($cleanItems as $index => $item) {
+            $cleanItems[$index]['delivery_id'] = $deliveryId;
+        }
+        $deliveryItemModel->insertBatch($cleanItems);
+
         $firstItem = $cleanItems[0] ?? null;
 
         $ledgerModel->insert([
@@ -232,10 +272,15 @@ class Deliveries extends BaseController
 
         $products = $productModel->orderBy('product_name', 'asc')->findAll();
         $productsJson = json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+        $clients = $clientModel->orderBy('name', 'asc')->findAll();
 
         $selectedClient = null;
+        $defaultPaymentTerm = old('payment_term');
         if ($clientId) {
             $selectedClient = $clientModel->find((int) $clientId);
+            if ($selectedClient && ($defaultPaymentTerm === null || $defaultPaymentTerm === '')) {
+                $defaultPaymentTerm = $selectedClient['payment_term'] ?? '';
+            }
         }
 
         return view('deliveries/form', [
@@ -243,7 +288,9 @@ class Deliveries extends BaseController
             'action' => base_url('deliveries'),
             'clientId' => $clientId,
             'selectedClient' => $selectedClient,
-            'clients' => $clientModel->orderBy('name', 'asc')->findAll(),
+            'clients' => $clients,
+            'clientsJson' => json_encode($clients, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT),
+            'defaultPaymentTerm' => $defaultPaymentTerm,
             'products' => $products,
             'productsJson' => $productsJson,
             'validation' => $validation,
@@ -269,7 +316,7 @@ class Deliveries extends BaseController
         $db = db_connect();
         $builder = $db->table('deliveries d');
         $builder
-            ->select('d.id, d.client_id, d.dr_no, d.date, d.total_amount')
+            ->select('d.id, d.client_id, d.dr_no, d.date, d.payment_term, d.due_date, d.total_amount')
             ->select('c.name as client_name')
             ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
             ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
@@ -345,5 +392,15 @@ class Deliveries extends BaseController
             'totalAmount' => $totalAmount,
             'totalBalance' => $totalBalance,
         ];
+    }
+
+    private function calculateDueDate(string $deliveryDate, int $paymentTerm): string
+    {
+        $timestamp = strtotime($deliveryDate);
+        if ($timestamp === false) {
+            return $deliveryDate;
+        }
+
+        return date('Y-m-d', strtotime('+' . $paymentTerm . ' days', $timestamp));
     }
 }
