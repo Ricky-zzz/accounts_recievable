@@ -33,6 +33,41 @@
             border-bottom: 1px solid var(--line);
         }
 
+        .brand-lockup {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            width: 2.75rem;
+            height: 2.75rem;
+            object-fit: cover;
+            border-radius: 0.75rem;
+            border: 1px solid var(--line);
+            background: var(--surface);
+        }
+
+        .brand-copy {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .brand-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .brand-subtitle {
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
         .card {
             background: var(--surface);
             border: 1px solid var(--line);
@@ -168,6 +203,65 @@
         .nav-link:focus-visible {
             outline: 2px solid var(--ink);
             outline-offset: 1px;
+        }
+
+        .nav-group {
+            position: relative;
+        }
+
+        .nav-group summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .nav-group summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .nav-menu {
+            position: absolute;
+            top: calc(100% + 0.35rem);
+            right: 0;
+            z-index: 50;
+            min-width: 11rem;
+            border: 1px solid var(--line);
+            border-radius: 0.55rem;
+            background: var(--surface);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+            padding: 0.35rem;
+        }
+
+        .nav-menu .nav-link {
+            display: block;
+            width: 100%;
+        }
+
+        .account-summary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .account-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.75rem;
+            height: 1.75rem;
+            border: 1px solid var(--line-strong);
+            border-radius: 9999px;
+            background: var(--surface);
+            color: var(--ink);
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .account-name {
+            max-width: 9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .tab-link {
@@ -341,6 +435,8 @@
 
 <body class="antialiased">
     <?php
+    helper('permissions');
+
     $successMessage = session()->getFlashdata('success');
     $errorMessage = session()->getFlashdata('error');
 
@@ -360,6 +456,15 @@
 
         return 'class="nav-link nav-link-active" aria-current="page"';
     };
+
+    $reportsActive = $isNavActive('deliveries')
+        || $isNavActive('payments')
+        || $isNavActive('reports/credits')
+        || $isNavActive('reports/overdue');
+
+    $accountName = trim((string) (session()->get('name') ?: session()->get('username') ?: 'Account'));
+    $accountInitial = strtoupper(substr($accountName, 0, 1)) ?: 'A';
+    $logoUrl = base_url('logo.png');
     ?>
 
     <?php if ($successMessage || $errorMessage): ?>
@@ -387,19 +492,44 @@
     <div class="min-h-screen">
         <header class="site-header">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                <div class="text-xl font-semibold">
-                    <a href="<?= base_url('/') ?>" <?= $navAttributes('/') ?>>Accounts Recievable</a>
+                <div>
+                    <a href="<?= base_url('/') ?>" class="brand-lockup">
+                        <img class="brand-mark" src="<?= esc($logoUrl) ?>" alt="SRC Enterprises logo">
+                        <span class="brand-copy">
+                            <span class="brand-title">Accounts Recievable</span>
+                            <span class="brand-subtitle">SRC Enterprises Inc</span>
+                        </span>
+                    </a>
                 </div>
                 <?php if (session()->get('user_id')): ?>
                     <nav class="flex flex-wrap items-center gap-1 text-sm text-black">
                         <a href="<?= base_url('clients') ?>" <?= $navAttributes('clients') ?>>Clients</a>
                         <a href="<?= base_url('products') ?>" <?= $navAttributes('products') ?>>Products</a>
-                        <a href="<?= base_url('banks') ?>" <?= $navAttributes('banks') ?>>Banks</a>
-                        <a href="<?= base_url('cashiers') ?>" <?= $navAttributes('cashiers') ?>>Cashiers</a>
-                        <a href="<?= base_url('deliveries') ?>" <?= $navAttributes('deliveries') ?>>Deliveries</a>
-                        <a href="<?= base_url('payments') ?>" <?= $navAttributes('payments') ?>>Payments</a>
+                        <?php if (can_access('banks.view')): ?>
+                            <a href="<?= base_url('banks') ?>" <?= $navAttributes('banks') ?>>Banks</a>
+                        <?php endif; ?>
+                        <?php if (can_access('cashiers.view')): ?>
+                            <a href="<?= base_url('cashiers') ?>" <?= $navAttributes('cashiers') ?>>Cashiers</a>
+                        <?php endif; ?>
+                        <details class="nav-group">
+                            <summary class="<?= $reportsActive ? 'nav-link nav-link-active' : 'nav-link' ?>" <?= $reportsActive ? 'aria-current="page"' : '' ?>>Reports</summary>
+                            <div class="nav-menu">
+                                <a href="<?= base_url('deliveries') ?>" <?= $navAttributes('deliveries') ?>>Deliveries</a>
+                                <a href="<?= base_url('payments') ?>" <?= $navAttributes('payments') ?>>Collections</a>
+                                <a href="<?= base_url('reports/credits') ?>" <?= $navAttributes('reports/credits') ?>>Credits</a>
+                                <a href="<?= base_url('reports/overdue') ?>" <?= $navAttributes('reports/overdue') ?>>Overdue</a>
+                            </div>
+                        </details>
                         <a href="<?= base_url('boa') ?>" <?= $navAttributes('boa') ?>>BOA</a>
-                        <a href="<?= base_url('logout') ?>" class="nav-link">Logout</a>
+                        <details class="nav-group">
+                            <summary class="nav-link account-summary">
+                                <span class="account-icon" aria-hidden="true"><?= esc($accountInitial) ?></span>
+                                <span class="account-name"><?= esc($accountName) ?></span>
+                            </summary>
+                            <div class="nav-menu">
+                                <a href="<?= base_url('logout') ?>" class="nav-link">Logout</a>
+                            </div>
+                        </details>
                     </nav>
                 <?php endif; ?>
             </div>

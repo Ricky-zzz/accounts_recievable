@@ -56,6 +56,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         </tbody>
     </table>
 
+    <?php if (isset($pager)): ?>
+        <div class="flex justify-end">
+            <?= $pager->links() ?>
+        </div>
+    <?php endif; ?>
+
     <div class="modal-backdrop" x-show="open" x-cloak>
         <div class="modal-panel max-w-xl p-6">
             <div class="flex items-start justify-between gap-4">

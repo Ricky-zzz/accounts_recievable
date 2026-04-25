@@ -40,8 +40,16 @@ class Cashiers extends BaseController
                 ->groupEnd();
         }
 
-        $cashiers = $builder->findAll();
-        $ranges = $rangeModel->where('status', 'active')->findAll();
+        $cashiers = $builder->paginate(15);
+        $cashierIds = array_map(static fn (array $cashier): int => (int) ($cashier['id'] ?? 0), $cashiers);
+        $ranges = [];
+
+        if (! empty($cashierIds)) {
+            $ranges = $rangeModel
+                ->where('status', 'active')
+                ->whereIn('user_id', $cashierIds)
+                ->findAll();
+        }
 
         $activeRanges = [];
         foreach ($ranges as $range) {
@@ -52,6 +60,7 @@ class Cashiers extends BaseController
             'cashiers' => $cashiers,
             'activeRanges' => $activeRanges,
             'query' => $query,
+            'pager' => $userModel->pager,
         ]);
     }
 

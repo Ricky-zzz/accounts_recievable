@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Models\ClientModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class Clients extends BaseController
 {
@@ -165,5 +167,64 @@ class Clients extends BaseController
         $model->delete($id);
 
         return redirect()->to('/clients')->with('success', 'Client deleted.');
+    }
+
+    public function soaPrint(int $id)
+    {
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($id);
+
+        if (! $client) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $asOf = date('Y-m-d');
+        $rows = db_connect()->table('deliveries d')
+            ->select('d.dr_no, d.date, d.due_date, d.total_amount as amount')
+            ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
+            ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
+            ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
+            ->join('payments p', 'p.id = pa.payment_id', 'left')
+            ->where('d.client_id', $id)
+            ->where('d.voided_at', null)
+            ->where('d.due_date IS NOT NULL', null, false)
+            ->where('d.due_date <', $asOf)
+            ->groupBy('d.id')
+            ->having('balance >', 0)
+            ->orderBy('d.due_date', 'asc')
+            ->orderBy('d.date', 'asc')
+            ->orderBy('d.dr_no', 'asc')
+            ->get()
+            ->getResultArray();
+
+        $totalAmount = 0.0;
+        $totalBalance = 0.0;
+
+        foreach ($rows as $row) {
+            $totalAmount += (float) ($row['amount'] ?? 0);
+            $totalBalance += (float) ($row['balance'] ?? 0);
+        }
+
+        $html = view('clients/soa_print', [
+            'client' => $client,
+            'asOf' => $asOf,
+            'rows' => $rows,
+            'totalAmount' => $totalAmount,
+            'totalBalance' => $totalBalance,
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="statement-of-account.pdf"')
+            ->setBody($dompdf->output());
     }
 }

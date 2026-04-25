@@ -13,6 +13,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Dashboard::index');
 
     $routes->get('clients', 'Clients::index');
+    $routes->get('clients/(:num)/soa', 'Clients::soaPrint/$1');
     $routes->post('clients', 'Clients::create');
     $routes->post('clients/(:num)', 'Clients::update/$1');
     $routes->post('clients/(:num)/delete', 'Clients::delete/$1');
@@ -22,19 +23,20 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('products/(:num)', 'Products::update/$1');
     $routes->post('products/(:num)/delete', 'Products::delete/$1');
 
-    $routes->get('banks', 'Banks::index');
-    $routes->post('banks', 'Banks::create');
-    $routes->post('banks/(:num)', 'Banks::update/$1');
-    $routes->post('banks/(:num)/delete', 'Banks::delete/$1');
+    $routes->get('banks', 'Banks::index', ['filter' => 'permission:banks.view']);
+    $routes->post('banks', 'Banks::create', ['filter' => 'permission:banks.view']);
+    $routes->post('banks/(:num)', 'Banks::update/$1', ['filter' => 'permission:banks.view']);
+    $routes->post('banks/(:num)/delete', 'Banks::delete/$1', ['filter' => 'permission:banks.view']);
 
-    $routes->get('cashiers', 'Cashiers::index');
-    $routes->post('cashiers', 'Cashiers::create');
-    $routes->post('cashiers/(:num)', 'Cashiers::update/$1');
-    $routes->post('cashiers/(:num)/delete', 'Cashiers::delete/$1');
-    $routes->post('cashiers/assign-range', 'Cashiers::assignRange');
+    $routes->get('cashiers', 'Cashiers::index', ['filter' => 'permission:cashiers.view']);
+    $routes->post('cashiers', 'Cashiers::create', ['filter' => 'permission:cashiers.view']);
+    $routes->post('cashiers/(:num)', 'Cashiers::update/$1', ['filter' => 'permission:cashiers.view']);
+    $routes->post('cashiers/(:num)/delete', 'Cashiers::delete/$1', ['filter' => 'permission:cashiers.view']);
+    $routes->post('cashiers/assign-range', 'Cashiers::assignRange', ['filter' => 'permission:cashiers.view']);
 
     $routes->get('deliveries', 'Deliveries::index');
     $routes->get('deliveries/list', 'Deliveries::index');
+    $routes->get('deliveries/print', 'Deliveries::print');
     $routes->get('deliveries/client/(:num)', 'Deliveries::createForm/$1');
     $routes->get('clients/(:num)/deliveries', 'Deliveries::clientList/$1');
     $routes->get('clients/(:num)/deliveries/print', 'Deliveries::listPrint/$1');
@@ -50,6 +52,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('ledger/print', 'Ledger::print');
 
     $routes->get('payments', 'Payments::index');
+    $routes->get('payments/print', 'Payments::print');
     $routes->get('payments/client/(:num)', 'Payments::clientList/$1');
     $routes->get('payments/client/(:num)/print', 'Payments::listPrint/$1');
     $routes->get('payments/client/(:num)/create', 'Payments::createForm/$1');
@@ -57,6 +60,11 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('boa', 'Boa::index');
     $routes->get('boa/print', 'Boa::print');
+
+    $routes->get('reports/credits', 'Reports::credits');
+    $routes->get('reports/credits/print', 'Reports::creditsPrint');
+    $routes->get('reports/overdue', 'Reports::overdue');
+    $routes->get('reports/overdue/print', 'Reports::overduePrint');
 
     $routes->get('excess', 'Excess::index');
 });

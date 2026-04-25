@@ -12,6 +12,7 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
             <h2 class="text-lg font-semibold">Deliveries</h2>
             <p class="mt-1 text-sm muted">Filter deliveries by date range.</p>
         </div>
+        <a class="btn btn-secondary" target="_blank" href="<?= base_url('deliveries/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>">Print PDF</a>
     </div>
 
     <form method="get" action="<?= base_url('deliveries') ?>" class="mt-4 grid gap-4 sm:grid-cols-3">

@@ -26,9 +26,11 @@ class Products extends BaseController
     public function index(): string
     {
         $model = new ProductModel();
+        $products = $model->orderBy('product_name', 'asc')->paginate(15);
 
         return view('products/index', [
-            'products' => $model->orderBy('product_name', 'asc')->findAll(),
+            'products' => $products,
+            'pager' => $model->pager,
         ]);
     }
 

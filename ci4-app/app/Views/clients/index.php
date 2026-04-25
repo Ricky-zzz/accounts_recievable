@@ -69,7 +69,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td>
                             <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a> |
                             <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a> |
-                            <a class="btn-link" href="<?= base_url('payments/client/' . $client['id']) ?>">Payments</a>
+                            <a class="btn-link" href="<?= base_url('payments/client/' . $client['id']) ?>">Collections</a> |
+                            <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/soa') ?>" target="_blank">SOA</a>
                         </td>
                         <td class="text-left">
                             <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $client['id'] ?>)">Edit</button>
@@ -126,7 +127,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <span class="field-error" x-show="errors.credit_limit" x-text="errors.credit_limit"></span>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium" for="payment_term">Default Payment Term (days)</label>
+                        <label class="block text-sm font-medium" for="payment_term">Default Collection Term (days)</label>
                         <input class="input mt-1" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
                         <span class="field-error" x-show="errors.payment_term" x-text="errors.payment_term"></span>
                     </div>

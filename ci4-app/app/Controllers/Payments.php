@@ -26,8 +26,37 @@ class Payments extends BaseController
             'toDate' => $toDate,
             'payments' => $result['payments'],
             'allocationsByPayment' => $result['allocationsByPayment'],
+            'otherAccountsByPayment' => $result['otherAccountsByPayment'],
+            'paymentsById' => $result['paymentsById'],
             'totalCollections' => $result['totalCollections'],
         ]);
+    }
+
+    public function print()
+    {
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchPayments(null, $fromDate, $toDate);
+
+        $html = view('payments/print', [
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'payments' => $result['payments'],
+            'totalCollections' => $result['totalCollections'],
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="payments-report.pdf"')
+            ->setBody($dompdf->output());
     }
 
     public function clientList(int $clientId): string
@@ -48,6 +77,8 @@ class Payments extends BaseController
             'toDate' => $toDate,
             'payments' => $result['payments'],
             'allocationsByPayment' => $result['allocationsByPayment'],
+            'otherAccountsByPayment' => $result['otherAccountsByPayment'],
+            'paymentsById' => $result['paymentsById'],
             'totalCollections' => $result['totalCollections'],
         ]);
     }
@@ -507,6 +538,8 @@ SQL;
         $builder = $db->table('payments p');
         $builder
             ->select('p.id, p.client_id, p.pr_no, p.date, p.amount_received')
+            ->select('c.name as client_name')
+            ->join('clients c', 'c.id = p.client_id', 'left')
             ->where('p.status', 'posted');
 
         if ($clientId !== null) {
@@ -529,6 +562,15 @@ SQL;
 
         $paymentIds = array_filter(array_map('intval', array_column($payments, 'id')));
         $allocationsByPayment = [];
+        $otherAccountsByPayment = [];
+        $paymentsById = [];
+
+        foreach ($payments as $payment) {
+            $paymentId = (int) ($payment['id'] ?? 0);
+            if ($paymentId > 0) {
+                $paymentsById[$paymentId] = $payment;
+            }
+        }
 
         if (! empty($paymentIds)) {
             $allocations = $db->table('payment_allocations pa')
@@ -543,6 +585,25 @@ SQL;
                 $paymentId = (int) $allocation['payment_id'];
                 $allocationsByPayment[$paymentId][] = $allocation;
             }
+
+            $otherAccountRows = $db->table('boa b')
+                ->select('b.payment_id, b.account_title, b.dr, b.ar_others, b.description, b.date, b.reference')
+                ->whereIn('b.payment_id', $paymentIds)
+                ->groupStart()
+                    ->where('b.account_title IS NOT NULL', null, false)
+                    ->orWhere('b.ar_others >', 0)
+                ->groupEnd()
+                ->orderBy('b.date', 'asc')
+                ->orderBy('b.id', 'asc')
+                ->get()
+                ->getResultArray();
+
+            foreach ($otherAccountRows as $row) {
+                $paymentId = (int) ($row['payment_id'] ?? 0);
+                if ($paymentId > 0) {
+                    $otherAccountsByPayment[$paymentId][] = $row;
+                }
+            }
         }
 
         $totalCollections = 0.0;
@@ -553,6 +614,8 @@ SQL;
         return [
             'payments' => $payments,
             'allocationsByPayment' => $allocationsByPayment,
+            'otherAccountsByPayment' => $otherAccountsByPayment,
+            'paymentsById' => $paymentsById,
             'totalCollections' => $totalCollections,
         ];
     }

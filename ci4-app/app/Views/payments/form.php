@@ -114,7 +114,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                                         <td x-text="delivery.date"></td>
                                         <td x-text="delivery.due_date || '-'"></td>
                                         <td x-text="delivery.dr_no"></td>
-                                        <td x-text="Number(delivery.working_balance).toFixed(2)"></td>
+                                        <td x-text="formatAmount(delivery.working_balance)"></td>
                                         <td class="text-right">
                                             <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>
                                         </td>
@@ -122,6 +122,11 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                                 </template>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between text-sm">
+                        <span class="font-semibold">Total Balance</span>
+                        <span class="font-semibold" x-text="formatAmount(visibleDeliveriesTotal())"></span>
                     </div>
 
                     <?php if (! empty($unpaidPagerLinks)): ?>
@@ -151,7 +156,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                                 <template x-for="(allocation, index) in allocations" :key="allocation.delivery_id + '-' + index">
                                     <tr>
                                         <td x-text="allocation.dr_no"></td>
-                                        <td x-text="Number(allocation.amount).toFixed(2)"></td>
+                                        <td x-text="formatAmount(allocation.amount)"></td>
                                         <td class="text-left">
                                             <button class="btn-link" type="button" @click="removeAllocation(index)">x</button>
                                             <input type="hidden" :name="'allocations[' + index + '][delivery_id]'" :value="allocation.delivery_id">
@@ -165,7 +170,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                 </div>
 
                 <div class="card p-4 w-[300px] shrink-0">
-                    <h2 class="text-sm font-semibold">Other Accounts (Fixed)</h2>
+                    <h2 class="text-sm font-semibold">Other Accounts </h2>
                     <div class="mt-4 grid gap-4">
                         <div>
                             <label class="block text-sm font-medium" for="sales_discount">Sales Discount</label>
@@ -206,23 +211,23 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 text-sm">
                 <div>
                     <p class="muted">Amount Received</p>
-                    <p class="font-semibold" x-text="Number(amountReceived || 0).toFixed(2)"></p>
+                    <p class="font-semibold" x-text="formatAmount(amountReceived)"></p>
                 </div>
                 <div>
                     <p class="muted">Allocated Total</p>
-                    <p class="font-semibold" x-text="allocatedTotal().toFixed(2)"></p>
+                    <p class="font-semibold" x-text="formatAmount(allocatedTotal())"></p>
                 </div>
                 <div>
                     <p class="muted">Other Accounts Total</p>
-                    <p class="font-semibold" x-text="fixedAccountsTotal().toFixed(2)"></p>
+                    <p class="font-semibold" x-text="formatAmount(fixedAccountsTotal())"></p>
                 </div>
                 <div>
                     <p class="muted">A/R Other Total</p>
-                    <p class="font-semibold" x-text="Number(arOtherAmount || 0).toFixed(2)"></p>
+                    <p class="font-semibold" x-text="formatAmount(arOtherAmount)"></p>
                 </div>
                 <div>
                     <p class="muted">Unallocated</p>
-                    <p class="font-semibold" x-text="balanceAmount().toFixed(2)"></p>
+                    <p class="font-semibold" x-text="formatAmount(balanceAmount())"></p>
                 </div>
             </div>
 
@@ -245,7 +250,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                 </div>
                 <div class="flex justify-between text-sm">
                     <span>Balance</span>
-                    <span x-text="modalDelivery ? Number(modalDelivery.working_balance).toFixed(2) : ''"></span>
+                    <span x-text="modalDelivery ? formatAmount(modalDelivery.working_balance) : ''"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="pay_amount">Amount to Pay</label>
@@ -289,6 +294,17 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
             },
             get visibleDeliveries() {
                 return this.deliveries.filter((delivery) => Number(delivery.working_balance) > 0);
+            },
+            visibleDeliveriesTotal() {
+                return this.visibleDeliveries.reduce((sum, delivery) => {
+                    return sum + (parseFloat(delivery.working_balance) || 0);
+                }, 0);
+            },
+            formatAmount(value) {
+                return this.normalizeAmount(value).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
             },
             parseJson(value, fallback) {
                 if (!value) {

@@ -111,8 +111,13 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
 </script>
 
 <div x-data="ledgerItems()">
-    <h1 class="text-xl font-semibold">Client Ledger</h1>
-    <p class="mt-1 text-sm muted">Shows overall balance with optional date range.</p>
+    <div class="flex items-center justify-between gap-4">
+        <div class="flex flex-col">
+            <h1 class="text-xl font-semibold">Client Ledger</h1>
+            <p class="mt-1 text-sm muted">Shows overall balance with optional date range.</p>
+        </div>
+        <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
+    </div>
 
     <form class="mt-6 grid gap-4 sm:grid-cols-4" method="get" action="<?= base_url('ledger') ?>">
         <div class="sm:col-span-2">
@@ -137,18 +142,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     </form>
 
     <?php if ($selectedClient): ?>
-        <!-- <div class="mt-6 card p-4 text-sm">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <div class="font-semibold">Import Ledger</div>
-                    <div class="mt-1 text-xs muted">CSV or Excel import (coming soon).</div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <input class="input" type="file" accept=".csv,.xlsx,.xls" disabled>
-                    <button class="btn btn-secondary" type="button" disabled>Import</button>
-                </div>
-            </div>
-        </div> -->
+
 
         <div class="mt-6 card p-4 text-sm">
             <div class="flex justify-between">

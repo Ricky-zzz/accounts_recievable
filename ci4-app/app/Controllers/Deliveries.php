@@ -29,6 +29,34 @@ class Deliveries extends BaseController
         ]);
     }
 
+    public function print()
+    {
+        [$fromDate, $toDate] = $this->resolveDateRange();
+        $result = $this->fetchDeliveries(null, $fromDate, $toDate);
+
+        $html = view('deliveries/print', [
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'deliveries' => $result['deliveries'],
+            'totalAmount' => $result['totalAmount'],
+            'totalBalance' => $result['totalBalance'],
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="deliveries-report.pdf"')
+            ->setBody($dompdf->output());
+    }
+
     public function clientList(int $clientId): string
     {
         $clientModel = new ClientModel();
