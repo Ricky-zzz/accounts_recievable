@@ -38,6 +38,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
+                <th>Available Credit</th>
                 <th>Transactions</th>
                 <th class="text-right">Actions</th>
             </tr>
@@ -45,7 +46,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <tbody>
             <?php if (empty($clients)): ?>
                 <tr>
-                    <td colspan="5">No clients yet.</td>
+                    <td colspan="6">No clients yet.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($clients as $client): ?>
@@ -53,6 +54,18 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td><?= esc($client['name']) ?></td>
                         <td><?= esc($client['email'] ?? '') ?></td>
                         <td><?= esc($client['phone'] ?? '') ?></td>
+                        <td>
+                            <?php
+                            $availableCredit = (float) ($client['available_credit'] ?? 0);
+                            ?>
+                            <button
+                                class="btn-link"
+                                type="button"
+                                @click="openCreditModal(<?= (int) $client['id'] ?>)"
+                            >
+                                <?= esc(number_format($availableCredit, 2)) ?>
+                            </button>
+                        </td>
                         <td>
                             <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a> |
                             <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a> |
@@ -70,6 +83,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             <?php endif; ?>
         </tbody>
     </table>
+
+    <?php if (isset($pager)): ?>
+        <div class="flex justify-end">
+            <?= $pager->links() ?>
+        </div>
+    <?php endif; ?>
 
     <div class="modal-backdrop" x-show="open" x-cloak>
         <div class="modal-panel max-w-2xl p-6">
@@ -119,6 +138,31 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             </form>
         </div>
     </div>
+
+    <div class="modal-backdrop" x-show="openCredit" x-cloak>
+        <div class="modal-panel max-w-md p-6">
+            <div class="flex items-start justify-between gap-4">
+                <h2 class="text-lg font-semibold">Available Credit</h2>
+                <button class="btn btn-secondary" type="button" @click="closeCreditModal()">Close</button>
+            </div>
+
+            <div class="mt-4 space-y-2 text-sm">
+                <p class="font-medium" x-text="selectedCredit.name"></p>
+                <p>
+                    Credit Limit:
+                    <span class="font-medium" x-text="formatAmount(selectedCredit.credit_limit)"></span>
+                </p>
+                <p>
+                    Current Balance:
+                    <span class="font-medium" x-text="formatAmount(selectedCredit.current_balance)"></span>
+                </p>
+                <p>
+                    Available Credit:
+                    <span class="font-medium" x-text="formatAmount(selectedCredit.available_credit)"></span>
+                </p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -133,9 +177,16 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         return {
             clients,
             open: false,
+            openCredit: false,
             isEdit: false,
             formAction: '<?= base_url('clients') ?>',
             errors: {},
+            selectedCredit: {
+                name: '',
+                credit_limit: 0,
+                current_balance: 0,
+                available_credit: 0,
+            },
             form: {
                 name: '',
                 address: '',
@@ -204,6 +255,30 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             closeModal() {
                 this.open = false;
                 this.errors = {};
+            },
+            openCreditModal(id) {
+                const client = this.clients.find((row) => Number(row.id) === Number(id));
+                if (!client) {
+                    return;
+                }
+
+                this.selectedCredit = {
+                    name: client.name || '',
+                    credit_limit: Number(client.credit_limit || 0),
+                    current_balance: Number(client.current_balance || 0),
+                    available_credit: Number(client.available_credit || 0),
+                };
+                this.openCredit = true;
+            },
+            closeCreditModal() {
+                this.openCredit = false;
+            },
+            formatAmount(value) {
+                const number = Number(value || 0);
+                return number.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
             },
         };
     }

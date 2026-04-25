@@ -5,6 +5,7 @@ $itemsJson = json_encode($itemsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | 
 $deliveryAllocJson = json_encode($allocationsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+$paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 ?>
 <script>
     // Store data in window before Alpine initializes
@@ -12,7 +13,8 @@ $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JS
         itemsByDelivery: <?= $itemsJson ?>,
         allocationsByDelivery: <?= $deliveryAllocJson ?>,
         allocationsByPayment: <?= $paymentAllocJson ?>,
-        otherAccountsByPayment: <?= $paymentOtherJson ?>
+        otherAccountsByPayment: <?= $paymentOtherJson ?>,
+        paymentsById: <?= $paymentsByIdJson ?>
     };
 
     function ledgerItems() {
@@ -22,6 +24,7 @@ $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JS
             allocationsByDelivery: window.ledgerData.allocationsByDelivery,
             allocationsByPayment: window.ledgerData.allocationsByPayment,
             otherAccountsByPayment: window.ledgerData.otherAccountsByPayment,
+            paymentsById: window.ledgerData.paymentsById,
             itemsOpen: false,
             allocOpen: false,
             allocType: '',
@@ -73,6 +76,23 @@ $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JS
             selectedOtherAccounts() {
                 return this.otherAccountsByPayment[this.selectedAllocId] || [];
             },
+            selectedPayment() {
+                return this.paymentsById[this.selectedAllocId] || null;
+            },
+            selectedAllocatedTotal() {
+                return this.selectedAllocations()
+                    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+            },
+            selectedArOtherTotal() {
+                return this.selectedOtherAccounts()
+                    .reduce((sum, item) => sum + (parseFloat(item.ar_others) || 0), 0);
+            },
+            selectedOtherAccountsBreakdown() {
+                return this.selectedOtherAccounts().filter((item) => (parseFloat(item.dr) || 0) > 0 && (item.account_title || '').trim() !== '');
+            },
+            selectedArOther() {
+                return this.selectedOtherAccounts().find((item) => (parseFloat(item.ar_others) || 0) > 0) || null;
+            },
             allocTotal() {
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
@@ -84,7 +104,7 @@ $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JS
                     .toFixed(2);
             },
             allocTitle() {
-                return this.allocType === 'delivery' ? 'DR Allocations' : 'PR Allocations';
+                return this.allocType === 'delivery' ? 'DR Allocations' : 'PR Summary';
             }
         };
     }
@@ -280,38 +300,55 @@ $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JS
                 <span class="font-semibold">Total</span>
                 <span x-text="allocTotal()"></span>
             </div>
-                <template x-if="allocType === 'payment'">
-                    <div class="mt-6">
+            <template x-if="allocType === 'payment'">
+                <div class="mt-6 space-y-5">
+                    <div class="rounded border border-gray-200 p-4 text-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold">Original Amount Received</span>
+                            <span x-text="selectedPayment() ? Number(selectedPayment().amount_received || 0).toFixed(2) : '0.00'"></span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="font-semibold">Allocated to DRs</span>
+                            <span x-text="selectedAllocatedTotal().toFixed(2)"></span>
+                        </div>
+                    </div>
+
+                    <div>
                         <h3 class="text-sm font-semibold">Other Accounts</h3>
                         <table class="table mt-3">
                             <thead>
                                 <tr>
-                                    <th>Title</th>
-                                    <th>Description</th>
+                                    <th>Account Title</th>
                                     <th>Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <template x-if="selectedOtherAccounts().length === 0">
+                                <template x-if="selectedOtherAccountsBreakdown().length === 0">
                                     <tr>
-                                        <td class="py-3" colspan="3">No other accounts found.</td>
+                                        <td class="py-3" colspan="2">No other accounts found.</td>
                                     </tr>
                                 </template>
-                                <template x-for="(item, index) in selectedOtherAccounts()" :key="'other-' + index">
+                                <template x-for="(item, index) in selectedOtherAccountsBreakdown()" :key="'other-' + index">
                                     <tr>
-                                        <td x-text="item.account_title || 'A/R Other'"></td>
-                                        <td x-text="item.description || ''"></td>
+                                        <td x-text="item.account_title"></td>
                                         <td x-text="Number(item.dr || item.ar_others || 0).toFixed(2)"></td>
                                     </tr>
                                 </template>
                             </tbody>
                         </table>
-                        <div class="mt-3 flex items-center justify-between text-sm">
-                            <span class="font-semibold">Other Accounts Total</span>
-                            <span x-text="otherAccountsTotal()"></span>
+                        <div class="mt-3 rounded border border-gray-200 p-4 text-sm" x-show="selectedArOther()" x-cloak>
+                            <div class="flex items-center justify-between">
+                                <span class="font-semibold">A/R Other Description</span>
+                                <span x-text="selectedArOther() ? (selectedArOther().description || '-') : '-' "></span>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span class="font-semibold">A/R Other Amount</span>
+                                <span x-text="selectedArOther() ? Number(selectedArOther().ar_others || 0).toFixed(2) : '0.00'"></span>
+                            </div>
                         </div>
                     </div>
-                </template>
+                </div>
+            </template>
             <div class="mt-4">
                 <button class="btn" type="button" @click="closeAllocations()">Close</button>
             </div>

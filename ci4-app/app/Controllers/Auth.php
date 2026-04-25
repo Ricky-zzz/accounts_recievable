@@ -45,7 +45,7 @@ class Auth extends BaseController
             'type' => $user['type'] ?? 'cashier',
         ]);
 
-        return redirect()->to('/clients');
+        return redirect()->to('/');
     }
 
     public function logout()

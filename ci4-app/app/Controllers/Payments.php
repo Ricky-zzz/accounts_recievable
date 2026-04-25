@@ -127,7 +127,10 @@ class Payments extends BaseController
             }
         }
 
-        $unpaidDeliveries = $this->fetchUnpaidDeliveries($clientId);
+        $unpaidPage = max(1, (int) $this->request->getGet('page') ?: 1);
+        $unpaidPerPage = 15;
+        $unpaidResult = $this->fetchUnpaidDeliveries($clientId, $unpaidPerPage, $unpaidPage);
+        $pager = service('pager');
 
         return view('payments/form', [
             'client' => $client,
@@ -135,7 +138,8 @@ class Payments extends BaseController
             'activeReceipt' => $activeRange ? (int) $activeRange['next_no'] : null,
             'rangeEnd' => $activeRange ? (int) $activeRange['end_no'] : null,
             'banks' => $bankModel->orderBy('bank_name', 'asc')->findAll(),
-            'unpaidDeliveries' => $unpaidDeliveries,
+            'unpaidDeliveries' => $unpaidResult['deliveries'],
+            'unpaidPagerLinks' => $pager->makeLinks($unpaidResult['page'], $unpaidResult['perPage'], $unpaidResult['total'], 'default_full'),
         ]);
     }
 
@@ -203,8 +207,6 @@ class Payments extends BaseController
         }
         $arOtherAmount = max(0.0, $arOtherAmount);
         $otherAccountsTotal = $fixedAccountsTotal;
-        $accountTitles = array_values(array_filter(array_map(static fn (array $row) => $row['title'], $fixedAccountRows)));
-        $accountTitle = implode(', ', $accountTitles);
 
         helper('boa');
 
@@ -225,11 +227,15 @@ class Payments extends BaseController
         $ledgerModel = new LedgerModel();
         $boaModel = new BoaModel();
 
-        $unpaidDeliveries = $this->fetchUnpaidDeliveries($clientId);
-        $deliveryBalances = [];
-        foreach ($unpaidDeliveries as $delivery) {
-            $deliveryBalances[(int) $delivery['id']] = (float) $delivery['balance'];
+        $deliveryIds = [];
+        foreach ($allocations as $allocation) {
+            $deliveryId = (int) ($allocation['delivery_id'] ?? 0);
+            if ($deliveryId > 0) {
+                $deliveryIds[$deliveryId] = true;
+            }
         }
+
+        $deliveryBalances = $this->fetchDeliveryBalancesByIds($clientId, array_keys($deliveryIds));
 
         $cleanAllocations = [];
         $allocatedTotal = 0.0;
@@ -311,7 +317,7 @@ class Payments extends BaseController
             ->first();
         $previousBalance = (float) ($lastLedger['balance'] ?? 0);
         $ledgerCollection = min($amountReceived, $allocatedTotal);
-        $ledgerBalanceReduction = $allocatedTotal;
+        $currentBalance = $previousBalance - $ledgerCollection;
 
         $ledgerModel->insert([
             'client_id' => $clientId,
@@ -322,13 +328,39 @@ class Payments extends BaseController
             'price' => null,
             'amount' => 0,
             'collection' => $ledgerCollection,
-            'account_title' => $accountTitle !== '' ? $accountTitle : null,
-            'other_accounts' => $otherAccountsTotal,
-            'balance' => $previousBalance - $ledgerBalanceReduction,
+            'account_title' => null,
+            'other_accounts' => 0,
+            'balance' => $currentBalance,
             'delivery_id' => null,
             'payment_id' => $paymentId,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+
+        foreach ($fixedAccountRows as $row) {
+            $amount = (float) $row['amount'];
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $currentBalance = $currentBalance - $amount;
+
+            $ledgerModel->insert([
+                'client_id' => $clientId,
+                'entry_date' => $date,
+                'dr_no' => null,
+                'pr_no' => (string) $prNo,
+                'qty' => null,
+                'price' => null,
+                'amount' => 0,
+                'collection' => 0,
+                'account_title' => $row['title'],
+                'other_accounts' => $amount,
+                'balance' => $currentBalance,
+                'delivery_id' => null,
+                'payment_id' => $paymentId,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
 
         $arTradeTotal = $allocatedTotal;
 
@@ -386,23 +418,86 @@ class Payments extends BaseController
         return redirect()->to('payments/client/' . $clientId)->with('success', 'Payment saved.');
     }
 
-    private function fetchUnpaidDeliveries(int $clientId): array
+    private function fetchUnpaidDeliveries(int $clientId, int $perPage = 15, int $page = 1): array
     {
         $db = db_connect();
-        $builder = $db->table('deliveries d');
 
-        $builder
-            ->select('d.id, d.dr_no, d.date, d.total_amount')
-            ->select('COALESCE(SUM(CASE WHEN p.status = "posted" THEN pa.amount ELSE 0 END), 0) as allocated_amount')
-            ->select('(d.total_amount - COALESCE(SUM(CASE WHEN p.status = "posted" THEN pa.amount ELSE 0 END), 0)) as balance')
+        $perPage = max(1, $perPage);
+        $page = max(1, $page);
+        $offset = ($page - 1) * $perPage;
+
+        $baseSql = <<<SQL
+SELECT
+    d.id AS delivery_id,
+    d.dr_no,
+    d.date,
+    d.due_date,
+    d.total_amount,
+    COALESCE(a.allocated_amount, 0) AS allocated_amount,
+    ROUND((d.total_amount - COALESCE(a.allocated_amount, 0)), 2) AS balance
+FROM deliveries d
+LEFT JOIN (
+    SELECT
+        pa.delivery_id,
+        SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END) AS allocated_amount
+    FROM payment_allocations pa
+    LEFT JOIN payments p ON p.id = pa.payment_id
+    GROUP BY pa.delivery_id
+) a ON a.delivery_id = d.id
+WHERE d.client_id = ?
+SQL;
+
+        $countRow = $db->query(
+            'SELECT COUNT(*) AS total FROM (' . $baseSql . ') unpaid_deliveries WHERE balance > 0',
+            [$clientId]
+        )->getRowArray();
+
+        $total = (int) ($countRow['total'] ?? 0);
+
+        $deliveries = $db->query(
+            'SELECT * FROM (' . $baseSql . ') unpaid_deliveries WHERE balance > 0 ORDER BY date ASC, delivery_id ASC LIMIT ? OFFSET ?',
+            [$clientId, $perPage, $offset]
+        )->getResultArray();
+
+        return [
+            'deliveries' => $deliveries,
+            'total' => $total,
+            'perPage' => $perPage,
+            'page' => $page,
+        ];
+    }
+
+    private function fetchDeliveryBalancesByIds(int $clientId, array $deliveryIds): array
+    {
+        $db = db_connect();
+
+        $deliveryIds = array_values(array_unique(array_filter(array_map('intval', $deliveryIds))));
+        if (empty($deliveryIds)) {
+            return [];
+        }
+
+        $rows = $db->table('deliveries d')
+            ->select('d.id AS delivery_id')
+            ->select('ROUND((d.total_amount - COALESCE(SUM(CASE WHEN p.status = "posted" THEN pa.amount ELSE 0 END), 0)), 2) AS balance', false)
             ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
             ->join('payments p', 'p.id = pa.payment_id', 'left')
             ->where('d.client_id', $clientId)
+            ->whereIn('d.id', $deliveryIds)
             ->groupBy('d.id')
-            ->having('balance >', 0)
-            ->orderBy('d.date', 'asc');
+            ->get()
+            ->getResultArray();
 
-        return $builder->get()->getResultArray();
+        $balances = [];
+        foreach ($rows as $row) {
+            $deliveryId = (int) ($row['delivery_id'] ?? 0);
+            if ($deliveryId <= 0) {
+                continue;
+            }
+
+            $balances[$deliveryId] = (float) ($row['balance'] ?? 0);
+        }
+
+        return $balances;
     }
 
     private function fetchPayments(?int $clientId, string $fromDate, string $toDate): array

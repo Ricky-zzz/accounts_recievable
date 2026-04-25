@@ -39,8 +39,42 @@ class Clients extends BaseController
                 ->groupEnd();
         }
 
+        $clients = $builder->paginate(15);
+
+        $clientIds = array_map(static fn (array $client): int => (int) $client['id'], $clients);
+        $balancesByClient = [];
+        $db = db_connect();
+
+        if (! empty($clientIds)) {
+            $ledgerRows = $db->table('ledger l')
+                ->select('l.client_id, l.balance')
+                ->whereIn('l.client_id', $clientIds)
+                ->orderBy('l.client_id', 'asc')
+                ->orderBy('l.entry_date', 'desc')
+                ->orderBy('l.id', 'desc')
+                ->get()
+                ->getResultArray();
+
+            foreach ($ledgerRows as $row) {
+                $clientId = (int) ($row['client_id'] ?? 0);
+                if ($clientId > 0 && ! array_key_exists($clientId, $balancesByClient)) {
+                    $balancesByClient[$clientId] = (float) ($row['balance'] ?? 0);
+                }
+            }
+        }
+
+        foreach ($clients as $index => $client) {
+            $clientId = (int) ($client['id'] ?? 0);
+            $creditLimit = isset($client['credit_limit']) ? (float) $client['credit_limit'] : 0.0;
+            $currentBalance = $balancesByClient[$clientId] ?? 0.0;
+
+            $clients[$index]['current_balance'] = $currentBalance;
+            $clients[$index]['available_credit'] = $creditLimit - $currentBalance;
+        }
+
         return view('clients/index', [
-            'clients' => $builder->findAll(),
+            'clients' => $clients,
+            'pager' => $model->pager,
             'query' => $query,
         ]);
     }

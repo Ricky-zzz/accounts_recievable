@@ -289,6 +289,50 @@
             flex: 1;
         }
 
+        .pagination {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 1rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .pagination li a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2rem;
+            height: 2rem;
+            padding: 0 0.6rem;
+            border: 1px solid var(--line);
+            border-radius: 0.45rem;
+            background: var(--surface);
+            color: var(--ink);
+            text-decoration: none;
+            font-size: 0.825rem;
+            font-weight: 500;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .pagination li a:hover {
+            background: var(--surface-soft);
+            border-color: var(--line-strong);
+        }
+
+        .pagination li.active a {
+            background: var(--ink);
+            border-color: var(--ink);
+            color: #fff;
+            pointer-events: none;
+        }
+
+        .pagination li a:focus-visible {
+            outline: 2px solid var(--ink);
+            outline-offset: 1px;
+        }
+
         [x-cloak] {
             display: none !important;
         }
@@ -343,7 +387,9 @@
     <div class="min-h-screen">
         <header class="site-header">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                <div class="text-lg font-semibold">AR Admin</div>
+                <div class="text-xl font-semibold">
+                    <a href="<?= base_url('/') ?>" <?= $navAttributes('/') ?>>Accounts Recievable</a>
+                </div>
                 <?php if (session()->get('user_id')): ?>
                     <nav class="flex flex-wrap items-center gap-1 text-sm text-black">
                         <a href="<?= base_url('clients') ?>" <?= $navAttributes('clients') ?>>Clients</a>
@@ -352,9 +398,7 @@
                         <a href="<?= base_url('cashiers') ?>" <?= $navAttributes('cashiers') ?>>Cashiers</a>
                         <a href="<?= base_url('deliveries') ?>" <?= $navAttributes('deliveries') ?>>Deliveries</a>
                         <a href="<?= base_url('payments') ?>" <?= $navAttributes('payments') ?>>Payments</a>
-                        <a href="<?= base_url('other-accounts') ?>" <?= $navAttributes('other-accounts') ?>>Other Accounts</a>
                         <a href="<?= base_url('boa') ?>" <?= $navAttributes('boa') ?>>BOA</a>
-                        <a href="<?= base_url('excess') ?>" <?= $navAttributes('excess') ?>>Excess</a>
                         <a href="<?= base_url('logout') ?>" class="nav-link">Logout</a>
                     </nav>
                 <?php endif; ?>

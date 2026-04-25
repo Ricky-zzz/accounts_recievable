@@ -102,7 +102,7 @@ if ($termValue === null) {
                     </div>
                     <div>
                         <label class="block text-xs font-medium" :for="'price_' + index">Unit Price</label>
-                        <input class="input mt-1" :id="'price_' + index" type="number" step="0.01" x-model="item.unit_price" :name="'items[' + index + '][unit_price]'" readonly>
+                        <input class="input mt-1" :id="'price_' + index" type="number" step="0.01" x-model="item.unit_price" :name="'items[' + index + '][unit_price]'" required>
                     </div>
                     <div>
                         <label class="block text-xs font-medium" :for="'qty_' + index">Qty</label>

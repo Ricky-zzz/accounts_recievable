@@ -84,17 +84,16 @@
                     <?php endforeach; ?>
                     <th class="text-right">AR Trade</th>
                     <th class="text-right">AR Other</th>
+                    <th>AR Other Description</th>
                     <th>Account Title</th>
                     <th class="text-right">DR</th>
                     <th class="text-right">CR</th>
-                    <th>Note</th>
-                    <th>Description</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($records)): ?>
                     <tr>
-                        <td class="text-center" colspan="<?= 10 + count($bankColumns) ?>">No BOA records in this range.</td>
+                        <td class="text-center" colspan="<?= 9 + count($bankColumns) ?>">No BOA records in this range.</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($records as $row): ?>
@@ -107,11 +106,10 @@
                             <?php endforeach; ?>
                             <td class="text-right"><?= number_format((float) ($row['ar_trade'] ?? 0), 2) ?></td>
                             <td class="text-right"><?= number_format((float) ($row['ar_others'] ?? 0), 2) ?></td>
+                            <td><?= esc($row['description'] ?? '') ?></td>
                             <td><?= esc($row['account_title'] ?? '') ?></td>
                             <td class="text-right"><?= number_format((float) ($row['dr'] ?? 0), 2) ?></td>
                             <td class="text-right"><?= number_format((float) ($row['cr'] ?? 0), 2) ?></td>
-                            <td><?= esc($row['note'] ?? '') ?></td>
-                            <td><?= esc($row['description'] ?? '') ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -128,10 +126,9 @@
                         <th class="text-right"><?= number_format((float) ($totals['ar_trade'] ?? 0), 2) ?></th>
                         <th class="text-right"><?= number_format((float) ($totals['ar_others'] ?? 0), 2) ?></th>
                         <th></th>
+                        <th></th>
                         <th class="text-right"><?= number_format((float) ($totals['dr'] ?? 0), 2) ?></th>
                         <th class="text-right"><?= number_format((float) ($totals['cr'] ?? 0), 2) ?></th>
-                        <th></th>
-                        <th></th>
                     </tr>
                 </tfoot>
             <?php endif; ?>

@@ -29,6 +29,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('cashiers', 'Cashiers::index');
     $routes->post('cashiers', 'Cashiers::create');
+    $routes->post('cashiers/(:num)', 'Cashiers::update/$1');
+    $routes->post('cashiers/(:num)/delete', 'Cashiers::delete/$1');
     $routes->post('cashiers/assign-range', 'Cashiers::assignRange');
 
     $routes->get('deliveries', 'Deliveries::index');

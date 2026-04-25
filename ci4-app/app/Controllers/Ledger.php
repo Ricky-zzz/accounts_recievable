@@ -81,6 +81,7 @@ class Ledger extends BaseController
         $allocationsByDelivery = [];
         $allocationsByPayment = [];
         $otherAccountsByPayment = [];
+        $paymentsById = [];
 
         if ($clientId > 0) {
             $selectedClient = $clientModel->find($clientId);
@@ -154,6 +155,23 @@ class Ledger extends BaseController
 
             if (! empty($paymentIds)) {
                 $db = db_connect();
+                $paymentRows = $db->table('payments p')
+                    ->select('p.id, p.pr_no, p.date, p.amount_received, p.amount_allocated, p.client_id')
+                    ->whereIn('p.id', $paymentIds)
+                    ->orderBy('p.date', 'asc')
+                    ->orderBy('p.id', 'asc')
+                    ->get()
+                    ->getResultArray();
+
+                foreach ($paymentRows as $row) {
+                    $paymentId = (int) ($row['id'] ?? 0);
+                    if ($paymentId <= 0) {
+                        continue;
+                    }
+
+                    $paymentsById[$paymentId] = $row;
+                }
+
                 $paymentAllocations = $db->table('payment_allocations pa')
                     ->select('pa.payment_id, pa.amount, d.dr_no, d.date')
                     ->join('deliveries d', 'd.id = pa.delivery_id', 'left')
@@ -199,6 +217,7 @@ class Ledger extends BaseController
             'allocationsByDelivery' => $allocationsByDelivery,
             'allocationsByPayment' => $allocationsByPayment,
             'otherAccountsByPayment' => $otherAccountsByPayment,
+            'paymentsById' => $paymentsById,
         ];
     }
 }

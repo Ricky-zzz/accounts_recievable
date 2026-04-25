@@ -84,111 +84,119 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
             </div>
         </div>
 
-        <div class="card p-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold">Unpaid Delivery Receipts</h2>
-                <span class="text-xs muted" x-text="deliveries.length + ' items'"></span>
-            </div>
-
-            <div class="mt-4 overflow-x-auto">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>DR#</th>
-                            <th>Balance</th>
-                            <th class="text-right">Pay</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-if="deliveries.length === 0">
-                            <tr>
-                                <td colspan="4" class="py-3">No unpaid deliveries.</td>
-                            </tr>
-                        </template>
-                        <template x-for="delivery in deliveries" :key="delivery.id">
-                            <tr>
-                                <td x-text="delivery.date"></td>
-                                <td x-text="delivery.dr_no"></td>
-                                <td x-text="Number(delivery.working_balance).toFixed(2)"></td>
-                                <td class="text-right">
-                                    <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>
-                                </td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card p-4">
-            <h2 class="text-sm font-semibold">Allocations</h2>
-            <div class="mt-4 overflow-x-auto">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>DR#</th>
-                            <th>Amount</th>
-                            <th>Balance After</th>
-                            <th class="text-right">Remove</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-if="allocations.length === 0">
-                            <tr>
-                                <td colspan="4" class="py-3">No allocations yet.</td>
-                            </tr>
-                        </template>
-                        <template x-for="(allocation, index) in allocations" :key="allocation.delivery_id + '-' + index">
-                            <tr>
-                                <td x-text="allocation.dr_no"></td>
-                                <td x-text="Number(allocation.amount).toFixed(2)"></td>
-                                <td x-text="Number(allocation.balance_after).toFixed(2)"></td>
-                                <td class="text-right">
-                                    <button class="btn-link" type="button" @click="removeAllocation(index)">Remove</button>
-                                    <input type="hidden" :name="'allocations[' + index + '][delivery_id]'" :value="allocation.delivery_id">
-                                    <input type="hidden" :name="'allocations[' + index + '][amount]'" :value="allocation.amount">
-                                </td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="grid gap-6 lg:grid-cols-2">
-            <div class="card p-4">
-                <h2 class="text-sm font-semibold">Other Accounts (Fixed)</h2>
-                <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium" for="sales_discount">Sales Discount</label>
-                        <input class="input mt-1" id="sales_discount" name="sales_discount" type="number" step="0.01" min="0" x-model="salesDiscount">
+        <div class="overflow-x-auto pb-2">
+            <div class="flex min-w-[1480px] gap-6">
+                <div class="card p-4 w-[460px] shrink-0">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold">Unpaid Delivery Receipts</h2>
+                        <span class="text-xs muted" x-text="visibleDeliveries.length + ' items'"></span>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="delivery_charges">Delivery Charges</label>
-                        <input class="input mt-1" id="delivery_charges" name="delivery_charges" type="number" step="0.01" min="0" x-model="deliveryCharges">
+
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Due Date</th>
+                                    <th>DR#</th>
+                                    <th>Balance</th>
+                                    <th class="text-right">Pay</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-if="visibleDeliveries.length === 0">
+                                    <tr>
+                                        <td colspan="5" class="py-3">No unpaid deliveries.</td>
+                                    </tr>
+                                </template>
+                                <template x-for="delivery in visibleDeliveries" :key="delivery.delivery_id">
+                                    <tr>
+                                        <td x-text="delivery.date"></td>
+                                        <td x-text="delivery.due_date || '-'"></td>
+                                        <td x-text="delivery.dr_no"></td>
+                                        <td x-text="Number(delivery.working_balance).toFixed(2)"></td>
+                                        <td class="text-right">
+                                            <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="taxes">Taxes</label>
-                        <input class="input mt-1" id="taxes" name="taxes" type="number" step="0.01" min="0" x-model="taxes">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="commissions">Commissions</label>
-                        <input class="input mt-1" id="commissions" name="commissions" type="number" step="0.01" min="0" x-model="commissions">
+
+                    <?php if (! empty($unpaidPagerLinks)): ?>
+                        <div class="mt-4 flex justify-end">
+                            <?= $unpaidPagerLinks ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="card p-4 w-[420px] shrink-0">
+                    <h2 class="text-sm font-semibold">Allocations</h2>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>DR#</th>
+                                    <th>Amount</th>
+                                    <th class="text-right">x</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-if="allocations.length === 0">
+                                    <tr>
+                                        <td colspan="4" class="py-3">No allocations yet.</td>
+                                    </tr>
+                                </template>
+                                <template x-for="(allocation, index) in allocations" :key="allocation.delivery_id + '-' + index">
+                                    <tr>
+                                        <td x-text="allocation.dr_no"></td>
+                                        <td x-text="Number(allocation.amount).toFixed(2)"></td>
+                                        <td class="text-left">
+                                            <button class="btn-link" type="button" @click="removeAllocation(index)">x</button>
+                                            <input type="hidden" :name="'allocations[' + index + '][delivery_id]'" :value="allocation.delivery_id">
+                                            <input type="hidden" :name="'allocations[' + index + '][amount]'" :value="allocation.amount">
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
 
-            <div class="card p-4">
-                <h2 class="text-sm font-semibold">A/R Other</h2>
-                <div class="mt-4 grid gap-4">
-                    <div>
-                        <label class="block text-sm font-medium" for="ar_other_description">Description</label>
-                        <input class="input mt-1" id="ar_other_description" name="ar_other_description" type="text" x-model="arOtherDescription">
+                <div class="card p-4 w-[300px] shrink-0">
+                    <h2 class="text-sm font-semibold">Other Accounts (Fixed)</h2>
+                    <div class="mt-4 grid gap-4">
+                        <div>
+                            <label class="block text-sm font-medium" for="sales_discount">Sales Discount</label>
+                            <input class="input mt-1" id="sales_discount" name="sales_discount" type="number" step="0.01" min="0" x-model="salesDiscount">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium" for="delivery_charges">Delivery Charges</label>
+                            <input class="input mt-1" id="delivery_charges" name="delivery_charges" type="number" step="0.01" min="0" x-model="deliveryCharges">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium" for="taxes">Taxes</label>
+                            <input class="input mt-1" id="taxes" name="taxes" type="number" step="0.01" min="0" x-model="taxes">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium" for="commissions">Commissions</label>
+                            <input class="input mt-1" id="commissions" name="commissions" type="number" step="0.01" min="0" x-model="commissions">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium" for="ar_other_amount">Amount</label>
-                        <input class="input mt-1" id="ar_other_amount" name="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherAmount">
+                </div>
+
+                <div class="card p-4 w-[300px] shrink-0">
+                    <h2 class="text-sm font-semibold">A/R Other</h2>
+                    <div class="mt-4 grid gap-4">
+                        <div>
+                            <label class="block text-sm font-medium" for="ar_other_description">Description</label>
+                            <input class="input mt-1" id="ar_other_description" name="ar_other_description" type="text" x-model="arOtherDescription">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium" for="ar_other_amount">Amount</label>
+                            <input class="input mt-1" id="ar_other_amount" name="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherAmount">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -269,12 +277,18 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
             modalOpen: false,
             modalDelivery: null,
             modalAmount: '',
+            normalizeAmount(value) {
+                return Math.round((parseFloat(value) || 0) * 100) / 100;
+            },
             init() {
                 const deliveries = this.parseJson(this.$el.dataset.deliveries, []);
                 this.deliveries = deliveries.map((delivery) => ({
                     ...delivery,
-                    working_balance: parseFloat(delivery.balance) || 0
+                    working_balance: this.normalizeAmount(delivery.balance)
                 }));
+            },
+            get visibleDeliveries() {
+                return this.deliveries.filter((delivery) => Number(delivery.working_balance) > 0);
             },
             parseJson(value, fallback) {
                 if (!value) {
@@ -319,9 +333,9 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                     return;
                 }
 
-                this.modalDelivery.working_balance = parseFloat((this.modalDelivery.working_balance - amount).toFixed(2));
+                this.modalDelivery.working_balance = this.normalizeAmount(this.modalDelivery.working_balance - amount);
                 this.allocations.push({
-                    delivery_id: this.modalDelivery.id,
+                    delivery_id: this.modalDelivery.delivery_id,
                     dr_no: this.modalDelivery.dr_no,
                     amount: amount,
                     balance_after: this.modalDelivery.working_balance
@@ -334,9 +348,9 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                 if (!allocation) {
                     return;
                 }
-                const delivery = this.deliveries.find((row) => String(row.id) === String(allocation.delivery_id));
+                const delivery = this.deliveries.find((row) => String(row.delivery_id) === String(allocation.delivery_id));
                 if (delivery) {
-                    delivery.working_balance = parseFloat((delivery.working_balance + parseFloat(allocation.amount)).toFixed(2));
+                    delivery.working_balance = this.normalizeAmount(delivery.working_balance + parseFloat(allocation.amount));
                 }
                 this.allocations.splice(index, 1);
             }
