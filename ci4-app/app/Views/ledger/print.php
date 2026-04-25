@@ -78,17 +78,19 @@
                 <th>Date</th>
                 <th>DR#</th>
                 <th>PR#</th>
+                <th>Account Title</th>
                 <th>Qty</th>
                 <th>Price</th>
                 <th class="text-right">Amount</th>
                 <th class="text-right">Collection</th>
+                <th class="text-right">Other Accounts</th>
                 <th class="text-right">Balance</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($rows)): ?>
                 <tr>
-                    <td class="text-center" colspan="8">No deliveries in range.</td>
+                    <td class="text-center" colspan="10">No deliveries in range.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($rows as $row): ?>
@@ -96,10 +98,12 @@
                         <td><?= esc($row['entry_date']) ?></td>
                         <td><?= esc($row['dr_no'] ?? '') ?></td>
                         <td><?= esc($row['pr_no'] ?? '') ?></td>
+                        <td><?= esc($row['account_title'] ?? '') ?></td>
                         <td><?= esc($row['qty'] ?? '') ?></td>
                         <td><?= esc($row['price'] ?? '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['amount'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['collection'] ?? 0), 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($row['other_accounts'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -108,9 +112,10 @@
         <?php if (! empty($rows)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="5">Totals</th>
+                    <th colspan="6">Totals</th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['amount'] ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['collection'] ?? 0), 2)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totals['other_accounts'] ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['ending_balance'] ?? 0), 2)) ?></th>
                 </tr>
             </tfoot>

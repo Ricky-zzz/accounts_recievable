@@ -34,17 +34,20 @@ class Ledger extends BaseController
 
         $amountTotal = 0.0;
         $collectionTotal = 0.0;
+        $otherAccountsTotal = 0.0;
         $endingBalance = (float) ($data['openingBalance'] ?? 0);
 
         foreach ($data['rows'] as $row) {
             $amountTotal += (float) ($row['amount'] ?? 0);
             $collectionTotal += (float) ($row['collection'] ?? 0);
+            $otherAccountsTotal += (float) ($row['other_accounts'] ?? 0);
             $endingBalance = (float) ($row['balance'] ?? $endingBalance);
         }
 
         $data['totals'] = [
             'amount' => $amountTotal,
             'collection' => $collectionTotal,
+            'other_accounts' => $otherAccountsTotal,
             'ending_balance' => $endingBalance,
         ];
 
@@ -77,6 +80,7 @@ class Ledger extends BaseController
         $itemCounts = [];
         $allocationsByDelivery = [];
         $allocationsByPayment = [];
+        $otherAccountsByPayment = [];
 
         if ($clientId > 0) {
             $selectedClient = $clientModel->find($clientId);
@@ -162,6 +166,23 @@ class Ledger extends BaseController
                     $paymentId = (int) $allocation['payment_id'];
                     $allocationsByPayment[$paymentId][] = $allocation;
                 }
+
+                $otherAccountRows = $db->table('boa b')
+                    ->select('b.payment_id, b.account_title, b.dr, b.ar_others, b.description, b.date, b.reference')
+                    ->whereIn('b.payment_id', $paymentIds)
+                    ->groupStart()
+                        ->where('b.account_title IS NOT NULL', null, false)
+                        ->orWhere('b.ar_others >', 0)
+                    ->groupEnd()
+                    ->orderBy('b.date', 'asc')
+                    ->orderBy('b.id', 'asc')
+                    ->get()
+                    ->getResultArray();
+
+                foreach ($otherAccountRows as $row) {
+                    $paymentId = (int) $row['payment_id'];
+                    $otherAccountsByPayment[$paymentId][] = $row;
+                }
             }
         }
 
@@ -177,6 +198,7 @@ class Ledger extends BaseController
             'itemCounts' => $itemCounts,
             'allocationsByDelivery' => $allocationsByDelivery,
             'allocationsByPayment' => $allocationsByPayment,
+            'otherAccountsByPayment' => $otherAccountsByPayment,
         ];
     }
 }

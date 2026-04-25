@@ -15,6 +15,10 @@ class CreateUsers extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'name' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 150,
+            ],
             'username' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 50,
@@ -22,6 +26,11 @@ class CreateUsers extends Migration
             'password_hash' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 255,
+            ],
+            'type' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 20,
+                'default'    => 'cashier',
             ],
             'is_active' => [
                 'type'       => 'TINYINT',
@@ -39,6 +48,7 @@ class CreateUsers extends Migration
         ]);
         $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('username');
+        $this->forge->addKey('type');
         $this->forge->createTable('users');
     }
 

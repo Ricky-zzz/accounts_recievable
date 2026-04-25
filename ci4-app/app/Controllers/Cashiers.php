@@ -2,22 +2,22 @@
 
 namespace App\Controllers;
 
-use App\Models\CashierModel;
 use App\Models\CashierReceiptRangeModel;
+use App\Models\UserModel;
 
 class Cashiers extends BaseController
 {
     public function index(): string
     {
-        $cashierModel = new CashierModel();
+        $userModel = new UserModel();
         $rangeModel = new CashierReceiptRangeModel();
 
-        $cashiers = $cashierModel->orderBy('name', 'asc')->findAll();
+        $cashiers = $userModel->orderBy('name', 'asc')->findAll();
         $ranges = $rangeModel->where('status', 'active')->findAll();
 
         $activeRanges = [];
         foreach ($ranges as $range) {
-            $activeRanges[$range['cashier_id']] = $range;
+            $activeRanges[$range['user_id']] = $range;
         }
 
         return view('cashiers/index', [
@@ -38,31 +38,37 @@ class Cashiers extends BaseController
             return redirect()->back()->withInput()->with('error', 'Please complete the cashier form.');
         }
 
-        $cashierModel = new CashierModel();
+        $userModel = new UserModel();
 
-        $cashierModel->insert([
+        $type = trim((string) $this->request->getPost('type'));
+        if (! in_array($type, ['cashier', 'admin'], true)) {
+            $type = 'cashier';
+        }
+
+        $userModel->insert([
             'name' => trim((string) $this->request->getPost('name')),
             'username' => trim((string) $this->request->getPost('username')),
             'password_hash' => password_hash((string) $this->request->getPost('password'), PASSWORD_DEFAULT),
+            'type' => $type,
             'is_active' => 1,
         ]);
 
-        return redirect()->to('/cashiers')->with('success', 'Cashier created.');
+        return redirect()->to('/cashiers')->with('success', 'User created.');
     }
 
     public function assignRange()
     {
-        $cashierId = (int) $this->request->getPost('cashier_id');
+        $userId = (int) $this->request->getPost('user_id');
         $startNo = (int) $this->request->getPost('start_no');
         $endNo = (int) $this->request->getPost('end_no');
 
-        if ($cashierId <= 0 || $startNo <= 0 || $endNo <= 0 || $startNo > $endNo) {
+        if ($userId <= 0 || $startNo <= 0 || $endNo <= 0 || $startNo > $endNo) {
             return redirect()->back()->with('error', 'Enter a valid receipt range.');
         }
 
         $rangeModel = new CashierReceiptRangeModel();
         $active = $rangeModel
-            ->where('cashier_id', $cashierId)
+            ->where('user_id', $userId)
             ->where('status', 'active')
             ->first();
 
@@ -75,7 +81,7 @@ class Cashiers extends BaseController
         }
 
         $rangeModel->insert([
-            'cashier_id' => $cashierId,
+            'user_id' => $userId,
             'start_no' => $startNo,
             'end_no' => $endNo,
             'next_no' => $startNo,

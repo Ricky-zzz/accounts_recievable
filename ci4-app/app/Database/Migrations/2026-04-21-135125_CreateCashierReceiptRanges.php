@@ -15,7 +15,7 @@ class CreateCashierReceiptRanges extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
-            'cashier_id' => [
+            'user_id' => [
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
@@ -43,8 +43,8 @@ class CreateCashierReceiptRanges extends Migration
             ],
         ]);
         $this->forge->addKey('id', true);
-        $this->forge->addKey('cashier_id');
-        $this->forge->addForeignKey('cashier_id', 'cashiers', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addKey('user_id');
+        $this->forge->addForeignKey('user_id', 'users', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->createTable('cashier_receipt_ranges');
     }
 

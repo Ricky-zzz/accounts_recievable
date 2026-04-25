@@ -11,7 +11,7 @@ class PaymentModel extends Model
     protected $returnType = 'array';
     protected $allowedFields = [
         'client_id',
-        'cashier_id',
+        'user_id',
         'pr_no',
         'date',
         'method',

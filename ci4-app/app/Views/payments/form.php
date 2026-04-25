@@ -1,14 +1,11 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
-$cashiersJson = json_encode($cashiers ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
 $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
+$collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assignedUser['username'] ?? '-') . ')'));
 ?>
 
-<div
-    x-data="paymentForm()"
-    data-cashiers="<?= esc($cashiersJson, 'attr') ?>"
-    data-deliveries="<?= esc($deliveriesJson, 'attr') ?>">
+<div x-data="paymentForm()" data-deliveries="<?= esc($deliveriesJson, 'attr') ?>" class="space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold">Payment for <?= esc($client['name']) ?></h1>
@@ -18,35 +15,40 @@ $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_A
         <a class="btn btn-secondary" href="<?= base_url('payments/client/' . $client['id']) ?>">Back</a>
     </div>
 
-    <form class="mt-6 space-y-6" method="post" action="<?= base_url('payments') ?>">
+    <?php if (! $activeReceipt): ?>
+        <div class="card p-4">
+            <p class="text-sm text-red-700">No active receipt range is assigned to your user yet. Ask admin to assign a range before posting payments.</p>
+        </div>
+    <?php endif; ?>
+
+    <form class="space-y-6" method="post" action="<?= base_url('payments') ?>">
         <?= csrf_field() ?>
         <input type="hidden" name="client_id" value="<?= esc($client['id']) ?>">
 
         <div class="card p-4">
             <div class="grid gap-4 sm:grid-cols-3">
                 <div>
-                    <label class="block text-sm font-medium" for="cashier_id">Cashier</label>
-                    <select class="input mt-1" id="cashier_id" name="cashier_id" x-model="selectedCashierId" required>
-                        <option value="">Select cashier</option>
-                        <?php foreach ($cashiers as $cashier): ?>
-                            <option value="<?= esc($cashier['id']) ?>" <?= (string) old('cashier_id') === (string) $cashier['id'] ? 'selected' : '' ?>>
-                                <?= esc($cashier['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <p class="mt-1 text-xs muted" x-show="selectedCashierId && !activeReceipt">No active receipt range.</p>
+                    <label class="block text-sm font-medium">Collector</label>
+                    <input class="input mt-1" type="text" value="<?= esc($collectorLabel) ?>" readonly>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">User Type</label>
+                    <input class="input mt-1" type="text" value="<?= esc(ucfirst((string) ($assignedUser['type'] ?? 'cashier'))) ?>" readonly>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="pr_no">Active Receipt</label>
-                    <input class="input mt-1" id="pr_no" type="text" :value="activeReceipt" readonly>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium" for="date">Date</label>
-                    <input class="input mt-1" id="date" name="date" type="date" value="<?= esc(old('date') ?: date('Y-m-d')) ?>" required>
+                    <input class="input mt-1" id="pr_no" type="text" value="<?= $activeReceipt ? esc((string) $activeReceipt) : 'Not assigned' ?>" readonly>
+                    <?php if ($activeReceipt && $rangeEnd): ?>
+                        <p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p>
+                    <?php endif; ?>
                 </div>
             </div>
 
             <div class="mt-4 grid gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="block text-sm font-medium" for="date">Date</label>
+                    <input class="input mt-1" id="date" name="date" type="date" value="<?= esc(old('date') ?: date('Y-m-d')) ?>" required>
+                </div>
                 <div>
                     <label class="block text-sm font-medium" for="method">Payment Method</label>
                     <select class="input mt-1" id="method" name="method" x-model="method" required>
@@ -59,183 +61,167 @@ $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_A
                     <label class="block text-sm font-medium" for="amount_received">Amount Received</label>
                     <input class="input mt-1" id="amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="amountReceived" required>
                 </div>
+            </div>
+
+            <div class="mt-4 grid gap-4 sm:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium" for="deposit_bank_id">Deposit Bank</label>
-                    <select class="input mt-1" id="deposit_bank_id" name="deposit_bank_id" x-model="depositBankId" required>
+                    <select class="input mt-1" id="deposit_bank_id" name="deposit_bank_id" required>
                         <option value="">Select bank</option>
                         <?php foreach ($banks as $bank): ?>
-                            <option value="<?= esc($bank['id']) ?>"><?= esc($bank['bank_name']) ?></option>
+                            <option value="<?= esc($bank['id']) ?>" <?= (string) old('deposit_bank_id') === (string) $bank['id'] ? 'selected' : '' ?>><?= esc($bank['bank_name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-            </div>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-2" x-show="method === 'bank'">
-                <div>
+                <div x-show="method === 'bank' || method === 'check'" x-cloak>
                     <label class="block text-sm font-medium" for="payer_bank">Bank of Payer</label>
-                    <input class="input mt-1" id="payer_bank" name="payer_bank" type="text" value="<?= esc(old('payer_bank')) ?>" :disabled="method !== 'bank'">
+                    <input class="input mt-1" id="payer_bank" name="payer_bank" type="text" value="<?= esc(old('payer_bank')) ?>" :disabled="method === 'cash'">
                 </div>
-            </div>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-2" x-show="method === 'check'">
-                <div>
+                <div x-show="method === 'check'" x-cloak>
                     <label class="block text-sm font-medium" for="check_no">Check Number</label>
                     <input class="input mt-1" id="check_no" name="check_no" type="text" value="<?= esc(old('check_no')) ?>" :disabled="method !== 'check'">
                 </div>
+            </div>
+        </div>
+
+        <div class="card p-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold">Unpaid Delivery Receipts</h2>
+                <span class="text-xs muted" x-text="deliveries.length + ' items'"></span>
+            </div>
+
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>DR#</th>
+                            <th>Balance</th>
+                            <th class="text-right">Pay</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-if="deliveries.length === 0">
+                            <tr>
+                                <td colspan="4" class="py-3">No unpaid deliveries.</td>
+                            </tr>
+                        </template>
+                        <template x-for="delivery in deliveries" :key="delivery.id">
+                            <tr>
+                                <td x-text="delivery.date"></td>
+                                <td x-text="delivery.dr_no"></td>
+                                <td x-text="Number(delivery.working_balance).toFixed(2)"></td>
+                                <td class="text-right">
+                                    <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card p-4">
+            <h2 class="text-sm font-semibold">Allocations</h2>
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>DR#</th>
+                            <th>Amount</th>
+                            <th>Balance After</th>
+                            <th class="text-right">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-if="allocations.length === 0">
+                            <tr>
+                                <td colspan="4" class="py-3">No allocations yet.</td>
+                            </tr>
+                        </template>
+                        <template x-for="(allocation, index) in allocations" :key="allocation.delivery_id + '-' + index">
+                            <tr>
+                                <td x-text="allocation.dr_no"></td>
+                                <td x-text="Number(allocation.amount).toFixed(2)"></td>
+                                <td x-text="Number(allocation.balance_after).toFixed(2)"></td>
+                                <td class="text-right">
+                                    <button class="btn-link" type="button" @click="removeAllocation(index)">Remove</button>
+                                    <input type="hidden" :name="'allocations[' + index + '][delivery_id]'" :value="allocation.delivery_id">
+                                    <input type="hidden" :name="'allocations[' + index + '][amount]'" :value="allocation.amount">
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-2">
+            <div class="card p-4">
+                <h2 class="text-sm font-semibold">Other Accounts (Fixed)</h2>
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium" for="sales_discount">Sales Discount</label>
+                        <input class="input mt-1" id="sales_discount" name="sales_discount" type="number" step="0.01" min="0" x-model="salesDiscount">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="delivery_charges">Delivery Charges</label>
+                        <input class="input mt-1" id="delivery_charges" name="delivery_charges" type="number" step="0.01" min="0" x-model="deliveryCharges">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="taxes">Taxes</label>
+                        <input class="input mt-1" id="taxes" name="taxes" type="number" step="0.01" min="0" x-model="taxes">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="commissions">Commissions</label>
+                        <input class="input mt-1" id="commissions" name="commissions" type="number" step="0.01" min="0" x-model="commissions">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4">
+                <h2 class="text-sm font-semibold">A/R Other</h2>
+                <div class="mt-4 grid gap-4">
+                    <div>
+                        <label class="block text-sm font-medium" for="ar_other_description">Description</label>
+                        <input class="input mt-1" id="ar_other_description" name="ar_other_description" type="text" x-model="arOtherDescription">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="ar_other_amount">Amount</label>
+                        <input class="input mt-1" id="ar_other_amount" name="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherAmount">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-4">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 text-sm">
                 <div>
-                    <label class="block text-sm font-medium" for="check_bank">Bank of Payer</label>
-                    <input class="input mt-1" id="check_bank" name="payer_bank" type="text" value="<?= esc(old('payer_bank')) ?>" :disabled="method !== 'check'">
+                    <p class="muted">Amount Received</p>
+                    <p class="font-semibold" x-text="Number(amountReceived || 0).toFixed(2)"></p>
+                </div>
+                <div>
+                    <p class="muted">Allocated Total</p>
+                    <p class="font-semibold" x-text="allocatedTotal().toFixed(2)"></p>
+                </div>
+                <div>
+                    <p class="muted">Other Accounts Total</p>
+                    <p class="font-semibold" x-text="fixedAccountsTotal().toFixed(2)"></p>
+                </div>
+                <div>
+                    <p class="muted">A/R Other Total</p>
+                    <p class="font-semibold" x-text="Number(arOtherAmount || 0).toFixed(2)"></p>
+                </div>
+                <div>
+                    <p class="muted">Unallocated</p>
+                    <p class="font-semibold" x-text="balanceAmount().toFixed(2)"></p>
                 </div>
             </div>
-        </div>
 
-        <div class="mt-6 overflow-x-auto pb-4">
-            <div class="flex gap-10 min-w-[1100px]">
-                <div class="min-w-[320px]">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold">Unpaid Delivery Receipts</h2>
-                        <span class="text-xs muted" x-text="deliveries.length + ' items'"></span>
-                    </div>
-                    <table class="table mt-4">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>DR#</th>
-                                <th>Balance</th>
-                                <th class="text-right">Pay</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <div class="min-w-[420px]">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h2 class="text-sm font-semibold">Other Accounts</h2>
-                                </div>
-                                <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                                    <div>
-                                        <label class="block text-sm font-medium" for="sales_discount">Sales Discount</label>
-                                        <input class="input mt-1" id="sales_discount" name="sales_discount" type="number" step="0.01" min="0" x-model="salesDiscount">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium" for="delivery_charges">Delivery Charges</label>
-                                        <input class="input mt-1" id="delivery_charges" name="delivery_charges" type="number" step="0.01" min="0" x-model="deliveryCharges">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium" for="taxes">Taxes</label>
-                                        <input class="input mt-1" id="taxes" name="taxes" type="number" step="0.01" min="0" x-model="taxes">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium" for="commissions">Commissions</label>
-                                        <input class="input mt-1" id="commissions" name="commissions" type="number" step="0.01" min="0" x-model="commissions">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="min-w-[320px]">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h2 class="text-sm font-semibold">A/R Other</h2>
-                                </div>
-                                <div class="mt-4 grid gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium" for="ar_other_description">A/R Other Description</label>
-                                        <input class="input mt-1" id="ar_other_description" name="ar_other_description" type="text" x-model="arOtherDescription">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium" for="ar_other_amount">A/R Other Amount</label>
-                                        <input class="input mt-1" id="ar_other_amount" name="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherAmount">
-                                    </div>
-                                </div>
-                                    <td class="py-3" colspan="6">No other accounts yet.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(row, index) in otherAccountRows" :key="row.account_id + '-' + index">
-                                <tr>
-                                    <td x-text="row.account_name"></td>
-                                    <td x-text="row.reference || '-'" class="text-xs"></td>
-                                    <td x-text="row.type.toUpperCase()"></td>
-                                    <td x-text="row.affects_trade ? (row.type === 'dr' ? 'Add' : 'Subtract') : 'Independent'"></td>
-                                    <td x-text="Number(row.amount).toFixed(2)"></td>
-                                    <td class="text-right">
-                                        <button class="btn-link" type="button" @click="removeOtherAccount(index)">Remove</button>
-                                        <input type="hidden" :name="'other_accounts[' + index + '][account_id]'" :value="row.account_id">
-                                        <input type="hidden" :name="'other_accounts[' + index + '][reference]'" :value="row.reference">
-                                        <input type="hidden" :name="'other_accounts[' + index + '][note]'" :value="row.note">
-                                        <input type="hidden" :name="'other_accounts[' + index + '][amount]'" :value="row.amount">
-                                        <input type="hidden" :name="'other_accounts[' + index + '][affects_trade]'" :value="row.affects_trade ? 1 : 0">
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-
-                    <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span>DR Total</span>
-                            <span x-text="otherDrTotal().toFixed(2)"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>CR Total</span>
-                            <span x-text="otherCrTotal().toFixed(2)"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="min-w-[380px]">
-                    <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-sm font-semibold">A/R Other</h2>
-                        <button class="btn btn-secondary" type="button" @click="openArOtherModal()">+ A/R Other</button>
-                    </div>
-                    <p class="mt-1 text-xs muted" x-text="arOtherRows.length + ' items'"></p>
-
-                    <table class="table mt-4">
-                        <thead>
-                            <tr>
-                                <th>Description</th>
-                                <th>Amount</th>
-                                <th class="text-right">Remove</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="arOtherRows.length === 0">
-                                <tr>
-                                    <td class="py-3" colspan="3">No A/R other yet.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(row, index) in arOtherRows" :key="row.description + '-' + index">
-                                <tr>
-                                    <td x-text="row.description || '-'" class="text-xs"></td>
-                                    <td x-text="Number(row.amount).toFixed(2)"></td>
-                                    <td class="text-right">
-                                        <button class="btn-link" type="button" @click="removeArOther(index)">Remove</button>
-                                        <input type="hidden" :name="'ar_others[' + index + '][description]'" :value="row.description">
-                                        <input type="hidden" :name="'ar_others[' + index + '][amount]'" :value="row.amount">
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-
-                    <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span>A/R Others Total</span>
-                            <span x-text="arOtherTotal().toFixed(2)"></span>
-                        </div>
-                    </div>
-                </div>
+            <div class="mt-4 flex flex-wrap items-end gap-3">
+                <button class="btn" type="submit" <?= $activeReceipt ? '' : 'disabled' ?>>Commit Transaction</button>
+                <a class="btn btn-secondary" href="<?= base_url('payments') ?>">Cancel</a>
             </div>
-        </div>
-
-        <div class="flex flex-wrap items-end gap-3">
-            <div class="min-w-[240px]">
-                <label class="block text-sm font-medium" for="unallocated_amount">Unallocated Amount</label>
-                <input
-                    class="input mt-1 text-right"
-                    id="unallocated_amount"
-                    type="text"
-                    :value="balanceAmount().toFixed(2)"
-                    readonly>
-            </div>
-            <button class="btn" type="submit">Commit Transaction</button>
-            <a class="btn btn-secondary" href="<?= base_url('payments') ?>">Cancel</a>
         </div>
     </form>
 
@@ -270,14 +256,10 @@ $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_A
 <script>
     function paymentForm() {
         return {
-            cashiers: [],
             deliveries: [],
             allocations: [],
-            selectedCashierId: '<?= esc(old('cashier_id')) ?>',
-            activeReceipt: '',
             method: '<?= esc(old('method') ?: 'cash') ?>',
             amountReceived: '<?= esc(old('amount_received')) ?>',
-            depositBankId: '<?= esc(old('deposit_bank_id')) ?>',
             arOtherDescription: '<?= esc(old('ar_other_description')) ?>',
             arOtherAmount: '<?= esc(old('ar_other_amount')) ?>',
             salesDiscount: '<?= esc(old('sales_discount')) ?>',
@@ -288,18 +270,11 @@ $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_A
             modalDelivery: null,
             modalAmount: '',
             init() {
-                const root = this.$el;
-                this.cashiers = this.parseJson(root.dataset.cashiers, []);
-
-                const deliveries = this.parseJson(root.dataset.deliveries, []);
+                const deliveries = this.parseJson(this.$el.dataset.deliveries, []);
                 this.deliveries = deliveries.map((delivery) => ({
                     ...delivery,
                     working_balance: parseFloat(delivery.balance) || 0
                 }));
-                this.updateReceipt();
-                this.$watch('selectedCashierId', () => {
-                    this.updateReceipt();
-                });
             },
             parseJson(value, fallback) {
                 if (!value) {
@@ -311,10 +286,6 @@ $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_A
                     return fallback;
                 }
             },
-            updateReceipt() {
-                const cashier = this.cashiers.find((row) => String(row.id) === String(this.selectedCashierId));
-                this.activeReceipt = cashier && cashier.active_receipt ? cashier.active_receipt : '';
-            },
             allocatedTotal() {
                 return this.allocations.reduce((sum, allocation) => sum + (parseFloat(allocation.amount) || 0), 0);
             },
@@ -322,16 +293,11 @@ $deliveriesJson = json_encode($unpaidDeliveries ?? [], JSON_HEX_TAG | JSON_HEX_A
                 return [this.salesDiscount, this.deliveryCharges, this.taxes, this.commissions]
                     .reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
             },
-            unpaidTotal() {
-                return this.deliveries
-                    .filter((row) => parseFloat(row.working_balance) > 0)
-                    .reduce((sum, row) => sum + (parseFloat(row.working_balance) || 0), 0);
-            },
-            arTradeTotal() {
-                return this.allocatedTotal() - this.fixedAccountsTotal();
-            },
             balanceAmount() {
-                return (parseFloat(this.amountReceived) || 0) - this.allocatedTotal() - (parseFloat(this.arOtherAmount) || 0);
+                return (parseFloat(this.amountReceived) || 0)
+                    + this.fixedAccountsTotal()
+                    - this.allocatedTotal()
+                    - (parseFloat(this.arOtherAmount) || 0);
             },
             openPayModal(delivery) {
                 this.modalDelivery = delivery;

@@ -4,12 +4,12 @@ namespace App\Controllers;
 
 use App\Models\BankModel;
 use App\Models\BoaModel;
-use App\Models\CashierModel;
 use App\Models\CashierReceiptRangeModel;
 use App\Models\ClientModel;
 use App\Models\LedgerModel;
 use App\Models\PaymentAllocationModel;
 use App\Models\PaymentModel;
+use App\Models\UserModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -103,7 +103,7 @@ class Payments extends BaseController
     public function createForm(int $clientId): string
     {
         $clientModel = new ClientModel();
-        $cashierModel = new CashierModel();
+        $userModel = new UserModel();
         $rangeModel = new CashierReceiptRangeModel();
         $bankModel = new BankModel();
 
@@ -112,32 +112,28 @@ class Payments extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        $cashiers = $cashierModel->orderBy('name', 'asc')->findAll();
-        $ranges = $rangeModel->where('status', 'active')->findAll();
+        $userId = (int) (session('user_id') ?? 0);
+        $assignedUser = $userModel->find($userId);
 
-        $rangeByCashier = [];
-        foreach ($ranges as $range) {
-            $rangeByCashier[$range['cashier_id']] = $range;
-        }
+        $activeRange = null;
+        if ($userId > 0) {
+            $range = $rangeModel
+                ->where('user_id', $userId)
+                ->where('status', 'active')
+                ->first();
 
-        $cashierData = [];
-        foreach ($cashiers as $cashier) {
-            $range = $rangeByCashier[$cashier['id']] ?? null;
-            $hasActive = $range && (int) $range['next_no'] <= (int) $range['end_no'];
-
-            $cashierData[] = [
-                'id' => $cashier['id'],
-                'name' => $cashier['name'],
-                'active_receipt' => $hasActive ? (int) $range['next_no'] : null,
-                'range_end' => $hasActive ? (int) $range['end_no'] : null,
-            ];
+            if ($range && (int) $range['next_no'] <= (int) $range['end_no']) {
+                $activeRange = $range;
+            }
         }
 
         $unpaidDeliveries = $this->fetchUnpaidDeliveries($clientId);
 
         return view('payments/form', [
             'client' => $client,
-            'cashiers' => $cashierData,
+            'assignedUser' => $assignedUser,
+            'activeReceipt' => $activeRange ? (int) $activeRange['next_no'] : null,
+            'rangeEnd' => $activeRange ? (int) $activeRange['end_no'] : null,
             'banks' => $bankModel->orderBy('bank_name', 'asc')->findAll(),
             'unpaidDeliveries' => $unpaidDeliveries,
         ]);
@@ -146,7 +142,7 @@ class Payments extends BaseController
     public function store()
     {
         $clientId = (int) $this->request->getPost('client_id');
-        $cashierId = (int) $this->request->getPost('cashier_id');
+        $userId = (int) (session('user_id') ?? 0);
         $date = (string) $this->request->getPost('date');
         $method = (string) $this->request->getPost('method');
         $amountReceived = (float) $this->request->getPost('amount_received');
@@ -161,7 +157,7 @@ class Payments extends BaseController
         $taxes = (float) $this->request->getPost('taxes');
         $commissions = (float) $this->request->getPost('commissions');
 
-        if ($clientId <= 0 || $cashierId <= 0 || $date === '' || $amountReceived <= 0) {
+        if ($clientId <= 0 || $userId <= 0 || $date === '' || $amountReceived <= 0) {
             return redirect()->back()->withInput()->with('error', 'Please complete the payment form.');
         }
 
@@ -206,6 +202,9 @@ class Payments extends BaseController
             $fixedAccountsTotal += (float) $row['amount'];
         }
         $arOtherAmount = max(0.0, $arOtherAmount);
+        $otherAccountsTotal = $fixedAccountsTotal;
+        $accountTitles = array_values(array_filter(array_map(static fn (array $row) => $row['title'], $fixedAccountRows)));
+        $accountTitle = implode(', ', $accountTitles);
 
         helper('boa');
 
@@ -259,13 +258,18 @@ class Payments extends BaseController
             return redirect()->back()->withInput()->with('error', 'Add a valid allocation, A/R other, or other account amount.');
         }
 
+        $unallocatedAmount = round($amountReceived + $otherAccountsTotal - $allocatedTotal - $arOtherAmount, 2);
+        if (abs($unallocatedAmount) > 0.005) {
+            return redirect()->back()->withInput()->with('error', 'Unallocated amount must be 0.00. Adjust allocations or other accounts.');
+        }
+
         $range = $rangeModel
-            ->where('cashier_id', $cashierId)
+            ->where('user_id', $userId)
             ->where('status', 'active')
             ->first();
 
         if (! $range || (int) $range['next_no'] > (int) $range['end_no']) {
-            return redirect()->back()->withInput()->with('error', 'Cashier has no active receipt range.');
+            return redirect()->back()->withInput()->with('error', 'Current user has no active receipt range.');
         }
 
         $db = db_connect();
@@ -280,7 +284,7 @@ class Payments extends BaseController
 
         $paymentId = $paymentModel->insert([
             'client_id' => $clientId,
-            'cashier_id' => $cashierId,
+            'user_id' => $userId,
             'pr_no' => $prNo,
             'date' => $date,
             'method' => $method,
@@ -306,6 +310,8 @@ class Payments extends BaseController
             ->orderBy('id', 'desc')
             ->first();
         $previousBalance = (float) ($lastLedger['balance'] ?? 0);
+        $ledgerCollection = min($amountReceived, $allocatedTotal);
+        $ledgerBalanceReduction = $allocatedTotal;
 
         $ledgerModel->insert([
             'client_id' => $clientId,
@@ -315,14 +321,16 @@ class Payments extends BaseController
             'qty' => null,
             'price' => null,
             'amount' => 0,
-            'collection' => $allocatedTotal,
-            'balance' => $previousBalance - $allocatedTotal,
+            'collection' => $ledgerCollection,
+            'account_title' => $accountTitle !== '' ? $accountTitle : null,
+            'other_accounts' => $otherAccountsTotal,
+            'balance' => $previousBalance - $ledgerBalanceReduction,
             'delivery_id' => null,
             'payment_id' => $paymentId,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $arTradeTotal = $allocatedTotal - $fixedAccountsTotal;
+        $arTradeTotal = $allocatedTotal;
 
         $boaModel->protect(false)->insert([
             'date' => $date,

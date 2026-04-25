@@ -20,7 +20,7 @@ class CreatePayments extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
-            'cashier_id' => [
+            'user_id' => [
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
@@ -83,9 +83,9 @@ class CreatePayments extends Migration
         ]);
         $this->forge->addKey('id', true);
         $this->forge->addKey(['client_id', 'date']);
-        $this->forge->addUniqueKey(['cashier_id', 'pr_no']);
+        $this->forge->addUniqueKey(['user_id', 'pr_no']);
         $this->forge->addForeignKey('client_id', 'clients', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('cashier_id', 'cashiers', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addForeignKey('user_id', 'users', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('deposit_bank_id', 'banks', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->createTable('payments');
     }

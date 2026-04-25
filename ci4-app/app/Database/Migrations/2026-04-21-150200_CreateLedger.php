@@ -53,6 +53,16 @@ class CreateLedger extends Migration
                 'constraint' => '12,2',
                 'default'    => 0,
             ],
+            'account_title' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 100,
+                'null'       => true,
+            ],
+            'other_accounts' => [
+                'type'       => 'DECIMAL',
+                'constraint' => '12,2',
+                'default'    => 0,
+            ],
             'balance' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '12,2',

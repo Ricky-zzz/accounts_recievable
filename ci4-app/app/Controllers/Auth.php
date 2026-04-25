@@ -40,7 +40,9 @@ class Auth extends BaseController
         session()->regenerate(true);
         session()->set([
             'user_id' => $user['id'],
+            'name' => $user['name'] ?? '',
             'username' => $user['username'],
+            'type' => $user['type'] ?? 'cashier',
         ]);
 
         return redirect()->to('/clients');

@@ -15,6 +15,10 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 
+-- Dumping database structure for ar
+CREATE DATABASE IF NOT EXISTS `ar` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `ar`;
+
 -- Dumping structure for table ar.banks
 CREATE TABLE IF NOT EXISTS `banks` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -24,14 +28,10 @@ CREATE TABLE IF NOT EXISTS `banks` (
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.banks: ~3 rows (approximately)
+-- Dumping data for table ar.banks: ~0 rows (approximately)
 DELETE FROM `banks`;
-INSERT INTO `banks` (`id`, `bank_name`, `account_name`, `bank_number`, `created_at`, `updated_at`) VALUES
-	(1, 'BDO', 'BDO', 'BDO-123', '2026-04-22 12:39:23', '2026-04-22 12:39:23'),
-	(2, 'BPI', 'BPI', 'BPI-123', '2026-04-22 12:39:40', '2026-04-22 12:39:40'),
-	(3, 'MBTC', 'MBTC', 'MBTC-123', '2026-04-22 12:39:58', '2026-04-22 12:39:58');
 
 -- Dumping structure for table ar.boa
 CREATE TABLE IF NOT EXISTS `boa` (
@@ -40,9 +40,6 @@ CREATE TABLE IF NOT EXISTS `boa` (
   `payor` int unsigned NOT NULL,
   `reference` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `payment_id` int unsigned NOT NULL,
-  `MBTC` decimal(12,2) DEFAULT '0.00',
-  `BPI` decimal(12,2) DEFAULT '0.00',
-  `BDO` decimal(12,2) DEFAULT '0.00',
   `ar_trade` decimal(12,2) NOT NULL DEFAULT '0.00',
   `ar_others` decimal(12,2) NOT NULL DEFAULT '0.00',
   `account_title` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -58,14 +55,10 @@ CREATE TABLE IF NOT EXISTS `boa` (
   KEY `payment_id` (`payment_id`),
   CONSTRAINT `boa_payment_id_foreign` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `boa_payor_foreign` FOREIGN KEY (`payor`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.boa: ~3 rows (approximately)
+-- Dumping data for table ar.boa: ~0 rows (approximately)
 DELETE FROM `boa`;
-INSERT INTO `boa` (`id`, `date`, `payor`, `reference`, `payment_id`, `MBTC`, `BPI`, `BDO`, `ar_trade`, `ar_others`, `account_title`, `note`, `description`, `dr`, `cr`, `created_at`, `updated_at`) VALUES
-	(1, '2026-04-22', 1, '1000', 1, 0.00, 0.00, 12000.00, 13000.00, 0.00, NULL, NULL, NULL, 0.00, 0.00, '2026-04-22 14:41:46', '2026-04-22 14:41:46'),
-	(2, '2026-04-22', 1, NULL, 1, 0.00, 0.00, 0.00, 0.00, 0.00, 'Commission Expenses', NULL, NULL, 1000.00, 0.00, '2026-04-22 14:41:46', '2026-04-22 14:41:46'),
-	(3, '2026-04-22', 1, NULL, 1, 0.00, 0.00, 0.00, 0.00, 0.00, 'Handling/Delivery Charges', NULL, NULL, 1000.00, 0.00, '2026-04-22 14:41:46', '2026-04-22 14:41:46');
 
 -- Dumping structure for table ar.cashiers
 CREATE TABLE IF NOT EXISTS `cashiers` (
@@ -78,12 +71,17 @@ CREATE TABLE IF NOT EXISTS `cashiers` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.cashiers: ~1 rows (approximately)
+-- Dumping data for table ar.cashiers: ~6 rows (approximately)
 DELETE FROM `cashiers`;
 INSERT INTO `cashiers` (`id`, `name`, `username`, `password_hash`, `is_active`, `created_at`, `updated_at`) VALUES
-	(1, 'cashier', 'cash123', '$2y$12$dh00quqf6bs..S3NrUp6/uTNk/qjldiBPwfmY5XmjCKEjRudzHdO.', 1, '2026-04-22 12:41:52', '2026-04-22 12:41:52');
+	(1, 'Maria Santos', 'maria.santos', '$2y$12$g6CGAPBzmffQj9SuIIrnq.gZHgg7bn1BHd2CHif4FqvzAUm2HB3yK', 1, '2026-04-24 16:02:54', '2026-04-24 16:02:54'),
+	(2, 'Juan Rodriguez', 'juan.rodriguez', '$2y$12$AoxnyCaXu9V8rTtKUNRXLOAXtj/mO9TuaftzYWYNkcssjhAv/XOpW', 1, '2026-04-24 16:02:55', '2026-04-24 16:02:55'),
+	(3, 'Angela Martinez', 'angela.martinez', '$2y$12$cllE7F8JhEFGOGsuWrHF5OSBoVxHF23VlmcMMWRKJKzNQa4yTFi0m', 1, '2026-04-24 16:02:55', '2026-04-24 16:02:55'),
+	(4, 'Carlos Perez', 'carlos.perez', '$2y$12$ZDT.nGJzmw0R3IG5ZV0ntOkj5QzUZsJyxoMgqrmdOXjOZ27MXm2dO', 1, '2026-04-24 16:02:55', '2026-04-24 16:02:55'),
+	(5, 'Isabel Gonzalez', 'isabel.gonzalez', '$2y$12$1JfjooaqgQCsT3Zyl53Chuud4qTXKTvYC8OZlEDxzHRNf/Pv0qiam', 1, '2026-04-24 16:02:55', '2026-04-24 16:02:55'),
+	(6, 'Diego Lopez', 'diego.lopez', '$2y$12$Zn9zGChWWFXYEQbC7zINYOJ3/jr32vM9COMhx8gZ51D5Gzzkfu1Le', 0, '2026-04-24 16:02:56', '2026-04-24 16:02:56');
 
 -- Dumping structure for table ar.cashier_receipt_ranges
 CREATE TABLE IF NOT EXISTS `cashier_receipt_ranges` (
@@ -97,12 +95,10 @@ CREATE TABLE IF NOT EXISTS `cashier_receipt_ranges` (
   PRIMARY KEY (`id`),
   KEY `cashier_id` (`cashier_id`),
   CONSTRAINT `cashier_receipt_ranges_cashier_id_foreign` FOREIGN KEY (`cashier_id`) REFERENCES `cashiers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.cashier_receipt_ranges: ~1 rows (approximately)
+-- Dumping data for table ar.cashier_receipt_ranges: ~0 rows (approximately)
 DELETE FROM `cashier_receipt_ranges`;
-INSERT INTO `cashier_receipt_ranges` (`id`, `cashier_id`, `start_no`, `end_no`, `next_no`, `status`, `created_at`) VALUES
-	(1, 1, 1000, 1999, 1001, 'active', NULL);
 
 -- Dumping structure for table ar.clients
 CREATE TABLE IF NOT EXISTS `clients` (
@@ -111,16 +107,22 @@ CREATE TABLE IF NOT EXISTS `clients` (
   `address` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `email` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `phone` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `credit_limit` decimal(12,2) DEFAULT NULL,
+  `payment_term` int unsigned DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.clients: ~2 rows (approximately)
+-- Dumping data for table ar.clients: ~6 rows (approximately)
 DELETE FROM `clients`;
-INSERT INTO `clients` (`id`, `name`, `address`, `email`, `phone`, `created_at`, `updated_at`) VALUES
-	(1, 'Joyce Anne', 'lipa city', 'j@gmail.com', '322313213213', '2026-04-22 12:38:19', '2026-04-22 12:38:19'),
-	(2, 'Mark Anthony', 'lipa city', 'm@gmail.com', '232323213', '2026-04-22 12:38:37', '2026-04-22 12:38:37');
+INSERT INTO `clients` (`id`, `name`, `address`, `email`, `phone`, `credit_limit`, `payment_term`, `created_at`, `updated_at`) VALUES
+	(1, 'Acme Corporation', '123 Business Ave, Suite 100, New York, NY 10001', 'contact@acmecorp.com', '+1-212-555-0101', 1000000.00, 30, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(2, 'Global Industries Inc', '456 Commerce Boulevard, Los Angeles, CA 90001', 'info@globalindustries.com', '+1-213-555-0202', 750000.00, 15, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(3, 'Tech Solutions Ltd', '789 Digital Drive, San Francisco, CA 94102', 'sales@techsolutions.com', '+1-415-555-0303', 500000.00, 30, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(4, 'Manufacturing Pro Services', '321 Industrial Park, Chicago, IL 60601', 'procurement@mfgpro.com', '+1-312-555-0404', 850000.00, 45, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(5, 'Enterprise Solutions Group', '654 Corporate Plaza, Houston, TX 77002', 'accounts@enterprisesolutions.com', '+1-713-555-0505', 1200000.00, 30, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(6, 'Premier Distribution Network', '987 Trade Center, Miami, FL 33101', 'orders@premierdist.com', '+1-305-555-0606', 650000.00, 20, '2026-04-24 16:02:56', '2026-04-24 16:02:56');
 
 -- Dumping structure for table ar.deliveries
 CREATE TABLE IF NOT EXISTS `deliveries` (
@@ -128,6 +130,8 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   `client_id` int unsigned NOT NULL,
   `dr_no` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
   `date` date NOT NULL,
+  `payment_term` int unsigned DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
   `total_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
   `status` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'open',
   `void_reason` text COLLATE utf8mb4_general_ci,
@@ -137,14 +141,12 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `client_id_dr_no` (`client_id`,`dr_no`),
   KEY `client_id_date` (`client_id`,`date`),
+  KEY `idx_deliveries_due_date` (`due_date`),
   CONSTRAINT `deliveries_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.deliveries: ~2 rows (approximately)
+-- Dumping data for table ar.deliveries: ~0 rows (approximately)
 DELETE FROM `deliveries`;
-INSERT INTO `deliveries` (`id`, `client_id`, `dr_no`, `date`, `total_amount`, `status`, `void_reason`, `voided_at`, `created_at`, `updated_at`) VALUES
-	(1, 1, 'DR-101', '2026-04-22', 9000.00, 'open', NULL, NULL, '2026-04-22 13:05:03', '2026-04-22 13:05:03'),
-	(2, 1, 'DR-102', '2026-04-22', 8712.00, 'open', NULL, NULL, '2026-04-22 13:05:35', '2026-04-22 13:05:35');
 
 -- Dumping structure for table ar.delivery_items
 CREATE TABLE IF NOT EXISTS `delivery_items` (
@@ -159,13 +161,10 @@ CREATE TABLE IF NOT EXISTS `delivery_items` (
   KEY `product_id` (`product_id`),
   CONSTRAINT `delivery_items_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `delivery_items_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.delivery_items: ~1 rows (approximately)
+-- Dumping data for table ar.delivery_items: ~0 rows (approximately)
 DELETE FROM `delivery_items`;
-INSERT INTO `delivery_items` (`id`, `delivery_id`, `product_id`, `qty`, `unit_price`, `line_total`) VALUES
-	(1, 1, 1, 100.00, 90.00, 9000.00),
-	(2, 2, 2, 99.00, 88.00, 8712.00);
 
 -- Dumping structure for table ar.ledger
 CREATE TABLE IF NOT EXISTS `ledger` (
@@ -189,14 +188,10 @@ CREATE TABLE IF NOT EXISTS `ledger` (
   CONSTRAINT `ledger_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `ledger_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `ledger_payment_id_foreign` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.ledger: ~3 rows (approximately)
+-- Dumping data for table ar.ledger: ~0 rows (approximately)
 DELETE FROM `ledger`;
-INSERT INTO `ledger` (`id`, `client_id`, `entry_date`, `dr_no`, `pr_no`, `qty`, `price`, `amount`, `collection`, `balance`, `delivery_id`, `payment_id`, `created_at`) VALUES
-	(1, 1, '2026-04-22', 'DR-101', NULL, 100.00, 90.00, 9000.00, 0.00, 9000.00, 1, NULL, '2026-04-22 13:05:03'),
-	(2, 1, '2026-04-22', 'DR-102', NULL, 99.00, 88.00, 8712.00, 0.00, 17712.00, 2, NULL, '2026-04-22 13:05:35'),
-	(3, 1, '2026-04-22', NULL, '1000', NULL, NULL, 0.00, 11000.00, 6712.00, NULL, 1, '2026-04-22 14:41:46');
 
 -- Dumping structure for table ar.migrations
 CREATE TABLE IF NOT EXISTS `migrations` (
@@ -208,26 +203,28 @@ CREATE TABLE IF NOT EXISTS `migrations` (
   `time` int NOT NULL,
   `batch` int unsigned NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.migrations: ~1 rows (approximately)
+-- Dumping data for table ar.migrations: ~16 rows (approximately)
 DELETE FROM `migrations`;
 INSERT INTO `migrations` (`id`, `version`, `class`, `group`, `namespace`, `time`, `batch`) VALUES
-	(24, '2026-04-21-065247', 'App\\Database\\Migrations\\CreateUsers', 'default', 'App', 1776861302, 1),
-	(25, '2026-04-21-065248', 'App\\Database\\Migrations\\CreateBanks', 'default', 'App', 1776861302, 1),
-	(26, '2026-04-21-065248', 'App\\Database\\Migrations\\CreateClients', 'default', 'App', 1776861302, 1),
-	(27, '2026-04-21-065248', 'App\\Database\\Migrations\\CreateProducts', 'default', 'App', 1776861302, 1),
-	(28, '2026-04-21-072400', 'App\\Database\\Migrations\\CreateDeliveries', 'default', 'App', 1776861302, 1),
-	(29, '2026-04-21-072400', 'App\\Database\\Migrations\\CreateDeliveryItems', 'default', 'App', 1776861302, 1),
-	(30, '2026-04-21-135124', 'App\\Database\\Migrations\\CreateCashiers', 'default', 'App', 1776861302, 1),
-	(31, '2026-04-21-135125', 'App\\Database\\Migrations\\CreateCashierReceiptRanges', 'default', 'App', 1776861302, 1),
-	(32, '2026-04-21-135126', 'App\\Database\\Migrations\\CreatePayments', 'default', 'App', 1776861302, 1),
-	(33, '2026-04-21-150100', 'App\\Database\\Migrations\\CreatePaymentAllocations', 'default', 'App', 1776861302, 1),
-	(34, '2026-04-21-150200', 'App\\Database\\Migrations\\CreateLedger', 'default', 'App', 1776861302, 1),
-	(35, '2026-04-21-155000', 'App\\Database\\Migrations\\CreateOtherAccounts', 'default', 'App', 1776861302, 1),
-	(36, '2026-04-21-160000', 'App\\Database\\Migrations\\CreateBoa', 'default', 'App', 1776861302, 1),
-	(37, '2026-04-22-090000', 'App\\Database\\Migrations\\UpdateOtherAccountsType', 'default', 'App', 1776861302, 1),
-	(38, '2026-04-22-091000', 'App\\Database\\Migrations\\UpdateBoaForOtherAccounts', 'default', 'App', 1776861302, 1);
+	(39, '2026-04-21-065247', 'App\\Database\\Migrations\\CreateUsers', 'default', 'App', 1777046553, 1),
+	(40, '2026-04-21-065248', 'App\\Database\\Migrations\\CreateBanks', 'default', 'App', 1777046553, 1),
+	(41, '2026-04-21-065248', 'App\\Database\\Migrations\\CreateClients', 'default', 'App', 1777046553, 1),
+	(42, '2026-04-21-065248', 'App\\Database\\Migrations\\CreateProducts', 'default', 'App', 1777046553, 1),
+	(43, '2026-04-21-072400', 'App\\Database\\Migrations\\CreateDeliveries', 'default', 'App', 1777046553, 1),
+	(44, '2026-04-21-072400', 'App\\Database\\Migrations\\CreateDeliveryItems', 'default', 'App', 1777046553, 1),
+	(45, '2026-04-21-135124', 'App\\Database\\Migrations\\CreateCashiers', 'default', 'App', 1777046553, 1),
+	(46, '2026-04-21-135125', 'App\\Database\\Migrations\\CreateCashierReceiptRanges', 'default', 'App', 1777046553, 1),
+	(47, '2026-04-21-135126', 'App\\Database\\Migrations\\CreatePayments', 'default', 'App', 1777046553, 1),
+	(48, '2026-04-21-150100', 'App\\Database\\Migrations\\CreatePaymentAllocations', 'default', 'App', 1777046553, 1),
+	(49, '2026-04-21-150200', 'App\\Database\\Migrations\\CreateLedger', 'default', 'App', 1777046553, 1),
+	(50, '2026-04-21-155000', 'App\\Database\\Migrations\\CreateOtherAccounts', 'default', 'App', 1777046553, 1),
+	(51, '2026-04-21-160000', 'App\\Database\\Migrations\\CreateBoa', 'default', 'App', 1777046553, 1),
+	(52, '2026-04-22-090000', 'App\\Database\\Migrations\\UpdateOtherAccountsType', 'default', 'App', 1777046553, 1),
+	(53, '2026-04-22-091000', 'App\\Database\\Migrations\\UpdateBoaForOtherAccounts', 'default', 'App', 1777046553, 1),
+	(54, '2026-04-24-100000', 'App\\Database\\Migrations\\AddClientCreditFields', 'default', 'App', 1777046554, 1),
+	(55, '2026-04-24-100100', 'App\\Database\\Migrations\\AddDeliveryTermsFields', 'default', 'App', 1777046554, 1);
 
 -- Dumping structure for table ar.other_accounts
 CREATE TABLE IF NOT EXISTS `other_accounts` (
@@ -239,22 +236,10 @@ CREATE TABLE IF NOT EXISTS `other_accounts` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `account_code` (`account_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.other_accounts: ~11 rows (approximately)
+-- Dumping data for table ar.other_accounts: ~0 rows (approximately)
 DELETE FROM `other_accounts`;
-INSERT INTO `other_accounts` (`id`, `account_code`, `name`, `type`, `created_at`, `updated_at`) VALUES
-	(1, '1000', 'Accounts Receivable Trade old', 'cr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(2, '2000', 'Loans Payable', 'cr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(3, '3000', 'Interest Income', 'cr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(4, '3100', 'Miscellaneous Income', 'cr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(5, '4000', 'Handling/Delivery Charges', 'dr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(6, '4100', 'Salaries and Wages', 'cr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(7, '4200', 'Taxes and Licenses', 'dr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(8, '4300', 'Commission Expenses', 'dr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(9, '4400', 'Sales Discount', 'dr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(10, '4500', 'Household Expenses - CMR', 'dr', '2026-04-22 12:35:11', '2026-04-22 12:35:11'),
-	(11, '5000', 'Retained Earnings', 'dr', '2026-04-22 12:35:11', '2026-04-22 12:35:11');
 
 -- Dumping structure for table ar.payments
 CREATE TABLE IF NOT EXISTS `payments` (
@@ -280,12 +265,10 @@ CREATE TABLE IF NOT EXISTS `payments` (
   CONSTRAINT `payments_cashier_id_foreign` FOREIGN KEY (`cashier_id`) REFERENCES `cashiers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payments_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payments_deposit_bank_id_foreign` FOREIGN KEY (`deposit_bank_id`) REFERENCES `banks` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.payments: ~1 rows (approximately)
+-- Dumping data for table ar.payments: ~0 rows (approximately)
 DELETE FROM `payments`;
-INSERT INTO `payments` (`id`, `client_id`, `cashier_id`, `pr_no`, `date`, `method`, `amount_received`, `amount_allocated`, `excess_used`, `payer_bank`, `check_no`, `deposit_bank_id`, `status`, `created_at`, `updated_at`) VALUES
-	(1, 1, 1, 1000, '2026-04-22', 'cash', 12000.00, 11000.00, 0.00, NULL, NULL, 1, 'posted', '2026-04-22 14:41:46', '2026-04-22 14:41:46');
 
 -- Dumping structure for table ar.payment_allocations
 CREATE TABLE IF NOT EXISTS `payment_allocations` (
@@ -299,13 +282,10 @@ CREATE TABLE IF NOT EXISTS `payment_allocations` (
   KEY `delivery_id` (`delivery_id`),
   CONSTRAINT `payment_allocations_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payment_allocations_payment_id_foreign` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.payment_allocations: ~2 rows (approximately)
+-- Dumping data for table ar.payment_allocations: ~0 rows (approximately)
 DELETE FROM `payment_allocations`;
-INSERT INTO `payment_allocations` (`id`, `payment_id`, `delivery_id`, `amount`, `created_at`) VALUES
-	(1, 1, 1, 9000.00, '2026-04-22 14:41:46'),
-	(2, 1, 2, 2000.00, '2026-04-22 14:41:46');
 
 -- Dumping structure for table ar.products
 CREATE TABLE IF NOT EXISTS `products` (
@@ -317,13 +297,17 @@ CREATE TABLE IF NOT EXISTS `products` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `product_id` (`product_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.products: ~2 rows (approximately)
+-- Dumping data for table ar.products: ~6 rows (approximately)
 DELETE FROM `products`;
 INSERT INTO `products` (`id`, `product_id`, `product_name`, `unit_price`, `created_at`, `updated_at`) VALUES
-	(1, 'PROD-1', 'OIL-1', 90.00, '2026-04-22 13:03:30', '2026-04-22 13:03:30'),
-	(2, 'PROD-2', 'OIL-2', 88.00, '2026-04-22 13:03:40', '2026-04-22 13:03:40');
+	(1, 'PROD-001', 'Premium Steel Widgets', 45.99, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(2, 'PROD-002', 'Aluminum Components', 32.50, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(3, 'PROD-003', 'Industrial Fasteners', 12.75, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(4, 'PROD-004', 'Precision Bearings', 89.99, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(5, 'PROD-005', 'Electronic Modules', 155.00, '2026-04-24 16:02:56', '2026-04-24 16:02:56'),
+	(6, 'PROD-006', 'Rubber Seals', 8.99, '2026-04-24 16:02:56', '2026-04-24 16:02:56');
 
 -- Dumping structure for table ar.users
 CREATE TABLE IF NOT EXISTS `users` (
@@ -337,10 +321,10 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table ar.users: ~1 rows (approximately)
+-- Dumping data for table ar.users: ~0 rows (approximately)
 DELETE FROM `users`;
 INSERT INTO `users` (`id`, `username`, `password_hash`, `is_active`, `created_at`, `updated_at`) VALUES
-	(1, 'admin', '$2y$12$N.VQonoQb.YfTI6HATRYWO7EWL.mbqy/lzjNuufhgrbrBJVjVm9Te', 1, '2026-04-22 12:35:21', '2026-04-22 12:35:21');
+	(1, 'admin', '$2y$12$nKK.PH0zL0EBJRXSCL89deLGFAwK3hynhcs83t8/.VDNbKKj.Qg4a', 1, '2026-04-24 16:02:54', '2026-04-24 16:02:54');
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

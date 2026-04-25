@@ -2,13 +2,13 @@
 <?= $this->section('content') ?>
 <div class="space-y-6" x-data="cashierRange()">
     <div>
-        <h1 class="text-xl font-semibold">Cashiers</h1>
-        <p class="mt-1 text-sm muted">Create cashiers and assign receipt ranges.</p>
+        <h1 class="text-xl font-semibold">Users and Receipt Ranges</h1>
+        <p class="mt-1 text-sm muted">Create cashier/admin users and assign receipt ranges.</p>
     </div>
 
     <form class="card p-4" method="post" action="<?= base_url('cashiers') ?>">
         <?= csrf_field() ?>
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-4">
             <div>
                 <label class="block text-sm font-medium" for="name">Name</label>
                 <input class="input mt-1" id="name" name="name" value="<?= esc(old('name')) ?>" required>
@@ -21,9 +21,16 @@
                 <label class="block text-sm font-medium" for="password">Password</label>
                 <input class="input mt-1" id="password" name="password" type="password" required>
             </div>
+            <div>
+                <label class="block text-sm font-medium" for="type">Type</label>
+                <select class="input mt-1" id="type" name="type">
+                    <option value="cashier" <?= old('type') === 'admin' ? '' : 'selected' ?>>Cashier</option>
+                    <option value="admin" <?= old('type') === 'admin' ? 'selected' : '' ?>>Admin</option>
+                </select>
+            </div>
         </div>
         <div class="mt-4">
-            <button class="btn" type="submit">Add Cashier</button>
+            <button class="btn" type="submit">Add User</button>
         </div>
     </form>
 
@@ -32,6 +39,7 @@
             <tr>
                 <th>Name</th>
                 <th>User</th>
+                <th>Type</th>
                 <th>Receipt</th>
                 <th>Active Receipt</th>
             </tr>
@@ -39,7 +47,7 @@
         <tbody>
             <?php if (empty($cashiers)): ?>
                 <tr>
-                    <td class="py-3" colspan="4">No cashiers yet.</td>
+                    <td class="py-3" colspan="5">No users yet.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($cashiers as $cashier): ?>
@@ -50,6 +58,7 @@
                     <tr>
                         <td><?= esc($cashier['name']) ?></td>
                         <td><?= esc($cashier['username']) ?></td>
+                        <td><?= esc(ucfirst($cashier['type'] ?? 'cashier')) ?></td>
                         <td>
                             <?php if ($hasActive): ?>
                                 <?= esc($range['start_no']) ?> - <?= esc($range['end_no']) ?>
@@ -72,7 +81,7 @@
             <p class="mt-1 text-sm muted" x-text="cashierName"></p>
             <form class="mt-4 space-y-4" method="post" action="<?= base_url('cashiers/assign-range') ?>">
                 <?= csrf_field() ?>
-                <input type="hidden" name="cashier_id" :value="cashierId">
+                <input type="hidden" name="user_id" :value="cashierId">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium" for="start_no">From</label>

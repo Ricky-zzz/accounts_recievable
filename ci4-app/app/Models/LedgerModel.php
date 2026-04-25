@@ -18,6 +18,8 @@ class LedgerModel extends Model
         'price',
         'amount',
         'collection',
+        'account_title',
+        'other_accounts',
         'balance',
         'delivery_id',
         'payment_id',

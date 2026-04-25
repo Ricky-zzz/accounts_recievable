@@ -4,13 +4,15 @@
 $itemsJson = json_encode($itemsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 $deliveryAllocJson = json_encode($allocationsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+$paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 ?>
 <script>
     // Store data in window before Alpine initializes
     window.ledgerData = {
         itemsByDelivery: <?= $itemsJson ?>,
         allocationsByDelivery: <?= $deliveryAllocJson ?>,
-        allocationsByPayment: <?= $paymentAllocJson ?>
+        allocationsByPayment: <?= $paymentAllocJson ?>,
+        otherAccountsByPayment: <?= $paymentOtherJson ?>
     };
 
     function ledgerItems() {
@@ -19,6 +21,7 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
             itemsByDelivery: window.ledgerData.itemsByDelivery,
             allocationsByDelivery: window.ledgerData.allocationsByDelivery,
             allocationsByPayment: window.ledgerData.allocationsByPayment,
+            otherAccountsByPayment: window.ledgerData.otherAccountsByPayment,
             itemsOpen: false,
             allocOpen: false,
             allocType: '',
@@ -67,9 +70,17 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
                 }
                 return [];
             },
+            selectedOtherAccounts() {
+                return this.otherAccountsByPayment[this.selectedAllocId] || [];
+            },
             allocTotal() {
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+                    .toFixed(2);
+            },
+            otherAccountsTotal() {
+                return this.selectedOtherAccounts()
+                    .reduce((sum, item) => sum + (parseFloat(item.dr) || parseFloat(item.ar_others) || 0), 0)
                     .toFixed(2);
             },
             allocTitle() {
@@ -132,17 +143,19 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
                     <th>Date</th>
                     <th>DR#</th>
                     <th>PR#</th>
+                    <th>Account Title</th>
                     <th>Qty</th>
                     <th>Price</th>
                     <th>Amount</th>
                     <th>Collection</th>
+                    <th>Other Accounts</th>
                     <th>Balance</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($rows)): ?>
                     <tr>
-                        <td class="py-3" colspan="8">No deliveries in range.</td>
+                        <td class="py-3" colspan="10">No deliveries in range.</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($rows as $row): ?>
@@ -166,6 +179,7 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
                                     <?= esc($row['pr_no'] ?? '') ?>
                                 <?php endif; ?>
                             </td>
+                            <td><?= esc($row['account_title'] ?? '') ?></td>
                             <td>
                                 <?= esc($row['qty'] ?? '') ?>
                                 <?php if (! empty($row['delivery_id']) && ($itemCounts[$row['delivery_id']] ?? 0) > 1): ?>
@@ -185,6 +199,10 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
                             <td>
                                 <?php $collection = (float) ($row['collection'] ?? 0); ?>
                                 <?= $collection > 0 ? esc(number_format($collection, 2)) : '' ?>
+                            </td>
+                            <td>
+                                <?php $otherAccounts = (float) ($row['other_accounts'] ?? 0); ?>
+                                <?= $otherAccounts > 0 ? esc(number_format($otherAccounts, 2)) : '' ?>
                             </td>
                             <td><?= esc(number_format((float) $row['balance'], 2)) ?></td>
                         </tr>
@@ -262,6 +280,38 @@ $paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON
                 <span class="font-semibold">Total</span>
                 <span x-text="allocTotal()"></span>
             </div>
+                <template x-if="allocType === 'payment'">
+                    <div class="mt-6">
+                        <h3 class="text-sm font-semibold">Other Accounts</h3>
+                        <table class="table mt-3">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-if="selectedOtherAccounts().length === 0">
+                                    <tr>
+                                        <td class="py-3" colspan="3">No other accounts found.</td>
+                                    </tr>
+                                </template>
+                                <template x-for="(item, index) in selectedOtherAccounts()" :key="'other-' + index">
+                                    <tr>
+                                        <td x-text="item.account_title || 'A/R Other'"></td>
+                                        <td x-text="item.description || ''"></td>
+                                        <td x-text="Number(item.dr || item.ar_others || 0).toFixed(2)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <div class="mt-3 flex items-center justify-between text-sm">
+                            <span class="font-semibold">Other Accounts Total</span>
+                            <span x-text="otherAccountsTotal()"></span>
+                        </div>
+                    </div>
+                </template>
             <div class="mt-4">
                 <button class="btn" type="button" @click="closeAllocations()">Close</button>
             </div>
