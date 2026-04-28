@@ -16,6 +16,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 $allocationsJson = json_encode($allocationsByPayment ?? [], $jsonFlags);
 $paymentOtherJson = json_encode($otherAccountsByPayment ?? [], $jsonFlags);
 $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
+$paymentsJson = json_encode($payments ?? [], $jsonFlags);
 ?>
 
 <div x-data="paymentList()">
@@ -52,6 +53,16 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
         </div>
     </form>
 
+    <div class="mt-4 max-w-sm">
+        <label class="block text-sm font-medium" for="search_pr">Search PR #</label>
+        <input
+            class="input mt-1"
+            id="search_pr"
+            type="search"
+            placeholder="Type PR number"
+            x-model="searchPr">
+    </div>
+
     <table class="table mt-6">
         <thead>
             <tr>
@@ -69,7 +80,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
                 </tr>
             <?php else: ?>
                 <?php foreach ($payments as $index => $payment): ?>
-                    <tr>
+                    <tr x-show="matchesPr('<?= esc((string) ($payment['pr_no'] ?? '')) ?>')">
                         <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc((string) $payment['date']) ?></td>
                         <td><?= esc((string) ($payment['client_name'] ?? '')) ?></td>
@@ -85,6 +96,9 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
                         <td><?= esc(number_format((float) $payment['amount_received'], 2)) ?></td>
                     </tr>
                 <?php endforeach; ?>
+                <tr x-show="!hasSearchMatches()" x-cloak>
+                    <td class="py-3" colspan="5">No payments match that PR number.</td>
+                </tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -188,8 +202,25 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
             allocationsByPayment: <?= $allocationsJson ?>,
             otherAccountsByPayment: <?= $paymentOtherJson ?>,
             paymentsById: <?= $paymentsByIdJson ?>,
+            payments: <?= $paymentsJson ?>,
+            searchPr: '',
             allocOpen: false,
             selectedPaymentId: null,
+            matchesPr(prNo) {
+                if (!this.searchPr) {
+                    return true;
+                }
+                return String(prNo || '')
+                    .toLowerCase()
+                    .includes(this.searchPr.trim().toLowerCase());
+            },
+            hasSearchMatches() {
+                if (!this.searchPr) {
+                    return true;
+                }
+                const term = this.searchPr.trim().toLowerCase();
+                return this.payments.some((payment) => String(payment.pr_no || '').toLowerCase().includes(term));
+            },
             openAllocations(id) {
                 this.selectedPaymentId = id;
                 this.allocOpen = true;

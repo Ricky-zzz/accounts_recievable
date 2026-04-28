@@ -37,7 +37,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
         <input type="hidden" name="client_id" value="<?= esc((string) $client['id']) ?>">
 
         <div class="card p-4">
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-4 md:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium">Collector</label>
                     <input class="input mt-1" type="text" value="<?= esc($collectorLabel) ?>" readonly>
@@ -49,13 +49,13 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                         <p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p>
                     <?php endif; ?>
                 </div>
-            </div>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium" for="date">Date</label>
                     <input class="input mt-1" id="date" name="date" type="date" value="<?= esc(old('date') ?: date('Y-m-d')) ?>" required>
                 </div>
+            </div>
+
+            <div class="mt-4 grid gap-4 md:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium" for="method">Payment Method</label>
                     <select class="input mt-1" id="method" name="method" x-model="method" required>
@@ -68,9 +68,6 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                     <label class="block text-sm font-medium" for="amount_received">Amount Received</label>
                     <input class="input mt-1" id="amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="amountReceived" required>
                 </div>
-            </div>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium" for="deposit_bank_id">Deposit Bank</label>
                     <select class="input mt-1" id="deposit_bank_id" name="deposit_bank_id" required>

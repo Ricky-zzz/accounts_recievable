@@ -89,9 +89,10 @@
             font-weight: 700;
         }
 
-        tfoot .text-right {
-            text-align: right;
-        }
+            .table th.text-right,
+            .table td.text-right {
+                text-align: right;
+            }
 
         .summary {
             margin-top: 16px;

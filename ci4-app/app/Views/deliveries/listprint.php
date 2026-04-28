@@ -73,12 +73,10 @@
             text-align: left;
         }
 
-        .text-right {
+        /* ✅ FIX: force right alignment even for <th> */
+        .table th.text-right,
+        .table td.text-right {
             text-align: right;
-        }
-
-        tfoot .text-right {
-            text-align: left;
         }
 
         .text-center {
@@ -95,14 +93,18 @@
     $firstDate = $fromDate ?: (! empty($printedDates) ? min($printedDates) : '');
     $lastDate = $toDate ?: (! empty($printedDates) ? max($printedDates) : '');
     ?>
+
     <div class="header">
         <?php if ($logoSrc !== ''): ?>
             <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
         <?php endif; ?>
+
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Client Deliveries Report</div>
         <div class="meta">Client: <?= esc((string) ($client['name'] ?? '')) ?></div>
-        <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
+        <div class="meta">
+            Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?>
+        </div>
     </div>
 
     <table class="table">
@@ -117,10 +119,13 @@
                 <th class="text-right">Balance</th>
             </tr>
         </thead>
+
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="text-center" colspan="7">No deliveries found for the selected date range.</td>
+                    <td class="text-center" colspan="7">
+                        No deliveries found for the selected date range.
+                    </td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($deliveries as $index => $delivery): ?>
@@ -129,23 +134,36 @@
                         <td><?= esc((string) $delivery['date']) ?></td>
                         <td><?= esc((string) ($delivery['dr_no'] ?? '')) ?></td>
                         <td><?= esc((string) ($delivery['due_date'] ?? '')) ?></td>
-                        <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($delivery['total_amount'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($delivery['balance'] ?? 0), 2)) ?></td>
+                        <td>
+                            <?= esc(($delivery['payment_term'] ?? '') !== '' 
+                                ? $delivery['payment_term'] . ' days' 
+                                : '') ?>
+                        </td>
+                        <td class="text-right">
+                            <?= esc(number_format((float) ($delivery['total_amount'] ?? 0), 2)) ?>
+                        </td>
+                        <td class="text-right">
+                            <?= esc(number_format((float) ($delivery['balance'] ?? 0), 2)) ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
+
         <?php if (! empty($deliveries)): ?>
             <tfoot>
                 <tr>
                     <th colspan="5">Totals</th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalAmount ?? 0), 2)) ?></th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
+                    <th class="text-right">
+                        <?= esc(number_format((float) ($totalAmount ?? 0), 2)) ?>
+                    </th>
+                    <th class="text-right">
+                        <?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?>
+                    </th>
                 </tr>
             </tfoot>
         <?php endif; ?>
     </table>
-</body>
 
+</body>
 </html>

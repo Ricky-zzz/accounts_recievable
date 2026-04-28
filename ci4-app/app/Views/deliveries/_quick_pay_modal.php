@@ -26,7 +26,7 @@ $banks = $quickPayData['banks'] ?? [];
             </div>
         <?php endif; ?>
 
-        <form method="post" action="<?= base_url('payments/quick-pay') ?>" class="space-y-5">
+        <form method="post" action="<?= base_url('payments/quick-pay') ?>" class="space-y-5" x-on:submit.prevent="if (Math.abs(quickPayBalanceAmount()) > 0.005) { window.showToast('Unallocated amount must be zero before committing.', 'error'); return; } $el.submit();">
             <?= csrf_field() ?>
             <input type="hidden" name="client_id" :value="selectedQuickPayDelivery() ? selectedQuickPayDelivery().client_id : ''">
             <input type="hidden" name="delivery_id" :value="selectedQuickPayDelivery() ? selectedQuickPayDelivery().id : ''">
@@ -175,7 +175,7 @@ $banks = $quickPayData['banks'] ?? [];
                 </div>
 
                 <div class="mt-4 flex flex-wrap gap-3">
-                    <button class="btn" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || Math.abs(quickPayBalanceAmount()) > 0.005 || !selectedQuickPayDelivery()">Commit Collection</button>
+                    <button class="btn" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayDelivery()">Commit Collection</button>
                     <button class="btn btn-secondary" type="button" @click="closeQuickPay()">Cancel</button>
                 </div>
             </div>

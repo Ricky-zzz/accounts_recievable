@@ -78,12 +78,9 @@
             text-align: left;
         }
 
-        .text-right {
+        .table th.text-right,
+        .table td.text-right {
             text-align: right;
-        }
-
-        tfoot .text-right {
-            text-align: left;
         }
 
         .text-center {
