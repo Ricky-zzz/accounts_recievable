@@ -1,3 +1,25 @@
+<?php
+/**
+ * @var list<array{id: int|string, name: string}> $clients
+ * @var array{id: int|string, name: string, address?: string|null}|null $selectedClient
+ * @var int $clientId
+ * @var string $start
+ * @var string $end
+ * @var int|float|string $openingBalance
+ * @var list<array<string, int|float|string|null>> $rows
+ * @var int $allRowsCount
+ * @var int $currentPage
+ * @var int $perPage
+ * @var int $totalPages
+ * @var int $rowOffset
+ * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
+ * @var array<int|string, int> $itemCounts
+ * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
+ * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayment
+ * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
+ * @var array<int|string, array<string, int|float|string|null>> $paymentsById
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
@@ -113,7 +135,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex flex-col">
             <h1 class="text-xl font-semibold">
-                Client Ledger<?= $selectedClient ? ' for ' . esc($selectedClient['name'] ?? '') : '' ?>
+                Client Ledger<?= $selectedClient ? ' for ' . esc((string) ($selectedClient['name'] ?? '')) : '' ?>
             </h1>
             <p class="mt-1 text-sm muted">Shows overall balance with optional date range.</p>
         </div>
@@ -127,7 +149,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     </div>
 
     <form class="mt-6 flex flex-wrap items-end gap-3" method="get" action="<?= base_url('ledger') ?>">
-        <input type="hidden" name="client_id" value="<?= esc($clientId) ?>">
+        <input type="hidden" name="client_id" value="<?= esc((string) $clientId) ?>">
         <div>
             <label class="block text-sm font-medium" for="start">Start Date</label>
             <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>">
@@ -139,8 +161,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
         <div class="flex items-end gap-2">
             <button class="btn" type="submit">Filter</button>
             <?php if ($selectedClient): ?>
-                <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc($clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print PDF</a>
-                <a class="btn btn-secondary" href="<?= base_url('ledger') ?>?client_id=<?= esc($clientId) ?>">Clear</a>
+                <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc((string) $clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print PDF</a>
+                <a class="btn btn-secondary" href="<?= base_url('ledger') ?>?client_id=<?= esc((string) $clientId) ?>">Clear</a>
             <?php endif; ?>
         </div>
     </form>
@@ -180,33 +202,33 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                     <?php foreach ($rows as $index => $row): ?>
                         <tr>
                             <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
-                            <td><?= esc($row['entry_date']) ?></td>
+                            <td><?= esc((string) $row['entry_date']) ?></td>
                             <td>
                                 <?php if (! empty($row['delivery_id']) && ! empty($allocationsByDelivery[$row['delivery_id']])): ?>
                                     <button class="btn-link" type="button" @click="openDeliveryAllocations(<?= (int) $row['delivery_id'] ?>)">
-                                        <?= esc($row['dr_no'] ?? '') ?>
+                                        <?= esc((string) ($row['dr_no'] ?? '')) ?>
                                     </button>
                                 <?php else: ?>
-                                    <?= esc($row['dr_no'] ?? '') ?>
+                                    <?= esc((string) ($row['dr_no'] ?? '')) ?>
                                 <?php endif; ?>
                             </td>
                             <td>
                                 <?php if (! empty($row['payment_id']) && ! empty($allocationsByPayment[$row['payment_id']])): ?>
                                     <button class="btn-link" type="button" @click="openPaymentAllocations(<?= (int) $row['payment_id'] ?>)">
-                                        <?= esc($row['pr_no'] ?? '') ?>
+                                        <?= esc((string) ($row['pr_no'] ?? '')) ?>
                                     </button>
                                 <?php else: ?>
-                                    <?= esc($row['pr_no'] ?? '') ?>
+                                    <?= esc((string) ($row['pr_no'] ?? '')) ?>
                                 <?php endif; ?>
                             </td>
-                            <td><?= esc($row['account_title'] ?? '') ?></td>
+                            <td><?= esc((string) ($row['account_title'] ?? '')) ?></td>
                             <td>
-                                <?= esc($row['qty'] ?? '') ?>
+                                <?= esc((string) ($row['qty'] ?? '')) ?>
                                 <?php if (! empty($row['delivery_id']) && ($itemCounts[$row['delivery_id']] ?? 0) > 1): ?>
                                     <span class="muted">+</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?= esc($row['price'] ?? '') ?></td>
+                            <td><?= esc((string) ($row['price'] ?? '')) ?></td>
                             <td>
                                 <?php if (! empty($row['delivery_id']) && ! empty($itemsByDelivery[$row['delivery_id']])): ?>
                                     <button class="btn-link" type="button" @click="openItems(<?= (int) $row['delivery_id'] ?>)">

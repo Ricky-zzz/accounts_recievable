@@ -1,3 +1,14 @@
+<?php
+/**
+ * @var list<array{client_name: string, credit_limit: int|float|string, current_balance: int|float|string, available_balance: int|float|string}> $rows
+ * @var string $sort
+ * @var int $allRowsCount
+ * @var int $currentPage
+ * @var int $perPage
+ * @var int $totalPages
+ * @var int|float|string $totalBalance
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 
@@ -43,7 +54,7 @@
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
                         <td><?= esc((string) (((int) ($currentPage ?? 1) - 1) * (int) ($perPage ?? 0) + $index + 1)) ?></td>
-                        <td><?= esc($row['client_name']) ?></td>
+                        <td><?= esc((string) $row['client_name']) ?></td>
                         <td class="text-left"><?= esc(number_format((float) $row['credit_limit'], 2)) ?></td>
                         <td class="text-left"><?= esc(number_format((float) $row['current_balance'], 2)) ?></td>
                         <td class="text-left"><?= esc(number_format((float) $row['available_balance'], 2)) ?></td>

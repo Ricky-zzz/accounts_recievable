@@ -1,3 +1,19 @@
+<?php
+/**
+ * @var string $asOf
+ * @var string $fromDueDate
+ * @var string $toDueDate
+ * @var string $drNo
+ * @var string $dueSort
+ * @var list<array{client_name?: string|null, dr_no?: string|null, date?: string|null, due_date?: string|null, amount?: int|float|string|null, balance?: int|float|string|null}> $rows
+ * @var int $allRowsCount
+ * @var int $currentPage
+ * @var int $perPage
+ * @var int $totalPages
+ * @var int|float|string $totalAmount
+ * @var int|float|string $totalBalance
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 
@@ -65,10 +81,10 @@
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
                         <td><?= esc((string) (((int) ($currentPage ?? 1) - 1) * (int) ($perPage ?? 0) + $index + 1)) ?></td>
-                        <td><?= esc($row['client_name'] ?? '') ?></td>
-                        <td><?= esc($row['dr_no'] ?? '') ?></td>
-                        <td><?= esc($row['date'] ?? '') ?></td>
-                        <td><?= esc($row['due_date'] ?? '') ?></td>
+                        <td><?= esc((string) ($row['client_name'] ?? '')) ?></td>
+                        <td><?= esc((string) ($row['dr_no'] ?? '')) ?></td>
+                        <td><?= esc((string) ($row['date'] ?? '')) ?></td>
+                        <td><?= esc((string) ($row['due_date'] ?? '')) ?></td>
                         <td class="text-left"><?= esc(number_format((float) ($row['amount'] ?? 0), 2)) ?></td>
                         <td class="text-left"><?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?></td>
                     </tr>

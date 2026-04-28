@@ -1,4 +1,15 @@
 <!doctype html>
+<?php
+/**
+ * @var array{id: int|string, name: string} $client
+ * @var string $fromDate
+ * @var string $toDate
+ * @var string $drNo
+ * @var list<array{dr_no?: string|null, date?: string|null, due_date?: string|null, payment_term?: int|string|null, total_amount?: int|float|string|null, balance?: int|float|string|null}> $deliveries
+ * @var int|float|string $totalAmount
+ * @var int|float|string $totalBalance
+ */
+?>
 <html lang="en">
 
 <head>
@@ -90,7 +101,7 @@
         <?php endif; ?>
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Client Deliveries Report</div>
-        <div class="meta">Client: <?= esc($client['name'] ?? '') ?></div>
+        <div class="meta">Client: <?= esc((string) ($client['name'] ?? '')) ?></div>
         <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
@@ -115,9 +126,9 @@
                 <?php foreach ($deliveries as $index => $delivery): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($delivery['date']) ?></td>
-                        <td><?= esc($delivery['dr_no'] ?? '') ?></td>
-                        <td><?= esc($delivery['due_date'] ?? '') ?></td>
+                        <td><?= esc((string) $delivery['date']) ?></td>
+                        <td><?= esc((string) ($delivery['dr_no'] ?? '')) ?></td>
+                        <td><?= esc((string) ($delivery['due_date'] ?? '')) ?></td>
                         <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($delivery['total_amount'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($delivery['balance'] ?? 0), 2)) ?></td>

@@ -3,16 +3,13 @@
 namespace App\Controllers;
 
 use App\Models\BankModel;
-use App\Models\BoaModel;
-use App\Models\CashierReceiptRangeModel;
 use App\Models\ClientModel;
-use App\Models\LedgerModel;
-use App\Models\PaymentAllocationModel;
-use App\Models\PaymentModel;
 use App\Models\UserModel;
+use App\Services\PaymentPostingService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use RuntimeException;
 
 class Payments extends BaseController
 {
@@ -135,8 +132,8 @@ class Payments extends BaseController
     {
         $clientModel = new ClientModel();
         $userModel = new UserModel();
-        $rangeModel = new CashierReceiptRangeModel();
         $bankModel = new BankModel();
+        $paymentPosting = new PaymentPostingService();
 
         $client = $clientModel->find($clientId);
         if (! $client) {
@@ -145,18 +142,7 @@ class Payments extends BaseController
 
         $userId = (int) (session('user_id') ?? 0);
         $assignedUser = $userModel->find($userId);
-
-        $activeRange = null;
-        if ($userId > 0) {
-            $range = $rangeModel
-                ->where('user_id', $userId)
-                ->where('status', 'active')
-                ->first();
-
-            if ($range && (int) $range['next_no'] <= (int) $range['end_no']) {
-                $activeRange = $range;
-            }
-        }
+        $activeRange = $paymentPosting->getActiveReceiptRange($userId);
 
         $unpaidPage = max(1, (int) $this->request->getGet('page') ?: 1);
         $unpaidPerPage = 15;
@@ -176,277 +162,67 @@ class Payments extends BaseController
 
     public function store()
     {
-        $clientId = (int) $this->request->getPost('client_id');
-        $userId = (int) (session('user_id') ?? 0);
-        $date = (string) $this->request->getPost('date');
-        $method = (string) $this->request->getPost('method');
-        $amountReceived = (float) $this->request->getPost('amount_received');
-        $depositBankId = $this->request->getPost('deposit_bank_id');
-        $payerBank = trim((string) $this->request->getPost('payer_bank'));
-        $checkNo = trim((string) $this->request->getPost('check_no'));
-        $allocations = $this->request->getPost('allocations');
-        $arOtherDescription = trim((string) $this->request->getPost('ar_other_description'));
-        $arOtherAmount = (float) $this->request->getPost('ar_other_amount');
-        $salesDiscount = (float) $this->request->getPost('sales_discount');
-        $deliveryCharges = (float) $this->request->getPost('delivery_charges');
-        $taxes = (float) $this->request->getPost('taxes');
-        $commissions = (float) $this->request->getPost('commissions');
-
-        if ($clientId <= 0 || $userId <= 0 || $date === '' || $amountReceived <= 0) {
-            return redirect()->back()->withInput()->with('error', 'Please complete the payment form.');
+        try {
+            $result = (new PaymentPostingService())->post($this->paymentPayloadFromRequest());
+        } catch (RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
 
-        if (! in_array($method, ['cash', 'bank', 'check'], true)) {
-            return redirect()->back()->withInput()->with('error', 'Select a payment method.');
-        }
+        return redirect()->to('payments/client/' . $result['client_id'])->with('success', 'Payment saved.');
+    }
 
-        if ((int) $depositBankId <= 0) {
-            return redirect()->back()->withInput()->with('error', 'Select the deposit bank for this payment.');
-        }
-
-        if ($method === 'check' && ($checkNo === '' || $payerBank === '')) {
-            return redirect()->back()->withInput()->with('error', 'Check number and payer bank are required.');
-        }
-
-        if ($method === 'bank' && $payerBank === '') {
-            return redirect()->back()->withInput()->with('error', 'Payer bank is required.');
-        }
-
-        $allocations = is_array($allocations) ? $allocations : [];
-
-        $fixedAccountRows = [
+    public function quickPay()
+    {
+        $payload = $this->paymentPayloadFromRequest();
+        $payload['allocations'] = [
             [
-                'title' => 'Sales Discount',
-                'amount' => max(0.0, $salesDiscount),
-            ],
-            [
-                'title' => 'Delivery Charges',
-                'amount' => max(0.0, $deliveryCharges),
-            ],
-            [
-                'title' => 'Taxes',
-                'amount' => max(0.0, $taxes),
-            ],
-            [
-                'title' => 'Commissions',
-                'amount' => max(0.0, $commissions),
+                'delivery_id' => (int) $this->request->getPost('delivery_id'),
+                'amount' => (float) $this->request->getPost('allocation_amount'),
             ],
         ];
-        $fixedAccountsTotal = 0.0;
-        foreach ($fixedAccountRows as $row) {
-            $fixedAccountsTotal += (float) $row['amount'];
-        }
-        $arOtherAmount = max(0.0, $arOtherAmount);
-        $otherAccountsTotal = $fixedAccountsTotal;
 
-        helper('boa');
-
-        $bankModel = new BankModel();
-        $depositBank = $bankModel->find((int) $depositBankId);
-        if (! $depositBank) {
-            return redirect()->back()->withInput()->with('error', 'Selected deposit bank is invalid.');
+        try {
+            (new PaymentPostingService())->post($payload);
+        } catch (RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
 
-        $boaColumn = boa_column_from_bank_name((string) $depositBank['bank_name']);
-        if ($boaColumn === '') {
-            return redirect()->back()->withInput()->with('error', 'Selected deposit bank name is invalid for BOA.');
-        }
+        return redirect()->back()->with('success', 'Payment collected.');
+    }
 
-        $paymentModel = new PaymentModel();
-        $allocModel = new PaymentAllocationModel();
-        $rangeModel = new CashierReceiptRangeModel();
-        $ledgerModel = new LedgerModel();
-        $boaModel = new BoaModel();
-
-        $deliveryIds = [];
-        foreach ($allocations as $allocation) {
-            $deliveryId = (int) ($allocation['delivery_id'] ?? 0);
-            if ($deliveryId > 0) {
-                $deliveryIds[$deliveryId] = true;
-            }
-        }
-
-        $deliveryBalances = $this->fetchDeliveryBalancesByIds($clientId, array_keys($deliveryIds));
-
-        $cleanAllocations = [];
-        $allocatedTotal = 0.0;
-
-        foreach ($allocations as $allocation) {
-            $deliveryId = (int) ($allocation['delivery_id'] ?? 0);
-            $amount = (float) ($allocation['amount'] ?? 0);
-
-            if ($deliveryId <= 0 || $amount <= 0) {
-                continue;
-            }
-
-            $balance = $deliveryBalances[$deliveryId] ?? null;
-            if ($balance === null || $amount > $balance) {
-                return redirect()->back()->withInput()->with('error', 'Allocation exceeds delivery balance.');
-            }
-
-            $cleanAllocations[] = [
-                'delivery_id' => $deliveryId,
-                'amount' => $amount,
-            ];
-            $allocatedTotal += $amount;
-        }
-
-        if (empty($cleanAllocations) && $fixedAccountsTotal <= 0 && $arOtherAmount <= 0) {
-            return redirect()->back()->withInput()->with('error', 'Add a valid allocation, A/R other, or other account amount.');
-        }
-
-        $unallocatedAmount = round($amountReceived + $otherAccountsTotal - $allocatedTotal - $arOtherAmount, 2);
-        if (abs($unallocatedAmount) > 0.005) {
-            return redirect()->back()->withInput()->with('error', 'Unallocated amount must be 0.00. Adjust allocations or other accounts.');
-        }
-
-        $range = $rangeModel
-            ->where('user_id', $userId)
-            ->where('status', 'active')
-            ->first();
-
-        if (! $range || (int) $range['next_no'] > (int) $range['end_no']) {
-            return redirect()->back()->withInput()->with('error', 'Current user has no active receipt range.');
-        }
-
-        $db = db_connect();
-
-        if (! $db->fieldExists($boaColumn, 'boa')) {
-            return redirect()->back()->withInput()->with('error', 'Selected deposit bank is not yet linked to BOA.');
-        }
-
-        $db->transStart();
-
-        $prNo = (int) $range['next_no'];
-
-        $paymentId = $paymentModel->insert([
-            'client_id' => $clientId,
-            'user_id' => $userId,
-            'pr_no' => $prNo,
-            'date' => $date,
-            'method' => $method,
-            'amount_received' => $amountReceived,
-            'amount_allocated' => $allocatedTotal,
-            'excess_used' => 0,
-            'payer_bank' => $payerBank !== '' ? $payerBank : null,
-            'check_no' => $checkNo !== '' ? $checkNo : null,
-            'deposit_bank_id' => (int) $depositBankId ?: null,
-            'status' => 'posted',
-        ], true);
-
-        foreach ($cleanAllocations as $index => $allocation) {
-            $cleanAllocations[$index]['payment_id'] = $paymentId;
-            $cleanAllocations[$index]['created_at'] = date('Y-m-d H:i:s');
-        }
-        $allocModel->insertBatch($cleanAllocations);
-
-        $lastLedger = $ledgerModel
-            ->select('balance')
-            ->where('client_id', $clientId)
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-        $previousBalance = (float) ($lastLedger['balance'] ?? 0);
-        $ledgerCollection = min($amountReceived, $allocatedTotal);
-        $currentBalance = $previousBalance - $ledgerCollection;
-
-        $ledgerModel->insert([
-            'client_id' => $clientId,
-            'entry_date' => $date,
-            'dr_no' => null,
-            'pr_no' => (string) $prNo,
-            'qty' => null,
-            'price' => null,
-            'amount' => 0,
-            'collection' => $ledgerCollection,
-            'account_title' => null,
-            'other_accounts' => 0,
-            'balance' => $currentBalance,
-            'delivery_id' => null,
-            'payment_id' => $paymentId,
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        foreach ($fixedAccountRows as $row) {
-            $amount = (float) $row['amount'];
-            if ($amount <= 0) {
-                continue;
-            }
-
-            $currentBalance = $currentBalance - $amount;
-
-            $ledgerModel->insert([
-                'client_id' => $clientId,
-                'entry_date' => $date,
-                'dr_no' => null,
-                'pr_no' => (string) $prNo,
-                'qty' => null,
-                'price' => null,
-                'amount' => 0,
-                'collection' => 0,
-                'account_title' => $row['title'],
-                'other_accounts' => $amount,
-                'balance' => $currentBalance,
-                'delivery_id' => null,
-                'payment_id' => $paymentId,
-                'created_at' => date('Y-m-d H:i:s'),
-            ]);
-        }
-
-        $arTradeTotal = $allocatedTotal;
-
-        $boaModel->protect(false)->insert([
-            'date' => $date,
-            'payor' => $clientId,
-            'reference' => (string) $prNo,
-            'payment_id' => $paymentId,
-            'ar_trade' => $arTradeTotal,
-            $boaColumn => $amountReceived,
-        ]);
-
-        if ($arOtherAmount > 0) {
-            $boaModel->protect(false)->insert([
-                'date' => $date,
-                'payor' => $clientId,
-                'reference' => (string) $prNo,
-                'payment_id' => $paymentId,
-                'ar_others' => $arOtherAmount,
-                'description' => $arOtherDescription !== '' ? $arOtherDescription : null,
-            ]);
-        }
-
-        foreach ($fixedAccountRows as $row) {
-            if ((float) $row['amount'] <= 0) {
-                continue;
-            }
-
-            $boaModel->protect(false)->insert([
-                'date' => $date,
-                'payor' => $clientId,
-                'reference' => (string) $prNo,
-                'payment_id' => $paymentId,
-                'account_title' => $row['title'],
-                'dr' => $row['amount'],
-                'cr' => 0,
-            ]);
-        }
-
-        $newNext = $prNo + 1;
-        $rangeUpdate = [
-            'next_no' => $newNext,
+    private function paymentPayloadFromRequest(): array
+    {
+        return [
+            'client_id' => (int) $this->request->getPost('client_id'),
+            'user_id' => (int) (session('user_id') ?? 0),
+            'date' => (string) $this->request->getPost('date'),
+            'method' => (string) $this->request->getPost('method'),
+            'amount_received' => (float) $this->request->getPost('amount_received'),
+            'deposit_bank_id' => (int) $this->request->getPost('deposit_bank_id'),
+            'payer_bank' => trim((string) $this->request->getPost('payer_bank')),
+            'check_no' => trim((string) $this->request->getPost('check_no')),
+            'allocations' => $this->request->getPost('allocations'),
+            'ar_other_description' => trim((string) $this->request->getPost('ar_other_description')),
+            'ar_other_amount' => (float) $this->request->getPost('ar_other_amount'),
+            'fixed_accounts' => [
+                [
+                    'title' => 'Sales Discount',
+                    'amount' => (float) $this->request->getPost('sales_discount'),
+                ],
+                [
+                    'title' => 'Delivery Charges',
+                    'amount' => (float) $this->request->getPost('delivery_charges'),
+                ],
+                [
+                    'title' => 'Taxes',
+                    'amount' => (float) $this->request->getPost('taxes'),
+                ],
+                [
+                    'title' => 'Commissions',
+                    'amount' => (float) $this->request->getPost('commissions'),
+                ],
+            ],
         ];
-        if ($newNext > (int) $range['end_no']) {
-            $rangeUpdate['status'] = 'closed';
-        }
-        $rangeModel->update($range['id'], $rangeUpdate);
-
-        $db->transComplete();
-
-        if (! $db->transStatus()) {
-            return redirect()->back()->withInput()->with('error', 'Failed to save payment.');
-        }
-
-        return redirect()->to('payments/client/' . $clientId)->with('success', 'Payment saved.');
     }
 
     private function fetchUnpaidDeliveries(int $clientId, int $perPage = 15, int $page = 1): array
@@ -496,39 +272,6 @@ SQL;
             'perPage' => $perPage,
             'page' => $page,
         ];
-    }
-
-    private function fetchDeliveryBalancesByIds(int $clientId, array $deliveryIds): array
-    {
-        $db = db_connect();
-
-        $deliveryIds = array_values(array_unique(array_filter(array_map('intval', $deliveryIds))));
-        if (empty($deliveryIds)) {
-            return [];
-        }
-
-        $rows = $db->table('deliveries d')
-            ->select('d.id AS delivery_id')
-            ->select('ROUND((d.total_amount - COALESCE(SUM(CASE WHEN p.status = "posted" THEN pa.amount ELSE 0 END), 0)), 2) AS balance', false)
-            ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
-            ->join('payments p', 'p.id = pa.payment_id', 'left')
-            ->where('d.client_id', $clientId)
-            ->whereIn('d.id', $deliveryIds)
-            ->groupBy('d.id')
-            ->get()
-            ->getResultArray();
-
-        $balances = [];
-        foreach ($rows as $row) {
-            $deliveryId = (int) ($row['delivery_id'] ?? 0);
-            if ($deliveryId <= 0) {
-                continue;
-            }
-
-            $balances[$deliveryId] = (float) ($row['balance'] ?? 0);
-        }
-
-        return $balances;
     }
 
     private function fetchPayments(?int $clientId, string $fromDate, string $toDate): array

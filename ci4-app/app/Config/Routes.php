@@ -57,6 +57,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('payments/client/(:num)/print', 'Payments::listPrint/$1');
     $routes->get('payments/client/(:num)/create', 'Payments::createForm/$1');
     $routes->post('payments', 'Payments::store');
+    $routes->post('payments/quick-pay', 'Payments::quickPay');
 
     $routes->get('boa', 'Boa::index');
     $routes->get('boa/print', 'Boa::print');

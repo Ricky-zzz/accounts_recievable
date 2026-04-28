@@ -1,3 +1,14 @@
+<?php
+/**
+ * @var string $fromDate
+ * @var string $toDate
+ * @var list<array{id: int|string, client_id?: int|string|null, pr_no?: int|string|null, date?: string|null, client_name?: string|null, amount_received?: int|float|string|null}> $payments
+ * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayment
+ * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
+ * @var array<int|string, array<string, int|float|string|null>> $paymentsById
+ * @var int|float|string $totalCollections
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
@@ -60,15 +71,15 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
                 <?php foreach ($payments as $index => $payment): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($payment['date']) ?></td>
-                        <td><?= esc($payment['client_name'] ?? '') ?></td>
+                        <td><?= esc((string) $payment['date']) ?></td>
+                        <td><?= esc((string) ($payment['client_name'] ?? '')) ?></td>
                         <td>
                             <?php if (! empty($allocationsByPayment[$payment['id']])): ?>
                                 <button class="btn-link" type="button" @click="openAllocations(<?= (int) $payment['id'] ?>)">
-                                    <?= esc($payment['pr_no'] ?? '') ?>
+                                    <?= esc((string) ($payment['pr_no'] ?? '')) ?>
                                 </button>
                             <?php else: ?>
-                                <?= esc($payment['pr_no'] ?? '') ?>
+                                <?= esc((string) ($payment['pr_no'] ?? '')) ?>
                             <?php endif; ?>
                         </td>
                         <td><?= esc(number_format((float) $payment['amount_received'], 2)) ?></td>

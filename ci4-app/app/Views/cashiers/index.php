@@ -1,11 +1,14 @@
+<?php
+/**
+ * @var list<array{id: int|string, name: string, username: string, type?: string|null}> $cashiers
+ * @var array<int|string, array{start_no?: int|string, end_no?: int|string, next_no?: int|string}> $activeRanges
+ * @var string $query
+ * @var \CodeIgniter\Pager\Pager|null $pager
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
-$formErrors = session()->getFlashdata('form_errors');
-if (! is_array($formErrors)) {
-    $formErrors = [];
-}
-
 $formMode = (string) (session()->getFlashdata('form_mode') ?? '');
 $formId = (int) (session()->getFlashdata('form_id') ?? 0);
 $oldForm = [
@@ -72,12 +75,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($cashier['name']) ?></td>
-                        <td><?= esc($cashier['username']) ?></td>
+                        <td><?= esc((string) $cashier['name']) ?></td>
+                        <td><?= esc((string) $cashier['username']) ?></td>
                         <td><?= esc(ucfirst($cashier['type'] ?? 'cashier')) ?></td>
                         <td>
                             <?php if ($hasActive): ?>
-                                <?= esc($range['start_no']) ?> - <?= esc($range['end_no']) ?>
+                                <?= esc((string) $range['start_no']) ?> - <?= esc((string) $range['end_no']) ?>
                             <?php elseif ($canAssignReceipt): ?>
                                 <button class="btn btn-secondary" type="button" @click="openAssign(<?= (int) $cashier['id'] ?>)">Assign</button>
                             <?php else: ?>
@@ -85,7 +88,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?= $hasActive ? esc($range['next_no']) : '-' ?>
+                            <?= $hasActive ? esc((string) $range['next_no']) : '-' ?>
                         </td>
                         <td class="text-left">
                             <?php if ($isCashier): ?>
@@ -122,17 +125,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <div>
                     <label class="block text-sm font-medium" for="name">Name</label>
                     <input class="input mt-1" id="name" name="name" x-model="form.name" required>
-                    <span class="field-error" x-show="errors.name" x-text="errors.name"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="username">User</label>
                     <input class="input mt-1" id="username" name="username" x-model="form.username" required>
-                    <span class="field-error" x-show="errors.username" x-text="errors.username"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="password">Password <span class="muted" x-show="isEdit">(leave blank to keep current password)</span></label>
                     <input class="input mt-1" id="password" name="password" type="password" :required="!isEdit">
-                    <span class="field-error" x-show="errors.password" x-text="errors.password"></span>
                 </div>
                 <div class="flex gap-3">
                     <button class="btn" type="submit" x-text="isEdit ? 'Update Cashier' : 'Create Cashier'"></button>
@@ -172,7 +172,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     function cashierManager() {
         const cashiers = <?= json_encode($cashiers, $jsonFlags) ?>;
         const oldForm = <?= json_encode($oldForm, $jsonFlags) ?>;
-        const formErrors = <?= json_encode($formErrors, $jsonFlags) ?>;
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
         const sessionUserId = <?= $sessionUserId ?>;
@@ -185,7 +184,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             openAssignModal: false,
             isEdit: false,
             formAction: '<?= base_url('cashiers') ?>',
-            errors: {},
             form: {
                 name: '',
                 username: '',
@@ -204,7 +202,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             password: '',
                         };
                     }
-                    this.errors = formErrors;
                     this.openForm = true;
                     return;
                 }
@@ -216,14 +213,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         ...oldForm,
                         password: '',
                     };
-                    this.errors = formErrors;
                     this.openForm = true;
                 }
             },
             openCreate() {
                 this.isEdit = false;
                 this.formAction = '<?= base_url('cashiers') ?>';
-                this.errors = {};
                 this.form = {
                     name: '',
                     username: '',
@@ -239,7 +234,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 
                 this.isEdit = true;
                 this.formAction = `<?= base_url('cashiers') ?>/${cashier.id}`;
-                this.errors = {};
                 this.form = {
                     name: cashier.name || '',
                     username: cashier.username || '',
@@ -249,7 +243,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             closeForm() {
                 this.openForm = false;
-                this.errors = {};
             },
             openAssign(id) {
                 const cashier = this.cashiers.find((row) => Number(row.id) === Number(id));

@@ -1,3 +1,9 @@
+<?php
+/**
+ * @var list<array{id: int|string, account_code: string, name: string, type: string}> $accounts
+ * @var string $query
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <div class="space-y-6" x-data="accountManager()">
@@ -34,8 +40,8 @@
                 <?php foreach ($accounts as $index => $account): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><code class="text-xs"><?= esc($account['account_code']) ?></code></td>
-                        <td><?= esc($account['name']) ?></td>
+                        <td><code class="text-xs"><?= esc((string) $account['account_code']) ?></code></td>
+                        <td><?= esc((string) $account['name']) ?></td>
                         <td>
                             <span class="status-chip">
                                 <?= strtoupper($account['type']) ?>
@@ -43,7 +49,7 @@
                         </td>
                         <td class="text-left">
                             <button class="btn-link" type="button" @click="openModal(<?= (int) $account['id'] ?>)">Edit</button>
-                            <button class="ml-3 btn-link" type="button" @click="deleteAccount(<?= (int) $account['id'] ?>, '<?= esc($account['account_code']) ?>')">Delete</button>
+                            <button class="ml-3 btn-link" type="button" @click="deleteAccount(<?= (int) $account['id'] ?>, '<?= esc((string) $account['account_code']) ?>')">Delete</button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -65,7 +71,6 @@
                         x-model="form.account_code" 
                         required
                         placeholder="e.g., 1000">
-                    <span class="field-error" x-show="errors.account_code" x-text="errors.account_code"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="name">Name</label>
@@ -75,7 +80,6 @@
                         x-model="form.name" 
                         required
                         placeholder="e.g., Sales Revenue">
-                    <span class="field-error" x-show="errors.name" x-text="errors.name"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="type">Type</label>
@@ -88,7 +92,6 @@
                         <option value="dr">DR</option>
                         <option value="cr">CR</option>
                     </select>
-                    <span class="field-error" x-show="errors.type" x-text="errors.type"></span>
                 </div>
                 <div class="flex gap-3">
                     <button class="btn" type="submit" :disabled="loading">
@@ -108,7 +111,6 @@
             open: false,
             isEdit: false,
             loading: false,
-            errors: {},
             form: {
                 account_code: '',
                 name: '',
@@ -117,7 +119,6 @@
             currentId: null,
 
             openModal(id = null) {
-                this.errors = {};
                 this.isEdit = !!id;
                 this.currentId = id;
 
@@ -155,13 +156,11 @@
                     name: '',
                     type: 'dr',
                 };
-                this.errors = {};
                 this.currentId = null;
             },
 
             async saveAccount() {
                 this.loading = true;
-                this.errors = {};
 
                 const url = this.isEdit 
                     ? `<?= base_url('other-accounts') ?>/${this.currentId}` 
@@ -187,7 +186,7 @@
                     const data = await response.json();
 
                     if (!data.success) {
-                        this.errors = data.errors || {};
+                        window.showToast(this.errorMessage(data), 'error');
                     } else {
                         this.closeModal();
                         location.reload();
@@ -197,6 +196,15 @@
                 } finally {
                     this.loading = false;
                 }
+            },
+
+            errorMessage(data) {
+                if (data.message) {
+                    return data.message;
+                }
+
+                const errors = Object.values(data.errors || {});
+                return errors.length ? errors.join(' ') : 'Please check the form and try again.';
             },
 
             async deleteAccount(id, code) {
@@ -219,6 +227,8 @@
 
                     if (data.success) {
                         location.reload();
+                    } else {
+                        window.showToast(this.errorMessage(data), 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);

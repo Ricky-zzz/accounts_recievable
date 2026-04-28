@@ -1,4 +1,13 @@
 <!doctype html>
+<?php
+/**
+ * @var array{id?: int|string, name?: string|null, address?: string|null} $client
+ * @var string $asOf
+ * @var list<array{dr_no?: string|null, date?: string|null, due_date?: string|null, amount?: int|float|string|null, balance?: int|float|string|null}> $rows
+ * @var int|float|string $totalAmount
+ * @var int|float|string $totalBalance
+ */
+?>
 <html lang="en">
 
 <head>
@@ -98,9 +107,9 @@
         <?php endif; ?>
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Statement of Account</div>
-        <div class="meta">For: <?= esc($client['name'] ?? '') ?></div>
+        <div class="meta">For: <?= esc((string) ($client['name'] ?? '')) ?></div>
         <?php if (! empty($client['address'])): ?>
-            <div class="meta">Address: <?= esc($client['address']) ?></div>
+            <div class="meta">Address: <?= esc((string) $client['address']) ?></div>
         <?php endif; ?>
         <div class="meta">As of: <?= esc($asOf) ?></div>
     </div>
@@ -125,9 +134,9 @@
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($row['dr_no'] ?? '') ?></td>
-                        <td><?= esc($row['date'] ?? '') ?></td>
-                        <td><?= esc($row['due_date'] ?? '') ?></td>
+                        <td><?= esc((string) ($row['dr_no'] ?? '')) ?></td>
+                        <td><?= esc((string) ($row['date'] ?? '')) ?></td>
+                        <td><?= esc((string) ($row['due_date'] ?? '')) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['amount'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?></td>
                     </tr>

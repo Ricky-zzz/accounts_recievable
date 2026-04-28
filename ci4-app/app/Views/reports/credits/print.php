@@ -1,4 +1,11 @@
 <!doctype html>
+<?php
+/**
+ * @var list<array{client_name: string, credit_limit: int|float|string, current_balance: int|float|string, available_balance: int|float|string}> $rows
+ * @var string $sort
+ * @var int|float|string $totalBalance
+ */
+?>
 <html lang="en">
 
 <head>
@@ -107,7 +114,7 @@
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($row['client_name']) ?></td>
+                        <td><?= esc((string) $row['client_name']) ?></td>
                         <td class="text-right"><?= esc(number_format((float) $row['credit_limit'], 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) $row['current_balance'], 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) $row['available_balance'], 2)) ?></td>

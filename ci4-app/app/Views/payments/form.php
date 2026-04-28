@@ -1,3 +1,14 @@
+<?php
+/**
+ * @var array{id: int|string, name: string} $client
+ * @var array{id?: int|string, name?: string|null}|null $assignedUser
+ * @var int|null $activeReceipt
+ * @var int|null $rangeEnd
+ * @var list<array{id: int|string, bank_name: string, account_name?: string|null, bank_number?: string|null}> $banks
+ * @var list<array{delivery_id: int|string, dr_no?: string|null, date?: string|null, due_date?: string|null, total_amount?: int|float|string|null, allocated_amount?: int|float|string|null, balance?: int|float|string|null}> $unpaidDeliveries
+ * @var string $unpaidPagerLinks
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
@@ -8,7 +19,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
 <div x-data="paymentForm()" data-deliveries="<?= esc($deliveriesJson, 'attr') ?>" class="space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h1 class="text-xl font-semibold">Payment for <?= esc($client['name']) ?></h1>
+            <h1 class="text-xl font-semibold">Payment for <?= esc((string) $client['name']) ?></h1>
             <p class="mt-1 text-sm muted">Allocate receipts and commit when ready.</p>
         </div>
 
@@ -23,17 +34,13 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
 
     <form class="space-y-6" method="post" action="<?= base_url('payments') ?>">
         <?= csrf_field() ?>
-        <input type="hidden" name="client_id" value="<?= esc($client['id']) ?>">
+        <input type="hidden" name="client_id" value="<?= esc((string) $client['id']) ?>">
 
         <div class="card p-4">
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="block text-sm font-medium">Collector</label>
                     <input class="input mt-1" type="text" value="<?= esc($collectorLabel) ?>" readonly>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">User Type</label>
-                    <input class="input mt-1" type="text" value="<?= esc(ucfirst((string) ($assignedUser['type'] ?? 'cashier'))) ?>" readonly>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="pr_no">Active Receipt</label>
@@ -69,7 +76,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                     <select class="input mt-1" id="deposit_bank_id" name="deposit_bank_id" required>
                         <option value="">Select bank</option>
                         <?php foreach ($banks as $bank): ?>
-                            <option value="<?= esc($bank['id']) ?>" <?= (string) old('deposit_bank_id') === (string) $bank['id'] ? 'selected' : '' ?>><?= esc($bank['bank_name']) ?></option>
+                            <option value="<?= esc((string) $bank['id']) ?>" <?= (string) old('deposit_bank_id') === (string) $bank['id'] ? 'selected' : '' ?>><?= esc((string) $bank['bank_name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -96,9 +103,9 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                         <table class="table">
                             <thead>
                                 <tr>
+                                    <th>DR#</th>
                                     <th>Date</th>
                                     <th>Due Date</th>
-                                    <th>DR#</th>
                                     <th>Balance</th>
                                     <th class="text-right">Pay</th>
                                 </tr>
@@ -111,9 +118,9 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                                 </template>
                                 <template x-for="delivery in visibleDeliveries" :key="delivery.delivery_id">
                                     <tr>
+                                        <td x-text="delivery.dr_no"></td>
                                         <td x-text="delivery.date"></td>
                                         <td x-text="delivery.due_date || '-'"></td>
-                                        <td x-text="delivery.dr_no"></td>
                                         <td x-text="formatAmount(delivery.working_balance)"></td>
                                         <td class="text-right">
                                             <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>

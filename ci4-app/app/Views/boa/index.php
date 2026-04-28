@@ -1,3 +1,13 @@
+<?php
+/**
+ * @var string $from
+ * @var string $to
+ * @var list<array<string, int|float|string|null>> $records
+ * @var list<string> $bankColumns
+ * @var array{bankColumns?: array<string, int|float|string>, ar_trade?: int|float|string, ar_others?: int|float|string, dr?: int|float|string, cr?: int|float|string} $totals
+ * @var bool $tableMissing
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <div class="flex flex-wrap items-end justify-between gap-4">
@@ -51,16 +61,16 @@
                 <?php foreach ($records as $index => $row): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($row['date']) ?></td>
-                        <td><?= esc($row['payor_name'] ?? $row['payor']) ?></td>
-                        <td><?= esc($row['reference']) ?></td>
+                        <td><?= esc((string) $row['date']) ?></td>
+                        <td><?= esc((string) ($row['payor_name'] ?? $row['payor'])) ?></td>
+                        <td><?= esc((string) $row['reference']) ?></td>
                         <?php foreach ($bankColumns as $column): ?>
                             <td class="text-left"><?= number_format((float) ($row[$column] ?? 0), 2) ?></td>
                         <?php endforeach; ?>
                         <td class="text-left"><?= number_format((float) ($row['ar_trade'] ?? 0), 2) ?></td>
                         <td class="text-left"><?= number_format((float) ($row['ar_others'] ?? 0), 2) ?></td>
-                        <td><?= esc($row['description'] ?? '') ?></td>
-                        <td><?= esc($row['account_title'] ?? '') ?></td>
+                        <td><?= esc((string) ($row['description'] ?? '')) ?></td>
+                        <td><?= esc((string) ($row['account_title'] ?? '')) ?></td>
                         <td class="text-left"><?= number_format((float) ($row['dr'] ?? 0), 2) ?></td>
                         <td class="text-left"><?= number_format((float) ($row['cr'] ?? 0), 2) ?></td>
                     </tr>

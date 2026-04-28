@@ -1,11 +1,14 @@
+<?php
+/**
+ * @var list<array{id: int|string, product_id: string, product_name: string, unit_price: int|float|string}> $products
+ * @var \CodeIgniter\Pager\Pager|null $pager
+ * @var string $search
+ * @var int $rowOffset
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
-$formErrors = session()->getFlashdata('form_errors');
-if (! is_array($formErrors)) {
-    $formErrors = [];
-}
-
 $formMode = (string) (session()->getFlashdata('form_mode') ?? '');
 $formId = (int) (session()->getFlashdata('form_id') ?? 0);
 $oldForm = [
@@ -53,8 +56,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <?php foreach ($products as $index => $product): ?>
                     <tr>
                         <td><?= esc((string) ($rowOffset + $index + 1)) ?></td>
-                        <td><?= esc($product['product_id']) ?></td>
-                        <td><?= esc($product['product_name']) ?></td>
+                        <td><?= esc((string) $product['product_id']) ?></td>
+                        <td><?= esc((string) $product['product_name']) ?></td>
                         <td><?= esc(number_format((float) $product['unit_price'], 2)) ?></td>
                         <td class="text-left">
                             <button class="btn-link" type="button" @click="openEdit(<?= (int) $product['id'] ?>)">Edit</button>
@@ -87,17 +90,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <div>
                     <label class="block text-sm font-medium" for="product_id">Product ID</label>
                     <input class="input mt-1" id="product_id" name="product_id" x-model="form.product_id" required>
-                    <span class="field-error" x-show="errors.product_id" x-text="errors.product_id"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="product_name">Product Name</label>
                     <input class="input mt-1" id="product_name" name="product_name" x-model="form.product_name" required>
-                    <span class="field-error" x-show="errors.product_name" x-text="errors.product_name"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="unit_price">Unit Price</label>
                     <input class="input mt-1" id="unit_price" name="unit_price" type="number" step="0.01" x-model="form.unit_price" required>
-                    <span class="field-error" x-show="errors.unit_price" x-text="errors.unit_price"></span>
                 </div>
                 <div class="flex gap-3">
                     <button class="btn" type="submit" x-text="isEdit ? 'Update Product' : 'Create Product'"></button>
@@ -112,7 +112,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     function productManager() {
         const products = <?= json_encode($products, $jsonFlags) ?>;
         const oldForm = <?= json_encode($oldForm, $jsonFlags) ?>;
-        const formErrors = <?= json_encode($formErrors, $jsonFlags) ?>;
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
         const hasOldValues = Object.values(oldForm).some((value) => value !== null && String(value).trim() !== '');
@@ -122,7 +121,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             open: false,
             isEdit: false,
             formAction: '<?= base_url('products') ?>',
-            errors: {},
             form: {
                 product_id: '',
                 product_name: '',
@@ -137,7 +135,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             ...oldForm,
                         };
                     }
-                    this.errors = formErrors;
                     this.open = true;
                     return;
                 }
@@ -148,14 +145,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         ...this.form,
                         ...oldForm,
                     };
-                    this.errors = formErrors;
                     this.open = true;
                 }
             },
             openCreate() {
                 this.isEdit = false;
                 this.formAction = '<?= base_url('products') ?>';
-                this.errors = {};
                 this.form = {
                     product_id: '',
                     product_name: '',
@@ -171,7 +166,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 
                 this.isEdit = true;
                 this.formAction = `<?= base_url('products') ?>/${product.id}`;
-                this.errors = {};
                 this.form = {
                     product_id: product.product_id || '',
                     product_name: product.product_name || '',
@@ -181,7 +175,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             closeModal() {
                 this.open = false;
-                this.errors = {};
             },
         };
     }

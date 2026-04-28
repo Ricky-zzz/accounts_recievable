@@ -1,3 +1,9 @@
+<?php
+/**
+ * @var list<array{pr_no?: int|string|null, date?: string|null, amount_received?: int|float|string|null, amount_allocated?: int|float|string|null, excess?: int|float|string|null, client_name?: string|null}> $rows
+ * @var string $query
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <div class="flex flex-wrap items-center justify-between gap-4">
@@ -32,9 +38,9 @@
             <?php foreach ($rows as $index => $row): ?>
                 <tr>
                     <td><?= esc((string) ($index + 1)) ?></td>
-                    <td><?= esc($row['client_name'] ?? '') ?></td>
-                    <td><?= esc($row['pr_no']) ?></td>
-                    <td><?= esc($row['date']) ?></td>
+                    <td><?= esc((string) ($row['client_name'] ?? '')) ?></td>
+                    <td><?= esc((string) $row['pr_no']) ?></td>
+                    <td><?= esc((string) $row['date']) ?></td>
                     <td><?= esc(number_format((float) $row['amount_received'], 2)) ?></td>
                     <td><?= esc(number_format((float) $row['amount_allocated'], 2)) ?></td>
                     <td><?= esc(number_format((float) $row['excess'], 2)) ?></td>

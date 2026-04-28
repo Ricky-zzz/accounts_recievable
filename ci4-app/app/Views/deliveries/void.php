@@ -1,3 +1,8 @@
+<?php
+/**
+ * @var array{id: int|string, dr_no: string, date: string, total_amount: int|float|string} $delivery
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <h1 class="text-xl font-semibold">Void Delivery</h1>
@@ -8,11 +13,11 @@
     <div class="card p-4 text-sm">
         <div class="flex justify-between">
             <span>DR#</span>
-            <span><?= esc($delivery['dr_no']) ?></span>
+            <span><?= esc((string) $delivery['dr_no']) ?></span>
         </div>
         <div class="mt-2 flex justify-between">
             <span>Date</span>
-            <span><?= esc($delivery['date']) ?></span>
+            <span><?= esc((string) $delivery['date']) ?></span>
         </div>
         <div class="mt-2 flex justify-between">
             <span>Total</span>

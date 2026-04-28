@@ -1,4 +1,13 @@
 <!doctype html>
+<?php
+/**
+ * @var array{id: int|string, name: string} $client
+ * @var string $fromDate
+ * @var string $toDate
+ * @var list<array{pr_no?: int|string|null, date?: string|null, amount_received?: int|float|string|null}> $payments
+ * @var int|float|string $totalCollections
+ */
+?>
 <html lang="en">
 
 <head>
@@ -92,7 +101,7 @@
         <?php endif; ?>
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Client Payments Report</div>
-        <div class="meta">Client: <?= esc($client['name'] ?? '') ?></div>
+        <div class="meta">Client: <?= esc((string) ($client['name'] ?? '')) ?></div>
         <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
@@ -114,8 +123,8 @@
                 <?php foreach ($payments as $index => $payment): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($payment['date']) ?></td>
-                        <td><?= esc($payment['pr_no'] ?? '') ?></td>
+                        <td><?= esc((string) $payment['date']) ?></td>
+                        <td><?= esc((string) ($payment['pr_no'] ?? '')) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($payment['amount_received'] ?? 0), 2)) ?></td>
                     </tr>
                 <?php endforeach; ?>

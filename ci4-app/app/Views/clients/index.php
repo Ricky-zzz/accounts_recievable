@@ -1,11 +1,13 @@
+<?php
+/**
+ * @var list<array{id: int|string, name: string, address?: string|null, email?: string|null, phone?: string|null, credit_limit?: int|float|string|null, payment_term?: int|string|null, current_balance?: int|float|string|null, available_credit?: int|float|string|null}> $clients
+ * @var string $query
+ * @var \CodeIgniter\Pager\Pager|null $pager
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
-$formErrors = session()->getFlashdata('form_errors');
-if (! is_array($formErrors)) {
-    $formErrors = [];
-}
-
 $formMode = (string) (session()->getFlashdata('form_mode') ?? '');
 $formId = (int) (session()->getFlashdata('form_id') ?? 0);
 $oldForm = [
@@ -54,9 +56,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <?php foreach ($clients as $index => $client): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($client['name']) ?></td>
-                        <td><?= esc($client['email'] ?? '') ?></td>
-                        <td><?= esc($client['phone'] ?? '') ?></td>
+                        <td><?= esc((string) $client['name']) ?></td>
+                        <td><?= esc((string) ($client['email'] ?? '')) ?></td>
+                        <td><?= esc((string) ($client['phone'] ?? '')) ?></td>
                         <td>
                             <?php
                             $availableCredit = (float) ($client['available_credit'] ?? 0);
@@ -107,32 +109,26 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium" for="name">Name</label>
                         <input class="input mt-1" id="name" name="name" x-model="form.name" required>
-                        <span class="field-error" x-show="errors.name" x-text="errors.name"></span>
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium" for="address">Address</label>
                         <input class="input mt-1" id="address" name="address" x-model="form.address">
-                        <span class="field-error" x-show="errors.address" x-text="errors.address"></span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="email">Email</label>
                         <input class="input mt-1" id="email" name="email" x-model="form.email">
-                        <span class="field-error" x-show="errors.email" x-text="errors.email"></span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="phone">Phone</label>
                         <input class="input mt-1" id="phone" name="phone" x-model="form.phone">
-                        <span class="field-error" x-show="errors.phone" x-text="errors.phone"></span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="credit_limit">Credit Limit</label>
                         <input class="input mt-1" id="credit_limit" name="credit_limit" type="number" step="0.01" min="0" x-model="form.credit_limit">
-                        <span class="field-error" x-show="errors.credit_limit" x-text="errors.credit_limit"></span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="payment_term">Default Collection Term (days)</label>
                         <input class="input mt-1" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
-                        <span class="field-error" x-show="errors.payment_term" x-text="errors.payment_term"></span>
                     </div>
                 </div>
                 <div class="flex gap-3">
@@ -173,7 +169,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     function clientManager() {
         const clients = <?= json_encode($clients, $jsonFlags) ?>;
         const oldForm = <?= json_encode($oldForm, $jsonFlags) ?>;
-        const formErrors = <?= json_encode($formErrors, $jsonFlags) ?>;
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
         const hasOldValues = Object.values(oldForm).some((value) => value !== null && String(value).trim() !== '');
@@ -184,7 +179,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             openCredit: false,
             isEdit: false,
             formAction: '<?= base_url('clients') ?>',
-            errors: {},
             selectedCredit: {
                 name: '',
                 credit_limit: 0,
@@ -208,7 +202,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             ...oldForm,
                         };
                     }
-                    this.errors = formErrors;
                     this.open = true;
                     return;
                 }
@@ -219,14 +212,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         ...this.form,
                         ...oldForm,
                     };
-                    this.errors = formErrors;
                     this.open = true;
                 }
             },
             openCreate() {
                 this.isEdit = false;
                 this.formAction = '<?= base_url('clients') ?>';
-                this.errors = {};
                 this.form = {
                     name: '',
                     address: '',
@@ -245,7 +236,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 
                 this.isEdit = true;
                 this.formAction = `<?= base_url('clients') ?>/${client.id}`;
-                this.errors = {};
                 this.form = {
                     name: client.name || '',
                     address: client.address || '',
@@ -258,7 +248,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             closeModal() {
                 this.open = false;
-                this.errors = {};
             },
             openCreditModal(id) {
                 const client = this.clients.find((row) => Number(row.id) === Number(id));

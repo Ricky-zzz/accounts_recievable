@@ -1,4 +1,8 @@
 <?php
+/**
+ * @var string $message
+ * @var \Throwable $exception
+ */
 
 use CodeIgniter\CLI\CLI;
 

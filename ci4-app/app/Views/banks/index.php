@@ -1,11 +1,11 @@
+<?php
+/**
+ * @var list<array{id: int|string, bank_name: string, account_name?: string|null, bank_number?: string|null}> $banks
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
-$formErrors = session()->getFlashdata('form_errors');
-if (! is_array($formErrors)) {
-    $formErrors = [];
-}
-
 $formMode = (string) (session()->getFlashdata('form_mode') ?? '');
 $formId = (int) (session()->getFlashdata('form_id') ?? 0);
 $oldForm = [
@@ -42,9 +42,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <?php foreach ($banks as $index => $bank): ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc($bank['bank_name']) ?></td>
-                        <td><?= esc($bank['account_name'] ?? '') ?></td>
-                        <td><?= esc($bank['bank_number'] ?? '') ?></td>
+                        <td><?= esc((string) $bank['bank_name']) ?></td>
+                        <td><?= esc((string) ($bank['account_name'] ?? '')) ?></td>
+                        <td><?= esc((string) ($bank['bank_number'] ?? '')) ?></td>
                         <td class="text-left">
                             <button class="btn-link" type="button" @click="openEdit(<?= (int) $bank['id'] ?>)">Edit</button>
                             <form class="inline" method="post" action="<?= base_url('banks/' . $bank['id'] . '/delete') ?>" onsubmit="return confirm('Delete this bank?');">
@@ -70,17 +70,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <div>
                     <label class="block text-sm font-medium" for="bank_name">Bank Name</label>
                     <input class="input mt-1" id="bank_name" name="bank_name" x-model="form.bank_name" required>
-                    <span class="field-error" x-show="errors.bank_name" x-text="errors.bank_name"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="account_name">Account Name</label>
                     <input class="input mt-1" id="account_name" name="account_name" x-model="form.account_name">
-                    <span class="field-error" x-show="errors.account_name" x-text="errors.account_name"></span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="bank_number">Account Number</label>
                     <input class="input mt-1" id="bank_number" name="bank_number" x-model="form.bank_number">
-                    <span class="field-error" x-show="errors.bank_number" x-text="errors.bank_number"></span>
                 </div>
                 <div class="flex gap-3">
                     <button class="btn" type="submit" x-text="isEdit ? 'Update Bank' : 'Create Bank'"></button>
@@ -95,7 +92,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     function bankManager() {
         const banks = <?= json_encode($banks, $jsonFlags) ?>;
         const oldForm = <?= json_encode($oldForm, $jsonFlags) ?>;
-        const formErrors = <?= json_encode($formErrors, $jsonFlags) ?>;
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
         const hasOldValues = Object.values(oldForm).some((value) => value !== null && String(value).trim() !== '');
@@ -106,7 +102,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             isEdit: false,
             formAction: '<?= base_url('banks') ?>',
             currentId: null,
-            errors: {},
             form: {
                 bank_name: '',
                 account_name: '',
@@ -121,7 +116,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             ...oldForm,
                         };
                     }
-                    this.errors = formErrors;
                     this.open = true;
                     return;
                 }
@@ -132,7 +126,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         ...this.form,
                         ...oldForm,
                     };
-                    this.errors = formErrors;
                     this.open = true;
                 }
             },
@@ -140,7 +133,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 this.isEdit = false;
                 this.currentId = null;
                 this.formAction = '<?= base_url('banks') ?>';
-                this.errors = {};
                 this.form = {
                     bank_name: '',
                     account_name: '',
@@ -157,7 +149,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 this.isEdit = true;
                 this.currentId = bank.id;
                 this.formAction = `<?= base_url('banks') ?>/${bank.id}`;
-                this.errors = {};
                 this.form = {
                     bank_name: bank.bank_name || '',
                     account_name: bank.account_name || '',
@@ -167,7 +158,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             closeModal() {
                 this.open = false;
-                this.errors = {};
             },
         };
     }

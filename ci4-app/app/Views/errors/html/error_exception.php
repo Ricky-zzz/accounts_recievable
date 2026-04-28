@@ -1,4 +1,12 @@
 <?php
+/**
+ * @var string $title
+ * @var string $message
+ * @var string $file
+ * @var int $line
+ * @var \Throwable $exception
+ */
+
 use CodeIgniter\HTTP\Header;
 use CodeIgniter\CodeIgniter;
 

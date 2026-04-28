@@ -15,8 +15,7 @@ class Products extends BaseController
             ->to('/products')
             ->withInput()
             ->with('error', $message)
-            ->with('form_mode', $mode)
-            ->with('form_errors', $errors);
+            ->with('form_mode', $mode);
 
         if ($id !== null) {
             $redirect = $redirect->with('form_id', $id);

@@ -1,3 +1,19 @@
+<?php
+/**
+ * @var string $title
+ * @var string $action
+ * @var int|string|null $clientId
+ * @var array{id?: int|string, name?: string|null, payment_term?: int|string|null}|null $selectedClient
+ * @var list<array{id: int|string, name: string, payment_term?: int|string|null}> $clients
+ * @var string|false $clientsJson
+ * @var int|string|null $defaultPaymentTerm
+ * @var list<array{id: int|string, product_id?: string|null, product_name: string, unit_price?: int|float|string|null}> $products
+ * @var string|false $productsJson
+ * @var object|null $validation
+ * @var list<string> $extraErrors
+ * @var bool $embeddedForm
+ */
+?>
 <?php if (empty($embeddedForm)): ?>
     <?= $this->extend('layout') ?>
     <?= $this->section('content') ?>
@@ -52,7 +68,7 @@ if ($termValue === null) {
             <div>
                 <label class="block text-sm font-medium">Client</label>
                 <div class="mt-1 rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
-                    <?= esc($selectedClient['name']) ?>
+                    <?= esc((string) $selectedClient['name']) ?>
                 </div>
                 <input type="hidden" name="client_id" :value="selectedClientId">
             </div>
@@ -62,8 +78,8 @@ if ($termValue === null) {
                 <select class="input mt-1" id="client_id" name="client_id" x-model="selectedClientId" @change="onClientChange()" required>
                     <option value="">Select client</option>
                     <?php foreach ($clients as $client): ?>
-                        <option value="<?= esc($client['id']) ?>" <?= old('client_id') == $client['id'] ? 'selected' : '' ?>>
-                            <?= esc($client['name']) ?>
+                        <option value="<?= esc((string) $client['id']) ?>" <?= old('client_id') == $client['id'] ? 'selected' : '' ?>>
+                            <?= esc((string) $client['name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

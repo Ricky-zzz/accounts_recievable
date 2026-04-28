@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<?php
+/**
+ * @var string $message
+ */
+?>
 <html lang="en">
 <head>
     <meta charset="utf-8">

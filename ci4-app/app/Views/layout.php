@@ -1,4 +1,9 @@
 <!doctype html>
+<?php
+/**
+ * @var string|null $title
+ */
+?>
 <html lang="en">
 
 <head>
@@ -298,13 +303,6 @@
             letter-spacing: 0.02em;
         }
 
-        .field-error {
-            margin-top: 0.3rem;
-            display: block;
-            font-size: 0.75rem;
-            color: #343a40;
-        }
-
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -467,8 +465,7 @@
     $logoUrl = base_url('logo.png');
     ?>
 
-    <?php if ($successMessage || $errorMessage): ?>
-        <div class="flash-stack">
+        <div id="flash-stack" class="flash-stack">
             <?php if ($successMessage): ?>
                 <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-success" x-cloak>
                     <div class="flash-text">
@@ -487,7 +484,6 @@
                 </div>
             <?php endif; ?>
         </div>
-    <?php endif; ?>
 
     <div class="min-h-screen">
         <header class="site-header">
@@ -538,6 +534,33 @@
             <?= $this->renderSection('content') ?>
         </main>
     </div>
+    <script>
+        window.showToast = function (message, type = 'error') {
+            const stack = document.getElementById('flash-stack');
+            if (!stack || !message) {
+                return;
+            }
+
+            const toast = document.createElement('div');
+            const variant = type === 'success' ? 'success' : 'error';
+            toast.className = `flash-message flash-message-${variant}`;
+
+            const text = document.createElement('div');
+            text.className = 'flash-text';
+            text.textContent = message;
+
+            const close = document.createElement('button');
+            close.className = 'flash-close';
+            close.type = 'button';
+            close.setAttribute('aria-label', `Dismiss ${variant} message`);
+            close.innerHTML = '&times;';
+            close.addEventListener('click', () => toast.remove());
+
+            toast.append(text, close);
+            stack.appendChild(toast);
+            window.setTimeout(() => toast.remove(), 5000);
+        };
+    </script>
 </body>
 
 </html>

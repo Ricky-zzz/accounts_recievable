@@ -1,3 +1,8 @@
+<?php
+/**
+ * @var object|null $validation
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <div class="mx-auto flex min-h-[70vh] max-w-md items-center">

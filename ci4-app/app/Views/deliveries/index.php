@@ -1,9 +1,26 @@
+<?php
+/**
+ * @var string $fromDate
+ * @var string $toDate
+ * @var string $drNo
+ * @var list<array{id: int|string, client_id?: int|string|null, dr_no?: string|null, date?: string|null, due_date?: string|null, payment_term?: int|string|null, client_name?: string|null, total_amount?: int|float|string|null, balance?: int|float|string|null}> $deliveries
+ * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
+ * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
+ * @var int|float|string $totalAmount
+ * @var int|float|string $totalBalance
+ * @var string $pagerLinks
+ * @var int $rowOffset
+ * @var array<string, mixed> $quickPayData
+ */
+?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
+$deliveriesJson = json_encode($deliveries ?? [], $jsonFlags);
 $itemsJson = json_encode($itemsByDelivery ?? [], $jsonFlags);
 $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
+$quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
 ?>
 
 <div x-data="deliveryList()">
@@ -59,29 +76,30 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
                 <th>Term</th>
                 <th>Total Amount</th>
                 <th>Balance</th>
+                <th class="text-right">Collect</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="py-3" colspan="8">No deliveries found for the selected filters.</td>
+                    <td class="py-3" colspan="9">No deliveries found for the selected filters.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($deliveries as $index => $delivery): ?>
                     <tr>
                         <td><?= esc((int) ($rowOffset ?? 0) + $index + 1) ?></td>
-                        <td><?= esc($delivery['date']) ?></td>
+                        <td><?= esc((string) $delivery['date']) ?></td>
                         <td>
                             <?php if (! empty($allocationsByDelivery[$delivery['id']])): ?>
                                 <button class="btn-link" type="button" @click="openAllocations(<?= (int) $delivery['id'] ?>)">
-                                    <?= esc($delivery['dr_no'] ?? '') ?>
+                                    <?= esc((string) ($delivery['dr_no'] ?? '')) ?>
                                 </button>
                             <?php else: ?>
-                                <?= esc($delivery['dr_no'] ?? '') ?>
+                                <?= esc((string) ($delivery['dr_no'] ?? '')) ?>
                             <?php endif; ?>
                         </td>
-                        <td><?= esc($delivery['client_name'] ?? '') ?></td>
-                        <td><?= esc($delivery['due_date'] ?? '') ?></td>
+                        <td><?= esc((string) ($delivery['client_name'] ?? '')) ?></td>
+                        <td><?= esc((string) ($delivery['due_date'] ?? '')) ?></td>
                         <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td>
                             <?php if (! empty($itemsByDelivery[$delivery['id']])): ?>
@@ -93,6 +111,15 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
                             <?php endif; ?>
                         </td>
                         <td><?= esc(number_format((float) $delivery['balance'], 2)) ?></td>
+                        <td class="text-right">
+                            <button
+                                class="btn btn-secondary"
+                                type="button"
+                                @click="openQuickPay(<?= (int) $delivery['id'] ?>)"
+                                <?= ((float) $delivery['balance'] > 0 && $quickPayActiveReceipt) ? '' : 'disabled' ?>>
+                                Collect
+                            </button>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -193,20 +220,53 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
             </div>
         </div>
     </div>
+
+    <?= view('deliveries/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
 </div>
 
 <script>
     function deliveryList() {
         return {
+            quickPayDeliveries: <?= $deliveriesJson ?>,
             itemsByDelivery: <?= $itemsJson ?>,
             allocationsByDelivery: <?= $allocationsJson ?>,
             itemsOpen: false,
             allocOpen: false,
+            quickPayOpen: <?= old('delivery_id') ? 'true' : 'false' ?>,
             selectedDeliveryId: null,
+            quickPayDeliveryId: '<?= esc(old('delivery_id') ?: '') ?>',
+            quickPay: {
+                date: '<?= esc(old('date') ?: date('Y-m-d')) ?>',
+                method: '<?= esc(old('method') ?: 'cash') ?>',
+                amountReceived: '<?= esc(old('amount_received')) ?>',
+                depositBankId: '<?= esc(old('deposit_bank_id')) ?>',
+                payerBank: '<?= esc(old('payer_bank')) ?>',
+                checkNo: '<?= esc(old('check_no')) ?>',
+                allocationAmount: '<?= esc(old('allocation_amount')) ?>',
+                salesDiscount: '<?= esc(old('sales_discount')) ?>',
+                deliveryCharges: '<?= esc(old('delivery_charges')) ?>',
+                taxes: '<?= esc(old('taxes')) ?>',
+                commissions: '<?= esc(old('commissions')) ?>',
+                arOtherDescription: '<?= esc(old('ar_other_description')) ?>',
+                arOtherAmount: '<?= esc(old('ar_other_amount')) ?>',
+            },
+            normalizeAmount(value) {
+                return Math.round((parseFloat(value) || 0) * 100) / 100;
+            },
+            formatAmount(value) {
+                return this.normalizeAmount(value).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+            },
+            formatInputAmount(value) {
+                return this.normalizeAmount(value).toFixed(2);
+            },
             openItems(id) {
                 this.selectedDeliveryId = id;
                 this.itemsOpen = true;
                 this.allocOpen = false;
+                this.quickPayOpen = false;
             },
             closeItems() {
                 this.itemsOpen = false;
@@ -224,6 +284,7 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
                 this.selectedDeliveryId = id;
                 this.allocOpen = true;
                 this.itemsOpen = false;
+                this.quickPayOpen = false;
             },
             closeAllocations() {
                 this.allocOpen = false;
@@ -236,6 +297,38 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
                     .toFixed(2);
+            },
+            selectedQuickPayDelivery() {
+                return this.quickPayDeliveries.find((delivery) => String(delivery.id) === String(this.quickPayDeliveryId)) || null;
+            },
+            openQuickPay(id) {
+                this.quickPayDeliveryId = id;
+                const delivery = this.selectedQuickPayDelivery();
+                if (delivery) {
+                    this.quickPay.amountReceived = this.formatInputAmount(delivery.balance);
+                    this.quickPay.allocationAmount = this.formatInputAmount(delivery.balance);
+                }
+                this.quickPayOpen = true;
+                this.itemsOpen = false;
+                this.allocOpen = false;
+            },
+            closeQuickPay() {
+                this.quickPayOpen = false;
+                this.quickPayDeliveryId = '';
+            },
+            quickPayFixedAccountsTotal() {
+                return [
+                    this.quickPay.salesDiscount,
+                    this.quickPay.deliveryCharges,
+                    this.quickPay.taxes,
+                    this.quickPay.commissions
+                ].reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
+            },
+            quickPayBalanceAmount() {
+                return (parseFloat(this.quickPay.amountReceived) || 0)
+                    + this.quickPayFixedAccountsTotal()
+                    - (parseFloat(this.quickPay.allocationAmount) || 0)
+                    - (parseFloat(this.quickPay.arOtherAmount) || 0);
             }
         };
     }

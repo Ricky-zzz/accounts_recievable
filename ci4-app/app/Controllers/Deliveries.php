@@ -2,11 +2,14 @@
 
 namespace App\Controllers;
 
+use App\Models\BankModel;
 use App\Models\ClientModel;
 use App\Models\DeliveryItemModel;
 use App\Models\DeliveryModel;
 use App\Models\LedgerModel;
 use App\Models\ProductModel;
+use App\Models\UserModel;
+use App\Services\PaymentPostingService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -30,6 +33,7 @@ class Deliveries extends BaseController
             'totalBalance' => $result['totalBalance'],
             'pagerLinks' => $result['pagerLinks'],
             'rowOffset' => $result['rowOffset'],
+            'quickPayData' => $this->buildQuickPayData(),
         ]);
     }
 
@@ -89,6 +93,7 @@ class Deliveries extends BaseController
             'pagerLinks' => $result['pagerLinks'],
             'rowOffset' => $result['rowOffset'],
             'deliveryFormData' => $formData,
+            'quickPayData' => $this->buildQuickPayData(),
         ]);
     }
 
@@ -329,6 +334,20 @@ class Deliveries extends BaseController
             'validation' => $validation,
             'extraErrors' => $errors,
             'embeddedForm' => $embeddedForm,
+        ];
+    }
+
+    private function buildQuickPayData(): array
+    {
+        $userId = (int) (session('user_id') ?? 0);
+        $assignedUser = $userId > 0 ? (new UserModel())->find($userId) : null;
+        $activeRange = (new PaymentPostingService())->getActiveReceiptRange($userId);
+
+        return [
+            'assignedUser' => $assignedUser,
+            'activeReceipt' => $activeRange ? (int) $activeRange['next_no'] : null,
+            'rangeEnd' => $activeRange ? (int) $activeRange['end_no'] : null,
+            'banks' => (new BankModel())->orderBy('bank_name', 'asc')->findAll(),
         ];
     }
 
