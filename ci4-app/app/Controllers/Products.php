@@ -7,6 +7,8 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Products extends BaseController
 {
+    private const PER_PAGE = 20;
+
     private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [])
     {
         $redirect = redirect()
@@ -26,11 +28,29 @@ class Products extends BaseController
     public function index(): string
     {
         $model = new ProductModel();
-        $products = $model->orderBy('product_name', 'asc')->paginate(15);
+        $createdProductId = (int) ($this->request->getGet('created_product_id') ?? 0);
+        $search = trim((string) ($this->request->getGet('q') ?? ''));
+
+        if ($createdProductId > 0) {
+            $model->where('id', $createdProductId);
+        }
+
+        if ($search !== '') {
+            $model
+                ->groupStart()
+                ->like('product_id', $search)
+                ->orLike('product_name', $search)
+                ->groupEnd();
+        }
+
+        $page = max(1, (int) ($this->request->getGet('page_products') ?? $this->request->getGet('page') ?? 1));
+        $products = $model->orderBy('product_name', 'asc')->paginate(self::PER_PAGE, 'products');
 
         return view('products/index', [
             'products' => $products,
             'pager' => $model->pager,
+            'search' => $search,
+            'rowOffset' => ($page - 1) * self::PER_PAGE,
         ]);
     }
 
@@ -58,9 +78,14 @@ class Products extends BaseController
         }
 
         $model = new ProductModel();
-        $model->insert($product);
+        $createdProductId = (int) $model->insert($product, true);
 
-        return redirect()->to('/products')->with('success', 'Product created.');
+        return redirect()
+            ->to('/products?' . http_build_query([
+                'q' => $product['product_name'],
+                'created_product_id' => $createdProductId,
+            ]))
+            ->with('success', 'Product created.');
     }
 
     public function update(int $id)

@@ -44,6 +44,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
     <table class="table mt-6">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Date</th>
                 <th>Client</th>
                 <th>PR #</th>
@@ -53,11 +54,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
         <tbody>
             <?php if (empty($payments)): ?>
                 <tr>
-                    <td class="py-3" colspan="4">No payments found for the selected date range.</td>
+                    <td class="py-3" colspan="5">No payments found for the selected date range.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($payments as $payment): ?>
+                <?php foreach ($payments as $index => $payment): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($payment['date']) ?></td>
                         <td><?= esc($payment['client_name'] ?? '') ?></td>
                         <td>

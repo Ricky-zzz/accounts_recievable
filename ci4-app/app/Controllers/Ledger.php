@@ -10,23 +10,23 @@ use Dompdf\Options;
 
 class Ledger extends BaseController
 {
+    private const LEDGER_PER_PAGE = 20;
+
     public function index(): string
     {
         $clientId = (int) $this->request->getGet('client_id');
-        $start = (string) $this->request->getGet('start');
-        $end = (string) $this->request->getGet('end');
+        [$start, $end] = $this->resolveDateRange();
 
-        $data = $this->buildReportData($clientId, $start, $end);
+        $data = $this->buildReportData($clientId, $start, $end, true);
         return view('ledger/index', $data);
     }
 
     public function print()
     {
         $clientId = (int) $this->request->getGet('client_id');
-        $start = (string) $this->request->getGet('start');
-        $end = (string) $this->request->getGet('end');
+        [$start, $end] = $this->resolveDateRange();
 
-        $data = $this->buildReportData($clientId, $start, $end);
+        $data = $this->buildReportData($clientId, $start, $end, false);
 
         if (! $data['selectedClient']) {
             return redirect()->to(base_url('ledger'));
@@ -68,7 +68,7 @@ class Ledger extends BaseController
             ->setBody($dompdf->output());
     }
 
-    private function buildReportData(int $clientId, string $start, string $end): array
+    private function buildReportData(int $clientId, string $start, string $end, bool $paginate): array
     {
         $clientModel = new ClientModel();
         $clients = $clientModel->orderBy('name', 'asc')->findAll();
@@ -82,6 +82,11 @@ class Ledger extends BaseController
         $allocationsByPayment = [];
         $otherAccountsByPayment = [];
         $paymentsById = [];
+        $allRows = [];
+        $currentPage = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $totalRows = 0;
+        $totalPages = 1;
+        $rowOffset = 0;
 
         if ($clientId > 0) {
             $selectedClient = $clientModel->find($clientId);
@@ -112,10 +117,23 @@ class Ledger extends BaseController
                 $builder->where('entry_date <=', $end);
             }
 
-            $rows = $builder
+            $allRows = $builder
                 ->orderBy('entry_date', 'asc')
                 ->orderBy('id', 'asc')
                 ->findAll();
+
+            $rows = $allRows;
+            $totalRows = count($allRows);
+            $totalPages = max(1, (int) ceil($totalRows / self::LEDGER_PER_PAGE));
+
+            if ($paginate) {
+                $currentPage = min($currentPage, $totalPages);
+                $rowOffset = ($currentPage - 1) * self::LEDGER_PER_PAGE;
+                $rows = array_slice($allRows, $rowOffset, self::LEDGER_PER_PAGE);
+            } else {
+                $currentPage = 1;
+                $totalPages = 1;
+            }
 
             $deliveryIds = array_filter(array_column($rows, 'delivery_id'));
             $paymentIds = array_filter(array_column($rows, 'payment_id'));
@@ -212,6 +230,11 @@ class Ledger extends BaseController
             'end' => $end,
             'openingBalance' => $openingBalance,
             'rows' => $rows,
+            'allRowsCount' => $totalRows,
+            'currentPage' => $currentPage,
+            'perPage' => self::LEDGER_PER_PAGE,
+            'totalPages' => $totalPages,
+            'rowOffset' => $rowOffset,
             'itemsByDelivery' => $itemsByDelivery,
             'itemCounts' => $itemCounts,
             'allocationsByDelivery' => $allocationsByDelivery,
@@ -219,5 +242,25 @@ class Ledger extends BaseController
             'otherAccountsByPayment' => $otherAccountsByPayment,
             'paymentsById' => $paymentsById,
         ];
+    }
+
+    private function resolveDateRange(): array
+    {
+        $start = trim((string) ($this->request->getGet('start') ?? ''));
+        $end = trim((string) ($this->request->getGet('end') ?? ''));
+
+        if ($start === '') {
+            $start = date('Y-m-01');
+        }
+
+        if ($end === '') {
+            $end = date('Y-m-t');
+        }
+
+        if ($start > $end) {
+            [$start, $end] = [$end, $start];
+        }
+
+        return [$start, $end];
     }
 }

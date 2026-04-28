@@ -13,6 +13,8 @@ $oldForm = [
     'product_name' => old('product_name'),
     'unit_price' => old('unit_price'),
 ];
+$search = (string) ($search ?? '');
+$rowOffset = (int) ($rowOffset ?? 0);
 
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 ?>
@@ -23,9 +25,19 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <button class="btn" type="button" @click="openCreate()">New Product</button>
     </div>
 
+    <form class="flex flex-wrap items-end gap-3" method="get" action="<?= base_url('products') ?>">
+        <div>
+            <label class="block text-sm font-medium" for="q">Search Product</label>
+            <input class="input mt-1" id="q" name="q" value="<?= esc($search) ?>" placeholder="Product ID or name">
+        </div>
+        <button class="btn" type="submit">Filter</button>
+        <a class="btn btn-secondary" href="<?= base_url('products') ?>">Clear</a>
+    </form>
+
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Product ID</th>
                 <th>Name</th>
                 <th>Unit Price</th>
@@ -35,11 +47,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <tbody>
             <?php if (empty($products)): ?>
                 <tr>
-                    <td colspan="4">No products yet.</td>
+                    <td colspan="5">No products found.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($products as $product): ?>
+                <?php foreach ($products as $index => $product): ?>
                     <tr>
+                        <td><?= esc((string) ($rowOffset + $index + 1)) ?></td>
                         <td><?= esc($product['product_id']) ?></td>
                         <td><?= esc($product['product_name']) ?></td>
                         <td><?= esc(number_format((float) $product['unit_price'], 2)) ?></td>
@@ -58,11 +71,11 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 
     <?php if (isset($pager)): ?>
         <div class="flex justify-end">
-            <?= $pager->links() ?>
+            <?= $pager->links('products') ?>
         </div>
     <?php endif; ?>
 
-    <div class="modal-backdrop" x-show="open" x-cloak>
+    <div class="modal-backdrop" x-show="open" x-cloak @click.self="closeModal()">
         <div class="modal-panel max-w-xl p-6">
             <div class="flex items-start justify-between gap-4">
                 <h2 class="text-lg font-semibold" x-text="isEdit ? 'Edit Product' : 'New Product'"></h2>

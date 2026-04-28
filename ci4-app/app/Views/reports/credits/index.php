@@ -27,6 +27,7 @@
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Client Name</th>
                 <th class="text-right">Credit Limit</th>
                 <th class="text-right">Current Balance</th>
@@ -36,11 +37,12 @@
         <tbody>
             <?php if (empty($rows)): ?>
                 <tr>
-                    <td colspan="4">No clients found.</td>
+                    <td colspan="5">No clients found.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($rows as $row): ?>
+                <?php foreach ($rows as $index => $row): ?>
                     <tr>
+                        <td><?= esc((string) (((int) ($currentPage ?? 1) - 1) * (int) ($perPage ?? 0) + $index + 1)) ?></td>
                         <td><?= esc($row['client_name']) ?></td>
                         <td class="text-left"><?= esc(number_format((float) $row['credit_limit'], 2)) ?></td>
                         <td class="text-left"><?= esc(number_format((float) $row['current_balance'], 2)) ?></td>
@@ -51,7 +53,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="2">Total Balance</th>
+                <th colspan="3">Total Balance</th>
                 <th class="text-left"><?= esc(number_format((float) $totalBalance, 2)) ?></th>
                 <th></th>
             </tr>

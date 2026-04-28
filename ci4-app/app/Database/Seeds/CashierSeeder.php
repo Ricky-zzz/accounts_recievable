@@ -8,6 +8,8 @@ class CashierSeeder extends Seeder
 {
     public function run()
     {
+        $now = date('Y-m-d H:i:s');
+
         $data = [
             [
                 'name'            => 'Maria Santos',
@@ -15,8 +17,8 @@ class CashierSeeder extends Seeder
                 'password_hash'   => password_hash('password123', PASSWORD_BCRYPT),
                 'type'            => 'cashier',
                 'is_active'       => 1,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ],
             [
                 'name'            => 'Juan Rodriguez',
@@ -24,8 +26,8 @@ class CashierSeeder extends Seeder
                 'password_hash'   => password_hash('password123', PASSWORD_BCRYPT),
                 'type'            => 'cashier',
                 'is_active'       => 1,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ],
             [
                 'name'            => 'Angela Martinez',
@@ -33,8 +35,8 @@ class CashierSeeder extends Seeder
                 'password_hash'   => password_hash('password123', PASSWORD_BCRYPT),
                 'type'            => 'cashier',
                 'is_active'       => 1,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ],
             [
                 'name'            => 'Carlos Perez',
@@ -42,8 +44,8 @@ class CashierSeeder extends Seeder
                 'password_hash'   => password_hash('password123', PASSWORD_BCRYPT),
                 'type'            => 'cashier',
                 'is_active'       => 1,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ],
             [
                 'name'            => 'Isabel Gonzalez',
@@ -51,8 +53,8 @@ class CashierSeeder extends Seeder
                 'password_hash'   => password_hash('password123', PASSWORD_BCRYPT),
                 'type'            => 'cashier',
                 'is_active'       => 1,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ],
             [
                 'name'            => 'Diego Lopez',
@@ -60,10 +62,28 @@ class CashierSeeder extends Seeder
                 'password_hash'   => password_hash('password123', PASSWORD_BCRYPT),
                 'type'            => 'cashier',
                 'is_active'       => 0,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ],
         ];
+
+        $usernames = array_column($data, 'username');
+        $existing = array_column(
+            $this->db->table('users')
+                ->select('username')
+                ->whereIn('username', $usernames)
+                ->get()
+                ->getResultArray(),
+            'username'
+        );
+
+        $data = array_values(array_filter($data, static function (array $row) use ($existing) {
+            return ! in_array($row['username'], $existing, true);
+        }));
+
+        if ($data === []) {
+            return;
+        }
 
         $this->db->table('users')->insertBatch($data);
     }

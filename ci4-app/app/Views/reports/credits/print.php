@@ -11,16 +11,31 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 14px;
             color: #111;
         }
 
         .header {
+            text-align: center;
             margin-bottom: 16px;
         }
 
-        .title {
-            font-size: 16px;
+        .print-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            margin-top: 14px;
+            font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
         }
@@ -49,6 +64,10 @@
             text-align: right;
         }
 
+        tfoot .text-right {
+            text-align: left;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -57,14 +76,22 @@
 
 <body>
     <div class="header">
-        <div class="title">SRC ENTERPRISES INC</div>
-        <div class="meta">Credits Report</div>
+        <?php
+        $logoPath = FCPATH . 'logo.png';
+        $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        ?>
+        <?php if ($logoSrc !== ''): ?>
+            <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
+        <?php endif; ?>
+        <div class="company-title">SRC ENTERPRISES INC</div>
+        <div class="report-title">Credits Report</div>
         <div class="meta">Available Balance Sort: <?= esc(strtoupper($sort)) ?></div>
     </div>
 
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Client Name</th>
                 <th class="text-right">Credit Limit</th>
                 <th class="text-right">Current Balance</th>
@@ -74,11 +101,12 @@
         <tbody>
             <?php if (empty($rows)): ?>
                 <tr>
-                    <td class="text-center" colspan="4">No clients found.</td>
+                    <td class="text-center" colspan="5">No clients found.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($rows as $row): ?>
+                <?php foreach ($rows as $index => $row): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($row['client_name']) ?></td>
                         <td class="text-right"><?= esc(number_format((float) $row['credit_limit'], 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) $row['current_balance'], 2)) ?></td>
@@ -89,7 +117,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="2">Total Balance</th>
+                <th colspan="3">Total Balance</th>
                 <th class="text-right"><?= esc(number_format((float) $totalBalance, 2)) ?></th>
                 <th></th>
             </tr>

@@ -10,12 +10,20 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h2 class="text-lg font-semibold">Deliveries</h2>
-            <p class="mt-1 text-sm muted">Filter deliveries by date range.</p>
+            <p class="mt-1 text-sm muted">Filter deliveries by date range or DR number.</p>
         </div>
-        <a class="btn btn-secondary" target="_blank" href="<?= base_url('deliveries/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>">Print PDF</a>
+        <a class="btn btn-secondary" target="_blank" href="<?= base_url('deliveries/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>&dr_no=<?= esc($drNo ?? '') ?>">Print PDF</a>
     </div>
 
-    <form method="get" action="<?= base_url('deliveries') ?>" class="mt-4 grid gap-4 sm:grid-cols-3">
+    <form method="get" action="<?= base_url('deliveries') ?>" class="mt-4 grid gap-4 md:grid-cols-4">
+        <div>
+            <label class="block text-sm font-medium" for="dr_no">DR Number</label>
+            <input
+                class="input mt-1"
+                id="dr_no"
+                name="dr_no"
+                value="<?= esc($drNo ?? '') ?>">
+        </div>
         <div>
             <label class="block text-sm font-medium" for="from_date">From Date</label>
             <input
@@ -43,11 +51,12 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
     <table class="table mt-6">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Date</th>
-                <th>Due Date</th>
-                <th>Term</th>
                 <th>DR #</th>
                 <th>Client</th>
+                <th>Due Date</th>
+                <th>Term</th>
                 <th>Total Amount</th>
                 <th>Balance</th>
             </tr>
@@ -55,14 +64,13 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="py-3" colspan="7">No deliveries found for the selected date range.</td>
+                    <td class="py-3" colspan="8">No deliveries found for the selected filters.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($deliveries as $delivery): ?>
+                <?php foreach ($deliveries as $index => $delivery): ?>
                     <tr>
+                        <td><?= esc((int) ($rowOffset ?? 0) + $index + 1) ?></td>
                         <td><?= esc($delivery['date']) ?></td>
-                        <td><?= esc($delivery['due_date'] ?? '') ?></td>
-                        <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td>
                             <?php if (! empty($allocationsByDelivery[$delivery['id']])): ?>
                                 <button class="btn-link" type="button" @click="openAllocations(<?= (int) $delivery['id'] ?>)">
@@ -73,6 +81,8 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
                             <?php endif; ?>
                         </td>
                         <td><?= esc($delivery['client_name'] ?? '') ?></td>
+                        <td><?= esc($delivery['due_date'] ?? '') ?></td>
+                        <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td>
                             <?php if (! empty($itemsByDelivery[$delivery['id']])): ?>
                                 <button class="btn-link" type="button" @click="openItems(<?= (int) $delivery['id'] ?>)">
@@ -89,6 +99,12 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
         </tbody>
     </table>
 
+    <?php if (! empty($pagerLinks ?? '')): ?>
+        <div class="mt-4">
+            <?= $pagerLinks ?>
+        </div>
+    <?php endif; ?>
+
     <div class="mt-6 grid gap-3 sm:grid-cols-2">
         <div class="card p-4 text-sm">
             <div class="flex justify-between">
@@ -104,8 +120,8 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="itemsOpen" x-cloak>
-        <div class="modal-panel max-w-lg p-6">
+    <div class="modal-backdrop" x-show="itemsOpen" x-cloak @click.self="closeItems()">
+        <div class="modal-panel max-w-lg p-6" @click.stop>
             <h2 class="text-lg font-semibold">Delivery Items</h2>
             <table class="table mt-4">
                 <thead>
@@ -142,8 +158,8 @@ $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak>
-        <div class="modal-panel max-w-lg p-6">
+    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
+        <div class="modal-panel max-w-lg p-6" @click.stop>
             <h2 class="text-lg font-semibold">DR Allocations</h2>
             <table class="table mt-4">
                 <thead>

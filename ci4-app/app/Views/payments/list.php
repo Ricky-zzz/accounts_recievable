@@ -17,6 +17,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
         <div class="flex items-center gap-2">
             <?php if (! empty($client['id'])): ?>
                 <a class="btn" href="<?= base_url('payments/client/' . $client['id'] . '/create') ?>">Collect</a>
+                <a class="btn btn-secondary" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a>
+                <a class="btn btn-secondary" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a>
                 <a class="btn btn-secondary" target="_blank" href="<?= base_url('payments/client/' . $client['id'] . '/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>">Print PDF</a>
             <?php endif; ?>
             <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
@@ -51,6 +53,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
     <table class="table mt-6">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Date</th>
                 <th>PR #</th>
                 <th>Collections</th>
@@ -59,11 +62,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
         <tbody>
             <?php if (empty($payments)): ?>
                 <tr>
-                    <td class="py-3" colspan="3">No payments found for the selected date range.</td>
+                    <td class="py-3" colspan="4">No payments found for the selected date range.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($payments as $payment): ?>
+                <?php foreach ($payments as $index => $payment): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($payment['date']) ?></td>
                         <td>
                             <?php if (! empty($allocationsByPayment[$payment['id']])): ?>

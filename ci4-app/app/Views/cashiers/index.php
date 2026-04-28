@@ -45,6 +45,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Name</th>
                 <th>User</th>
                 <th>Type</th>
@@ -56,10 +57,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <tbody>
             <?php if (empty($cashiers)): ?>
                 <tr>
-                    <td class="py-3" colspan="6">No users found.</td>
+                    <td class="py-3" colspan="7">No users found.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($cashiers as $cashier): ?>
+                <?php foreach ($cashiers as $index => $cashier): ?>
                     <?php
                     $range = $activeRanges[$cashier['id']] ?? null;
                     $hasActive = $range && (int) $range['next_no'] <= (int) $range['end_no'];
@@ -70,6 +71,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     $canAssignReceipt = $isCashier || $isCurrentAdmin;
                     ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($cashier['name']) ?></td>
                         <td><?= esc($cashier['username']) ?></td>
                         <td><?= esc(ucfirst($cashier['type'] ?? 'cashier')) ?></td>

@@ -28,14 +28,18 @@ class Reports extends BaseController
     public function overdue(): string
     {
         [$fromDueDate, $toDueDate] = $this->resolveDueDateRange();
+        $drNo = $this->resolveDrNoFilter();
+        $dueSort = $this->resolveDueSort();
 
-        return view('reports/overdue/index', $this->buildOverdueReportData($fromDueDate, $toDueDate, true));
+        return view('reports/overdue/index', $this->buildOverdueReportData($fromDueDate, $toDueDate, $drNo, $dueSort, true));
     }
 
     public function overduePrint()
     {
         [$fromDueDate, $toDueDate] = $this->resolveDueDateRange();
-        $html = view('reports/overdue/print', $this->buildOverdueReportData($fromDueDate, $toDueDate, false));
+        $drNo = $this->resolveDrNoFilter();
+        $dueSort = $this->resolveDueSort();
+        $html = view('reports/overdue/print', $this->buildOverdueReportData($fromDueDate, $toDueDate, $drNo, $dueSort, false));
 
         return $this->renderPdf($html, 'overdue-report.pdf', 'landscape');
     }
@@ -119,7 +123,7 @@ class Reports extends BaseController
         ];
     }
 
-    private function buildOverdueReportData(string $fromDueDate, string $toDueDate, bool $paginate): array
+    private function buildOverdueReportData(string $fromDueDate, string $toDueDate, string $drNo, string $dueSort, bool $paginate): array
     {
         $asOf = date('Y-m-d');
         $db = db_connect();
@@ -143,10 +147,14 @@ class Reports extends BaseController
             $builder->where('d.due_date <=', $toDueDate);
         }
 
+        if ($drNo !== '') {
+            $builder->like('d.dr_no', $drNo);
+        }
+
         $rows = $builder
             ->groupBy('d.id')
             ->having('balance >', 0)
-            ->orderBy('d.due_date', 'asc')
+            ->orderBy('d.due_date', $dueSort)
             ->orderBy('c.name', 'asc')
             ->orderBy('d.dr_no', 'asc')
             ->get()
@@ -178,6 +186,8 @@ class Reports extends BaseController
             'asOf' => $asOf,
             'fromDueDate' => $fromDueDate,
             'toDueDate' => $toDueDate,
+            'drNo' => $drNo,
+            'dueSort' => $dueSort,
             'rows' => $pagedRows,
             'allRowsCount' => $totalRows,
             'currentPage' => $currentPage,
@@ -203,6 +213,16 @@ class Reports extends BaseController
         }
 
         return [$fromDueDate, $toDueDate];
+    }
+
+    private function resolveDrNoFilter(): string
+    {
+        return trim((string) ($this->request->getGet('dr_no') ?? ''));
+    }
+
+    private function resolveDueSort(): string
+    {
+        return strtolower((string) $this->request->getGet('due_sort')) === 'desc' ? 'desc' : 'asc';
     }
 
     private function renderPdf(string $html, string $filename, string $orientation)

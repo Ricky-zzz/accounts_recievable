@@ -11,23 +11,38 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 14px;
             color: #111;
         }
 
         .header {
+            text-align: center;
             margin-bottom: 16px;
         }
 
-        .title {
-            font-size: 16px;
+        .print-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            margin-top: 14px;
+            font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .meta {
             margin-top: 6px;
-            font-size: 12px;
+            font-size: 13px;
         }
 
         .table {
@@ -51,6 +66,10 @@
             text-align: right;
         }
 
+        tfoot .text-right {
+            text-align: left;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -64,10 +83,22 @@
 </head>
 
 <body>
+    <?php
+    $printedDates = array_filter(array_column($records ?? [], 'date'));
+    $firstDate = $from ?: (! empty($printedDates) ? min($printedDates) : '');
+    $lastDate = $to ?: (! empty($printedDates) ? max($printedDates) : '');
+    ?>
     <div class="header">
-        <div class="title">SRC ENTERPRISES INC</div>
-        <div class="meta">BOA Report</div>
-        <div class="meta">Date Range: <?= esc($from) ?> to <?= esc($to) ?></div>
+        <?php
+        $logoPath = FCPATH . 'logo.png';
+        $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        ?>
+        <?php if ($logoSrc !== ''): ?>
+            <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
+        <?php endif; ?>
+        <div class="company-title">SRC ENTERPRISES INC</div>
+        <div class="report-title">BOA Report</div>
+        <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
     <?php if ($tableMissing): ?>
@@ -76,6 +107,7 @@
         <table class="table">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>Date</th>
                     <th>Payor</th>
                     <th>Reference</th>
@@ -93,11 +125,12 @@
             <tbody>
                 <?php if (empty($records)): ?>
                     <tr>
-                        <td class="text-center" colspan="<?= 9 + count($bankColumns) ?>">No BOA records in this range.</td>
+                        <td class="text-center" colspan="<?= 10 + count($bankColumns) ?>">No BOA records in this range.</td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($records as $row): ?>
+                    <?php foreach ($records as $index => $row): ?>
                         <tr>
+                            <td><?= esc((string) ($index + 1)) ?></td>
                             <td><?= esc($row['date']) ?></td>
                             <td><?= esc($row['payor_name'] ?? $row['payor']) ?></td>
                             <td><?= esc($row['reference']) ?></td>
@@ -118,6 +151,7 @@
                 <tfoot>
                     <tr>
                         <th>Totals:</th>
+                        <th></th>
                         <th></th>
                         <th></th>
                         <?php foreach ($bankColumns as $column): ?>

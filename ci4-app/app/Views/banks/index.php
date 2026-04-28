@@ -26,6 +26,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Bank Name</th>
                 <th>Account Name</th>
                 <th>Account Number</th>
@@ -35,11 +36,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <tbody>
             <?php if (empty($banks)): ?>
                 <tr>
-                    <td colspan="4">No banks yet.</td>
+                    <td colspan="5">No banks yet.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($banks as $bank): ?>
+                <?php foreach ($banks as $index => $bank): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($bank['bank_name']) ?></td>
                         <td><?= esc($bank['account_name'] ?? '') ?></td>
                         <td><?= esc($bank['bank_number'] ?? '') ?></td>

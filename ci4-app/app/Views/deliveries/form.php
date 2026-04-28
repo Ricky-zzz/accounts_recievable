@@ -1,5 +1,9 @@
-<?= $this->extend('layout') ?>
-<?= $this->section('content') ?>
+<?php if (empty($embeddedForm)): ?>
+    <?= $this->extend('layout') ?>
+    <?= $this->section('content') ?>
+<?php endif; ?>
+<?php $formClass = ! empty($embeddedForm) ? 'space-y-6' : 'mt-6 space-y-6'; ?>
+<?php if (empty($embeddedForm)): ?>
 <div class="flex flex-wrap items-end justify-between gap-4">
     <div>
         <h1 class="text-xl font-semibold">New Delivery</h1>
@@ -7,6 +11,7 @@
     </div>
     <a class="btn btn-secondary" href="<?= base_url(($selectedClient['id'] ?? $clientId ?? 0) ? 'clients/' . ($selectedClient['id'] ?? $clientId) . '/deliveries' : 'deliveries') ?>">Back</a>
 </div>
+<?php endif; ?>
 
 <?php if (isset($validation)): ?>
     <div class="card mt-4 px-4 py-2 text-sm">
@@ -40,9 +45,9 @@ if ($termValue === null) {
 }
 ?>
 
-<form class="mt-6 space-y-6" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()">
+<form class="<?= esc($formClass) ?>" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()">
     <?= csrf_field() ?>
-    <div class="grid gap-4 sm:grid-cols-4">
+    <div class="grid gap-4 md:grid-cols-5">
         <?php if ($selectedClient): ?>
             <div>
                 <label class="block text-sm font-medium">Client</label>
@@ -102,7 +107,7 @@ if ($termValue === null) {
                     </div>
                     <div>
                         <label class="block text-xs font-medium" :for="'price_' + index">Unit Price</label>
-                        <input class="input mt-1" :id="'price_' + index" type="number" step="0.01" x-model="item.unit_price" :name="'items[' + index + '][unit_price]'" required>
+                        <input class="input mt-1" :id="'price_' + index" type="number" step="0.01" x-model="item.unit_price" @input="updateLine(index)" :name="'items[' + index + '][unit_price]'" required>
                     </div>
                     <div>
                         <label class="block text-xs font-medium" :for="'qty_' + index">Qty</label>
@@ -127,7 +132,11 @@ if ($termValue === null) {
 
     <div class="flex gap-3">
         <button class="btn" type="submit">Save Delivery</button>
-        <a class="btn btn-secondary" href="<?= base_url('deliveries') ?>">Cancel</a>
+        <?php if (! empty($embeddedForm)): ?>
+            <button class="btn btn-secondary" type="button" @click="$dispatch('close-delivery-form')">Cancel</button>
+        <?php else: ?>
+            <a class="btn btn-secondary" href="<?= base_url('deliveries') ?>">Cancel</a>
+        <?php endif; ?>
     </div>
 </form>
 
@@ -211,4 +220,6 @@ if ($termValue === null) {
         };
     }
 </script>
-<?= $this->endSection() ?>
+<?php if (empty($embeddedForm)): ?>
+    <?= $this->endSection() ?>
+<?php endif; ?>

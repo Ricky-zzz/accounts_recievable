@@ -18,6 +18,7 @@
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Code</th>
                 <th>Name</th>
                 <th>Type</th>
@@ -27,11 +28,12 @@
         <tbody>
             <?php if (empty($accounts)): ?>
                 <tr>
-                    <td class="py-3" colspan="4">No accounts yet.</td>
+                    <td class="py-3" colspan="5">No accounts yet.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($accounts as $account): ?>
+                <?php foreach ($accounts as $index => $account): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><code class="text-xs"><?= esc($account['account_code']) ?></code></td>
                         <td><?= esc($account['name']) ?></td>
                         <td>

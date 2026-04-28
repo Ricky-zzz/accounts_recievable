@@ -27,6 +27,7 @@
     <table class="table mt-6">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Date</th>
                 <th>Payor</th>
                 <th>Reference</th>
@@ -44,11 +45,12 @@
         <tbody>
             <?php if (empty($records)): ?>
                 <tr>
-                    <td class="py-3" colspan="<?= 9 + count($bankColumns) ?>">No BOA records in this range.</td>
+                    <td class="py-3" colspan="<?= 10 + count($bankColumns) ?>">No BOA records in this range.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($records as $row): ?>
+                <?php foreach ($records as $index => $row): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($row['date']) ?></td>
                         <td><?= esc($row['payor_name'] ?? $row['payor']) ?></td>
                         <td><?= esc($row['reference']) ?></td>
@@ -69,6 +71,7 @@
             <tfoot>
                 <tr class="border-t border-gray-300 font-semibold">
                     <td>Totals:</td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <?php foreach ($bankColumns as $column): ?>

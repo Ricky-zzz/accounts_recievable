@@ -18,7 +18,6 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     };
 
     function ledgerItems() {
-        console.log('Ledger data:', window.ledgerData);
         return {
             itemsByDelivery: window.ledgerData.itemsByDelivery,
             allocationsByDelivery: window.ledgerData.allocationsByDelivery,
@@ -111,32 +110,37 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
 </script>
 
 <div x-data="ledgerItems()">
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex flex-col">
-            <h1 class="text-xl font-semibold">Client Ledger</h1>
+            <h1 class="text-xl font-semibold">
+                Client Ledger<?= $selectedClient ? ' for ' . esc($selectedClient['name'] ?? '') : '' ?>
+            </h1>
             <p class="mt-1 text-sm muted">Shows overall balance with optional date range.</p>
         </div>
-        <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
+        <div class="flex items-center gap-2">
+            <?php if ($selectedClient): ?>
+                <a class="btn btn-secondary" href="<?= base_url('clients/' . $clientId . '/deliveries') ?>">Deliveries</a>
+                <a class="btn btn-secondary" href="<?= base_url('payments/client/' . $clientId) ?>">Collections</a>
+            <?php endif; ?>
+            <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
+        </div>
     </div>
 
-    <form class="mt-6 grid gap-4 sm:grid-cols-4" method="get" action="<?= base_url('ledger') ?>">
-        <div class="sm:col-span-2">
-            <label class="block text-sm font-medium" for="client_name">Client</label>
-            <input class="input mt-1" id="client_name" value="<?= esc($selectedClient['name'] ?? 'Select a client from the Clients list') ?>" readonly>
-            <input type="hidden" name="client_id" value="<?= esc($clientId) ?>">
-        </div>
+    <form class="mt-6 flex flex-wrap items-end gap-3" method="get" action="<?= base_url('ledger') ?>">
+        <input type="hidden" name="client_id" value="<?= esc($clientId) ?>">
         <div>
             <label class="block text-sm font-medium" for="start">Start Date</label>
-            <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?: date('Y-m-d') ?>">
+            <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>">
         </div>
         <div>
             <label class="block text-sm font-medium" for="end">End Date</label>
-            <input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?: date('Y-m-d') ?>">
+            <input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>">
         </div>
-        <div class="sm:col-span-4">
+        <div class="flex items-end gap-2">
             <button class="btn" type="submit">Filter</button>
             <?php if ($selectedClient): ?>
                 <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc($clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print PDF</a>
+                <a class="btn btn-secondary" href="<?= base_url('ledger') ?>?client_id=<?= esc($clientId) ?>">Clear</a>
             <?php endif; ?>
         </div>
     </form>
@@ -154,6 +158,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
         <table class="table mt-6">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>Date</th>
                     <th>DR#</th>
                     <th>PR#</th>
@@ -169,11 +174,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             <tbody>
                 <?php if (empty($rows)): ?>
                     <tr>
-                        <td class="py-3" colspan="10">No deliveries in range.</td>
+                        <td class="py-3" colspan="11">No deliveries in range.</td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($rows as $row): ?>
+                    <?php foreach ($rows as $index => $row): ?>
                         <tr>
+                            <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                             <td><?= esc($row['entry_date']) ?></td>
                             <td>
                                 <?php if (! empty($row['delivery_id']) && ! empty($allocationsByDelivery[$row['delivery_id']])): ?>
@@ -224,8 +230,24 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                 <?php endif; ?>
             </tbody>
         </table>
-    <?php endif; ?>
 
+        <?php if (($totalPages ?? 1) > 1): ?>
+            <div class="mt-4 flex items-center justify-between gap-4 text-sm muted">
+                <div>
+                    Showing page <?= esc((string) $currentPage) ?> of <?= esc((string) $totalPages) ?>, total rows <?= esc((string) $allRowsCount) ?>
+                </div>
+                <div class="flex items-center gap-2">
+                    <?php if (($currentPage ?? 1) > 1): ?>
+                        <a class="btn btn-secondary" href="<?= base_url('ledger?' . http_build_query(['client_id' => $clientId, 'start' => $start, 'end' => $end, 'page' => $currentPage - 1])) ?>">Previous</a>
+                    <?php endif; ?>
+                    <?php if (($currentPage ?? 1) < ($totalPages ?? 1)): ?>
+                        <a class="btn btn-secondary" href="<?= base_url('ledger?' . http_build_query(['client_id' => $clientId, 'start' => $start, 'end' => $end, 'page' => $currentPage + 1])) ?>">Next</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+        
+        <?php endif; ?>
     <div class="modal-backdrop" x-show="itemsOpen" x-cloak>
         <div class="modal-panel max-w-lg p-6">
             <h2 class="text-lg font-semibold">Delivery Items</h2>

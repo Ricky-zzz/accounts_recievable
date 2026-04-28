@@ -27,6 +27,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             <form class="flex items-center gap-2" method="get" action="<?= base_url('clients') ?>">
                 <input class="input" name="q" placeholder="Search client" value="<?= esc($query ?? '') ?>">
                 <button class="btn btn-secondary" type="submit">Search</button>
+                <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Clear</a>
             </form>
             <button class="btn" type="button" @click="openCreate()">New Client</button>
         </div>
@@ -35,6 +36,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -46,11 +48,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <tbody>
             <?php if (empty($clients)): ?>
                 <tr>
-                    <td colspan="6">No clients yet.</td>
+                    <td colspan="7">No clients yet.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($clients as $client): ?>
+                <?php foreach ($clients as $index => $client): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($client['name']) ?></td>
                         <td><?= esc($client['email'] ?? '') ?></td>
                         <td><?= esc($client['phone'] ?? '') ?></td>
@@ -91,8 +94,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         </div>
     <?php endif; ?>
 
-    <div class="modal-backdrop" x-show="open" x-cloak>
-        <div class="modal-panel max-w-2xl p-6">
+    <div class="modal-backdrop" x-show="open" x-cloak @click.self="closeModal()">
+        <div class="modal-panel max-w-2xl p-6" @click.stop>
             <div class="flex items-start justify-between gap-4">
                 <h2 class="text-lg font-semibold" x-text="isEdit ? 'Edit Client' : 'New Client'"></h2>
                 <button class="btn btn-secondary" type="button" @click="closeModal()">Close</button>
@@ -140,8 +143,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="openCredit" x-cloak>
-        <div class="modal-panel max-w-md p-6">
+    <div class="modal-backdrop" x-show="openCredit" x-cloak @click.self="closeCreditModal()">
+        <div class="modal-panel max-w-md p-6" @click.stop>
             <div class="flex items-start justify-between gap-4">
                 <h2 class="text-lg font-semibold">Available Credit</h2>
                 <button class="btn btn-secondary" type="button" @click="closeCreditModal()">Close</button>

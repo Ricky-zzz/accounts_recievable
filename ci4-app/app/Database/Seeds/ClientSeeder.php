@@ -8,6 +8,8 @@ class ClientSeeder extends Seeder
 {
     public function run()
     {
+        $now = date('Y-m-d H:i:s');
+
         $data = [
             [
                 'name'       => 'Acme Corporation',
@@ -16,8 +18,8 @@ class ClientSeeder extends Seeder
                 'phone'      => '+1-212-555-0101',
                 'credit_limit' => 1000000,
                 'payment_term' => 30,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
                 'name'       => 'Global Industries Inc',
@@ -26,8 +28,8 @@ class ClientSeeder extends Seeder
                 'phone'      => '+1-213-555-0202',
                 'credit_limit' => 750000,
                 'payment_term' => 15,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
                 'name'       => 'Tech Solutions Ltd',
@@ -36,8 +38,8 @@ class ClientSeeder extends Seeder
                 'phone'      => '+1-415-555-0303',
                 'credit_limit' => 500000,
                 'payment_term' => 30,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
                 'name'       => 'Manufacturing Pro Services',
@@ -46,8 +48,8 @@ class ClientSeeder extends Seeder
                 'phone'      => '+1-312-555-0404',
                 'credit_limit' => 850000,
                 'payment_term' => 45,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
                 'name'       => 'Enterprise Solutions Group',
@@ -56,8 +58,8 @@ class ClientSeeder extends Seeder
                 'phone'      => '+1-713-555-0505',
                 'credit_limit' => 1200000,
                 'payment_term' => 30,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
                 'name'       => 'Premier Distribution Network',
@@ -66,10 +68,28 @@ class ClientSeeder extends Seeder
                 'phone'      => '+1-305-555-0606',
                 'credit_limit' => 650000,
                 'payment_term' => 20,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
         ];
+
+        $emails = array_column($data, 'email');
+        $existing = array_column(
+            $this->db->table('clients')
+                ->select('email')
+                ->whereIn('email', $emails)
+                ->get()
+                ->getResultArray(),
+            'email'
+        );
+
+        $data = array_values(array_filter($data, static function (array $row) use ($existing) {
+            return ! in_array($row['email'], $existing, true);
+        }));
+
+        if ($data === []) {
+            return;
+        }
 
         $this->db->table('clients')->insertBatch($data);
     }

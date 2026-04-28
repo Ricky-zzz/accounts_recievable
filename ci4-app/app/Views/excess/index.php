@@ -14,6 +14,7 @@
 <table class="table mt-6">
     <thead>
         <tr>
+            <th>#</th>
             <th>Client</th>
             <th>PR#</th>
             <th>Date</th>
@@ -25,11 +26,12 @@
     <tbody>
         <?php if (empty($rows)): ?>
             <tr>
-                <td class="py-3" colspan="6">No excess records.</td>
+                <td class="py-3" colspan="7">No excess records.</td>
             </tr>
         <?php else: ?>
-            <?php foreach ($rows as $row): ?>
+            <?php foreach ($rows as $index => $row): ?>
                 <tr>
+                    <td><?= esc((string) ($index + 1)) ?></td>
                     <td><?= esc($row['client_name'] ?? '') ?></td>
                     <td><?= esc($row['pr_no']) ?></td>
                     <td><?= esc($row['date']) ?></td>

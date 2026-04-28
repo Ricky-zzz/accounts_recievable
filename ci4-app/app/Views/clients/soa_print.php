@@ -11,23 +11,38 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 14px;
             color: #111;
         }
 
         .header {
+            text-align: center;
             margin-bottom: 16px;
         }
 
-        .title {
-            font-size: 16px;
+        .print-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            margin-top: 14px;
+            font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .meta {
             margin-top: 6px;
-            font-size: 12px;
+            font-size: 13px;
         }
 
         .table {
@@ -51,6 +66,11 @@
             text-align: right;
         }
 
+        tfoot .text-right,
+        .summary .text-right {
+            text-align: left;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -69,8 +89,15 @@
 
 <body>
     <div class="header">
-        <div class="title">SRC ENTERPRISES INC</div>
-        <div class="meta">Statement of Account</div>
+        <?php
+        $logoPath = FCPATH . 'logo.png';
+        $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        ?>
+        <?php if ($logoSrc !== ''): ?>
+            <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
+        <?php endif; ?>
+        <div class="company-title">SRC ENTERPRISES INC</div>
+        <div class="report-title">Statement of Account</div>
         <div class="meta">For: <?= esc($client['name'] ?? '') ?></div>
         <?php if (! empty($client['address'])): ?>
             <div class="meta">Address: <?= esc($client['address']) ?></div>
@@ -81,6 +108,7 @@
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>DR #</th>
                 <th>Date</th>
                 <th>Due Date</th>
@@ -91,11 +119,12 @@
         <tbody>
             <?php if (empty($rows)): ?>
                 <tr>
-                    <td class="text-center" colspan="5">No overdue balances found for this client.</td>
+                    <td class="text-center" colspan="6">No overdue balances found for this client.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($rows as $row): ?>
+                <?php foreach ($rows as $index => $row): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($row['dr_no'] ?? '') ?></td>
                         <td><?= esc($row['date'] ?? '') ?></td>
                         <td><?= esc($row['due_date'] ?? '') ?></td>
@@ -108,7 +137,7 @@
         <?php if (! empty($rows)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="3">Total</th>
+                    <th colspan="4">Total</th>
                     <th class="text-right"><?= esc(number_format((float) $totalAmount, 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) $totalBalance, 2)) ?></th>
                 </tr>

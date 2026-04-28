@@ -11,23 +11,38 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 14px;
             color: #111;
         }
 
         .header {
+            text-align: center;
             margin-bottom: 16px;
         }
 
-        .title {
-            font-size: 16px;
+        .print-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            margin-top: 14px;
+            font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .meta {
             margin-top: 6px;
-            font-size: 12px;
+            font-size: 13px;
         }
 
         .table {
@@ -51,6 +66,10 @@
             text-align: right;
         }
 
+        tfoot .text-right {
+            text-align: left;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -58,20 +77,31 @@
 </head>
 
 <body>
+    <?php
+    $logoPath = FCPATH . 'logo.png';
+    $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+    $printedDates = array_filter(array_column($deliveries ?? [], 'date'));
+    $firstDate = $fromDate ?: (! empty($printedDates) ? min($printedDates) : '');
+    $lastDate = $toDate ?: (! empty($printedDates) ? max($printedDates) : '');
+    ?>
     <div class="header">
-        <div class="title">SRC ENTERPRISES INC</div>
-        <div class="meta">Client Deliveries Report</div>
+        <?php if ($logoSrc !== ''): ?>
+            <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
+        <?php endif; ?>
+        <div class="company-title">SRC ENTERPRISES INC</div>
+        <div class="report-title">Client Deliveries Report</div>
         <div class="meta">Client: <?= esc($client['name'] ?? '') ?></div>
-        <div class="meta">Date Range: <?= esc($fromDate ?: 'All') ?> to <?= esc($toDate ?: 'All') ?></div>
+        <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Date</th>
+                <th>DR #</th>
                 <th>Due Date</th>
                 <th>Term</th>
-                <th>DR #</th>
                 <th class="text-right">Total Amount</th>
                 <th class="text-right">Balance</th>
             </tr>
@@ -79,15 +109,16 @@
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="text-center" colspan="6">No deliveries found for the selected date range.</td>
+                    <td class="text-center" colspan="7">No deliveries found for the selected date range.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($deliveries as $delivery): ?>
+                <?php foreach ($deliveries as $index => $delivery): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($delivery['date']) ?></td>
+                        <td><?= esc($delivery['dr_no'] ?? '') ?></td>
                         <td><?= esc($delivery['due_date'] ?? '') ?></td>
                         <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
-                        <td><?= esc($delivery['dr_no'] ?? '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($delivery['total_amount'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($delivery['balance'] ?? 0), 2)) ?></td>
                     </tr>
@@ -97,7 +128,7 @@
         <?php if (! empty($deliveries)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="4">Totals</th>
+                    <th colspan="5">Totals</th>
                     <th class="text-right"><?= esc(number_format((float) ($totalAmount ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
                 </tr>

@@ -11,23 +11,38 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            font-size: 14px;
             color: #111;
         }
 
         .header {
+            text-align: center;
             margin-bottom: 16px;
         }
 
-        .title {
-            font-size: 16px;
+        .print-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            margin-top: 14px;
+            font-size: 18px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .meta {
             margin-top: 6px;
-            font-size: 12px;
+            font-size: 13px;
         }
 
         .table {
@@ -51,6 +66,10 @@
             text-align: right;
         }
 
+        tfoot .text-right {
+            text-align: left;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -58,16 +77,29 @@
 </head>
 
 <body>
+    <?php
+    $printedDates = array_filter(array_column($payments ?? [], 'date'));
+    $firstDate = $fromDate ?: (! empty($printedDates) ? min($printedDates) : '');
+    $lastDate = $toDate ?: (! empty($printedDates) ? max($printedDates) : '');
+    ?>
     <div class="header">
-        <div class="title">SRC ENTERPRISES INC</div>
-        <div class="meta">Client Payments Report</div>
+        <?php
+        $logoPath = FCPATH . 'logo.png';
+        $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        ?>
+        <?php if ($logoSrc !== ''): ?>
+            <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
+        <?php endif; ?>
+        <div class="company-title">SRC ENTERPRISES INC</div>
+        <div class="report-title">Client Payments Report</div>
         <div class="meta">Client: <?= esc($client['name'] ?? '') ?></div>
-        <div class="meta">Date Range: <?= esc($fromDate ?: 'All') ?> to <?= esc($toDate ?: 'All') ?></div>
+        <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
     <table class="table">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Date</th>
                 <th>PR #</th>
                 <th class="text-right">Collections</th>
@@ -76,11 +108,12 @@
         <tbody>
             <?php if (empty($payments)): ?>
                 <tr>
-                    <td class="text-center" colspan="3">No payments found for the selected date range.</td>
+                    <td class="text-center" colspan="4">No payments found for the selected date range.</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($payments as $payment): ?>
+                <?php foreach ($payments as $index => $payment): ?>
                     <tr>
+                        <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc($payment['date']) ?></td>
                         <td><?= esc($payment['pr_no'] ?? '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($payment['amount_received'] ?? 0), 2)) ?></td>
@@ -91,7 +124,7 @@
         <?php if (! empty($payments)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="2">Total Collections</th>
+                    <th colspan="3">Total Collections</th>
                     <th class="text-right"><?= esc(number_format((float) ($totalCollections ?? 0), 2)) ?></th>
                 </tr>
             </tfoot>
