@@ -18,8 +18,9 @@ $oldForm = [
     'credit_limit' => old('credit_limit'),
     'payment_term' => old('payment_term'),
 ];
-
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
+$defaultSoaStart = date('Y-m-01');
+$defaultSoaEnd = date('Y-m-t');
 ?>
 
 <div class="space-y-6" x-data="clientManager()">
@@ -75,7 +76,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a> |
                             <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a> |
                             <a class="btn-link" href="<?= base_url('payments/client/' . $client['id']) ?>">Collections</a> |
-                            <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/soa') ?>" target="_blank">SOA</a>
+                            <button class="btn-link" type="button" @click="openSoaModal(<?= (int) $client['id'] ?>, '<?= esc((string) $client['name'], 'js') ?>')">SOA</button>
                         </td>
                         <td class="text-left">
                             <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $client['id'] ?>)">Edit</button>
@@ -163,6 +164,35 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             </div>
         </div>
     </div>
+
+    <div class="modal-backdrop" x-show="openSoa" x-cloak @click.self="closeSoaModal()">
+        <div class="modal-panel max-w-md p-6" @click.stop>
+            <div class="flex items-start justify-between gap-4">
+                <h2 class="text-lg font-semibold" x-text="`SOA for ${soaClientName}`"></h2>
+                <button class="btn btn-secondary" type="button" @click="closeSoaModal()">Close</button>
+            </div>
+
+            <div class="mt-4 space-y-3 text-sm">
+                <div>
+                    <label class="block text-sm font-medium" for="soa_start">Billing From</label>
+                    <input class="input mt-1" id="soa_start" type="date" x-model="soaStart">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="soa_end">Billing To</label>
+                    <input class="input mt-1" id="soa_end" type="date" x-model="soaEnd">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="soa_due">Due Date</label>
+                    <input class="input mt-1" id="soa_due" type="date" x-model="soaDueDate">
+                </div>
+            </div>
+
+            <div class="mt-5 flex gap-3">
+                <button class="btn" type="button" @click="openSoaPrint()">Preview SOA</button>
+                <button class="btn btn-secondary" type="button" @click="closeSoaModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -172,13 +202,22 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
         const hasOldValues = Object.values(oldForm).some((value) => value !== null && String(value).trim() !== '');
+        const baseUrl = '<?= rtrim(base_url(), '/') ?>';
+        const defaultSoaStart = '<?= esc($defaultSoaStart, 'js') ?>';
+        const defaultSoaEnd = '<?= esc($defaultSoaEnd, 'js') ?>';
 
         return {
             clients,
             open: false,
             openCredit: false,
+            openSoa: false,
             isEdit: false,
             formAction: '<?= base_url('clients') ?>',
+            soaClientId: null,
+            soaClientName: '',
+            soaStart: defaultSoaStart,
+            soaEnd: defaultSoaEnd,
+            soaDueDate: '',
             selectedCredit: {
                 name: '',
                 credit_limit: 0,
@@ -265,6 +304,30 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             closeCreditModal() {
                 this.openCredit = false;
+            },
+            openSoaModal(id, name) {
+                this.soaClientId = id;
+                this.soaClientName = name || '';
+                this.soaStart = defaultSoaStart;
+                this.soaEnd = defaultSoaEnd;
+                this.soaDueDate = '';
+                this.openSoa = true;
+            },
+            closeSoaModal() {
+                this.openSoa = false;
+            },
+            openSoaPrint() {
+                if (!this.soaClientId) {
+                    return;
+                }
+                const params = new URLSearchParams({
+                    start: this.soaStart || '',
+                    end: this.soaEnd || '',
+                    due_date: this.soaDueDate || '',
+                });
+                const url = `${baseUrl}/clients/${this.soaClientId}/soa?${params.toString()}`;
+                window.open(url, '_blank');
+                this.openSoa = false;
             },
             formatAmount(value) {
                 const number = Number(value || 0);

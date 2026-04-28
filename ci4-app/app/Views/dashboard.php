@@ -27,6 +27,7 @@
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payments') ?>">Collections</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('reports/credits') ?>">Credits</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('reports/overdue') ?>">Overdue</a>
+    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('reports/voided') ?>">Voided</a>
     <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('boa') ?>">BOA</a>
 </div>
 <?= $this->endSection() ?>

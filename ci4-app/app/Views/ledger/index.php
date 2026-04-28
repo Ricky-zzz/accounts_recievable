@@ -47,6 +47,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             otherAccountsByPayment: window.ledgerData.otherAccountsByPayment,
             paymentsById: window.ledgerData.paymentsById,
             itemsOpen: false,
+            drDetailsOpen: false,
             allocOpen: false,
             allocType: '',
             selectedItemId: null,
@@ -59,6 +60,24 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             closeItems() {
                 this.itemsOpen = false;
                 this.selectedItemId = null;
+            },
+            openDrDetails(id) {
+                this.selectedItemId = id;
+                this.drDetailsOpen = true;
+                this.allocOpen = false;
+            },
+            closeDrDetails() {
+                this.drDetailsOpen = false;
+                this.selectedItemId = null;
+            },
+            selectedDrNumber() {
+                // Find from items data which has delivery_id
+                for (const deliveryId in this.itemsByDelivery) {
+                    if (String(deliveryId) === String(this.selectedItemId)) {
+                        return this.itemsByDelivery[deliveryId][0]?.dr_no || '';
+                    }
+                }
+                return '';
             },
             selectedItems() {
                 return this.itemsByDelivery[this.selectedItemId] || [];
@@ -114,9 +133,20 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             selectedArOther() {
                 return this.selectedOtherAccounts().find((item) => (parseFloat(item.ar_others) || 0) > 0) || null;
             },
-            allocTotal() {
-                return this.selectedAllocations()
-                    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+            selectedDrItems() {
+                return this.itemsByDelivery[this.selectedItemId] || [];
+            },
+            drItemsTotal() {
+                return this.selectedDrItems()
+                    .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
+                    .toFixed(2);
+            },
+            selectedDrAllocations() {
+                return this.allocationsByDelivery[this.selectedItemId] || [];
+            },
+            drAllocationsTotal() {
+                return this.selectedDrAllocations()
+                    .reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0)
                     .toFixed(2);
             },
             otherAccountsTotal() {
@@ -126,6 +156,10 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             },
             allocTitle() {
                 return this.allocType === 'delivery' ? 'DR Allocations' : 'PR Summary';
+            },
+            selectedPrNumber() {
+                const payment = this.paymentsById[String(this.selectedAllocId)];
+                return payment ? payment.pr_no : '';
             }
         };
     }
@@ -204,8 +238,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                             <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                             <td><?= esc((string) $row['entry_date']) ?></td>
                             <td>
-                                <?php if (! empty($row['delivery_id']) && ! empty($allocationsByDelivery[$row['delivery_id']])): ?>
-                                    <button class="btn-link" type="button" @click="openDeliveryAllocations(<?= (int) $row['delivery_id'] ?>)">
+                                <?php if (! empty($row['delivery_id']) && (! empty($itemsByDelivery[$row['delivery_id']]) || ! empty($allocationsByDelivery[$row['delivery_id']]))) : ?>
+                                    <button class="btn-link" type="button" @click="openDrDetails(<?= (int) $row['delivery_id'] ?>)">
                                         <?= esc((string) ($row['dr_no'] ?? '')) ?>
                                     </button>
                                 <?php else: ?>
@@ -229,15 +263,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                                 <?php endif; ?>
                             </td>
                             <td><?= esc((string) ($row['price'] ?? '')) ?></td>
-                            <td>
-                                <?php if (! empty($row['delivery_id']) && ! empty($itemsByDelivery[$row['delivery_id']])): ?>
-                                    <button class="btn-link" type="button" @click="openItems(<?= (int) $row['delivery_id'] ?>)">
-                                        <?= esc(number_format((float) $row['amount'], 2)) ?>
-                                    </button>
-                                <?php else: ?>
-                                    <?= esc(number_format((float) $row['amount'], 2)) ?>
-                                <?php endif; ?>
-                            </td>
+                            <td><?= esc(number_format((float) $row['amount'], 2)) ?></td>
                             <td>
                                 <?php $collection = (float) ($row['collection'] ?? 0); ?>
                                 <?= $collection > 0 ? esc(number_format($collection, 2)) : '' ?>
@@ -270,8 +296,84 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
         <?php endif; ?>
         
         <?php endif; ?>
-    <div class="modal-backdrop" x-show="itemsOpen" x-cloak>
-        <div class="modal-panel max-w-lg p-6">
+    <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
+        <div class="modal-panel max-w-4xl p-6" @click.stop>
+            <div class="mb-4 border-b pb-4">
+                <h2 class="text-lg font-semibold">Details for DR#: <span x-text="selectedDrNumber()"></span></h2>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <h3 class="mb-3 font-semibold">Delivery Items</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="selectedDrItems().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="4">No items found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="item in selectedDrItems()" :key="item.id">
+                                <tr>
+                                    <td x-text="item.product_name"></td>
+                                    <td x-text="item.qty"></td>
+                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
+                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="mt-2 text-sm font-semibold" x-show="selectedDrItems().length > 0">
+                        Total: <span x-text="drItemsTotal()"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="mb-3 font-semibold">DR Allocations</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>PR #</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="selectedDrAllocations().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="(alloc, index) in selectedDrAllocations()" :key="index">
+                                <tr>
+                                    <td x-text="alloc.pr_no"></td>
+                                    <td x-text="alloc.date"></td>
+                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="mt-2 text-sm font-semibold" x-show="selectedDrAllocations().length > 0">
+                        Total: <span x-text="drAllocationsTotal()"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end">
+                <button class="btn" type="button" @click="closeDrDetails()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" x-show="itemsOpen" x-cloak @click.self="closeItems()">
+        <div class="modal-panel max-w-lg p-6" @click.stop>
             <h2 class="text-lg font-semibold">Delivery Items</h2>
             <table class="table mt-4">
                 <thead>
@@ -308,9 +410,11 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak>
-        <div class="modal-panel max-w-lg p-6">
-            <h2 class="text-lg font-semibold" x-text="allocTitle()"></h2>
+    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
+        <div class="modal-panel max-w-lg p-6" @click.stop>
+            <h2 class="text-lg font-semibold">
+                <span x-text="allocType === 'delivery' ? 'DR Allocations' : 'PR Summary for: ' + (selectedPayment() ? selectedPayment().pr_no : '')"></span>
+            </h2>
             <table class="table mt-4">
                 <thead>
                     <tr>

@@ -7,12 +7,14 @@
  * @var list<array{id: int|string, client_id?: int|string|null, dr_no?: string|null, date?: string|null, due_date?: string|null, payment_term?: int|string|null, total_amount?: int|float|string|null, balance?: int|float|string|null}> $deliveries
  * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
  * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
+ * @var array<int|string, list<array<string, int|float|string|null>>> $historiesByDelivery
  * @var int|float|string $totalAmount
  * @var int|float|string $totalBalance
  * @var string $pagerLinks
  * @var int $rowOffset
  * @var array<string, mixed> $deliveryFormData
  * @var array<string, mixed> $quickPayData
+ * @var array<string, mixed> $deliveryActionData
  */
 ?>
 <?= $this->extend('layout') ?>
@@ -22,6 +24,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 $deliveriesJson = json_encode($deliveries ?? [], $jsonFlags);
 $itemsJson = json_encode($itemsByDelivery ?? [], $jsonFlags);
 $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
+$historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
+$productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
 $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
 ?>
 
@@ -84,24 +88,25 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                 <th>DR #</th>
                 <th>Due Date</th>
                 <th>Term</th>
-                <th>Total Amount</th>
-                <th>Balance</th>
-                <th class="text-right">Collect</th>
+                <th class="text-right" style="text-align: right;">Total Amount</th>
+                <th class="text-right" style="text-align: right;">Balance</th>
+                <th class="text-right" style="text-align: right;">Collect</th>
+                <th class="text-center" style="text-align: center;">Actions</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($deliveries)): ?>
                 <tr>
-                    <td class="py-3" colspan="8">No deliveries found for the selected filters.</td>
+                    <td class="py-3" colspan="9">No deliveries found for the selected filters.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($deliveries as $index => $delivery): ?>
                     <tr>
-                        <td><?= esc((int) ($rowOffset ?? 0) + $index + 1) ?></td>
+                        <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                         <td><?= esc((string) $delivery['date']) ?></td>
                         <td>
-                            <?php if (! empty($allocationsByDelivery[$delivery['id']])): ?>
-                                <button class="btn-link" type="button" @click="openAllocations(<?= (int) $delivery['id'] ?>)">
+                            <?php if (! empty($itemsByDelivery[$delivery['id']]) || ! empty($allocationsByDelivery[$delivery['id']])): ?>
+                                <button class="btn-link" type="button" @click="openDrDetails(<?= (int) $delivery['id'] ?>)">
                                     <?= esc((string) ($delivery['dr_no'] ?? '')) ?>
                                 </button>
                             <?php else: ?>
@@ -110,16 +115,8 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                         </td>
                         <td><?= esc((string) ($delivery['due_date'] ?? '')) ?></td>
                         <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
-                        <td>
-                            <?php if (! empty($itemsByDelivery[$delivery['id']])): ?>
-                                <button class="btn-link" type="button" @click="openItems(<?= (int) $delivery['id'] ?>)">
-                                    <?= esc(number_format((float) $delivery['total_amount'], 2)) ?>
-                                </button>
-                            <?php else: ?>
-                                <?= esc(number_format((float) $delivery['total_amount'], 2)) ?>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= esc(number_format((float) $delivery['balance'], 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) $delivery['total_amount'], 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) $delivery['balance'], 2)) ?></td>
                         <td class="text-right">
                             <button
                                 class="btn btn-secondary"
@@ -128,6 +125,13 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                                 <?= ((float) $delivery['balance'] > 0 && $quickPayActiveReceipt) ? '' : 'disabled' ?>>
                                 Collect
                             </button>
+                        </td>
+                        <td class="text-center">
+                            <div class="flex justify-center gap-2">
+                                <button class="btn btn-secondary" type="button" @click="openEdit(<?= (int) $delivery['id'] ?>)" <?= (float) ($delivery['allocated_amount'] ?? 0) > 0 ? 'disabled' : '' ?>>Edit</button>
+                                <button class="btn btn-secondary" type="button" @click="openVoid(<?= (int) $delivery['id'] ?>)" <?= ((float) ($delivery['allocated_amount'] ?? 0) <= 0 && (float) $delivery['balance'] > 0) ? '' : 'disabled' ?>>Void</button>
+                                <button class="btn btn-secondary" type="button" @click="openHistory(<?= (int) $delivery['id'] ?>)">History</button>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -208,39 +212,80 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
     </div>
 
     <?= view('deliveries/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
+    <?= view('deliveries/_action_modals', ['deliveryActionData' => $deliveryActionData ?? []]) ?>
 
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
-        <div class="modal-panel max-w-lg p-6" @click.stop>
-            <h2 class="text-lg font-semibold">DR Allocations</h2>
-            <table class="table mt-4">
-                <thead>
-                    <tr>
-                        <th>PR #</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-if="selectedAllocations().length === 0">
-                        <tr>
-                            <td class="py-3" colspan="3">No allocations found.</td>
-                        </tr>
-                    </template>
-                    <template x-for="(allocation, index) in selectedAllocations()" :key="index">
-                        <tr>
-                            <td x-text="allocation.pr_no"></td>
-                            <td x-text="allocation.date"></td>
-                            <td x-text="Number(allocation.amount).toFixed(2)"></td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-            <div class="mt-4 flex items-center justify-between text-sm">
-                <span class="font-semibold">Total</span>
-                <span x-text="allocTotal()"></span>
+    <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
+        <div class="modal-panel max-w-4xl p-6" @click.stop>
+            <div class="mb-4 border-b pb-4">
+                <h2 class="text-lg font-semibold">Details for DR#: <span x-text="selectedDrNumber()"></span></h2>
             </div>
-            <div class="mt-4">
-                <button class="btn" type="button" @click="closeAllocations()">Close</button>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <h3 class="mb-3 font-semibold">Delivery Items</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="selectedItems().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="4">No items found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="item in selectedItems()" :key="item.id">
+                                <tr>
+                                    <td x-text="item.product_name"></td>
+                                    <td x-text="item.qty"></td>
+                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
+                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="mt-2 text-sm font-semibold" x-show="selectedItems().length > 0">
+                        Total: <span x-text="itemsTotal()"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="mb-3 font-semibold">DR Allocations</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>PR #</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="selectedAllocations().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
+                                <tr>
+                                    <td x-text="alloc.pr_no"></td>
+                                    <td x-text="alloc.date"></td>
+                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="mt-2 text-sm font-semibold" x-show="selectedAllocations().length > 0">
+                        Total: <span x-text="allocationsTotal()"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end">
+                <button class="btn" type="button" @click="closeDrDetails()">Close</button>
             </div>
         </div>
     </div>
@@ -252,11 +297,25 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
             quickPayDeliveries: <?= $deliveriesJson ?>,
             itemsByDelivery: <?= $itemsJson ?>,
             allocationsByDelivery: <?= $allocationsJson ?>,
+            historiesByDelivery: <?= $historiesJson ?>,
+            products: <?= $productsJson ?>,
             itemsOpen: false,
+            drDetailsOpen: false,
             allocOpen: false,
+            editOpen: false,
+            voidOpen: false,
+            historyOpen: false,
             deliveryFormOpen: <?= (old('dr_no') || old('items')) && ! old('delivery_id') ? 'true' : 'false' ?>,
             quickPayOpen: <?= old('delivery_id') ? 'true' : 'false' ?>,
             selectedDeliveryId: null,
+            actionDeliveryId: null,
+            editDelivery: {
+                dr_no: '',
+                date: '',
+                payment_term: '',
+                due_date: '',
+            },
+            editItems: [],
             quickPayDeliveryId: '<?= esc(old('delivery_id') ?: '') ?>',
             quickPay: {
                 date: '<?= esc(old('date') && old('delivery_id') ? old('date') : date('Y-m-d')) ?>',
@@ -301,12 +360,30 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                 this.itemsOpen = false;
                 this.selectedDeliveryId = null;
             },
+            openDrDetails(id) {
+                this.selectedDeliveryId = id;
+                this.drDetailsOpen = true;
+                this.quickPayOpen = false;
+            },
+            closeDrDetails() {
+                this.drDetailsOpen = false;
+                this.selectedDeliveryId = null;
+            },
+            selectedDrNumber() {
+                const delivery = this.quickPayDeliveries.find((d) => String(d.id) === String(this.selectedDeliveryId));
+                return delivery ? delivery.dr_no : '';
+            },
             selectedItems() {
                 return this.itemsByDelivery[this.selectedDeliveryId] || [];
             },
             itemsTotal() {
                 return this.selectedItems()
                     .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
+                    .toFixed(2);
+            },
+            allocationsTotal() {
+                return this.selectedAllocations()
+                    .reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0)
                     .toFixed(2);
             },
             openAllocations(id) {
@@ -359,6 +436,125 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                     + this.quickPayFixedAccountsTotal()
                     - (parseFloat(this.quickPay.allocationAmount) || 0)
                     - (parseFloat(this.quickPay.arOtherAmount) || 0);
+            },
+            selectedActionDelivery() {
+                return this.quickPayDeliveries.find((delivery) => String(delivery.id) === String(this.actionDeliveryId)) || null;
+            },
+            openEdit(id) {
+                this.actionDeliveryId = id;
+                const delivery = this.selectedActionDelivery();
+                if (!delivery) {
+                    return;
+                }
+                this.editDelivery = {
+                    dr_no: delivery.dr_no || '',
+                    date: delivery.date || '',
+                    payment_term: delivery.payment_term || '',
+                    due_date: delivery.due_date || '',
+                };
+                this.editItems = (this.itemsByDelivery[id] || []).map((item) => ({
+                    product_id: item.product_id,
+                    qty: item.qty,
+                    unit_price: item.unit_price,
+                    line_total: this.formatInputAmount(item.line_total)
+                }));
+                if (this.editItems.length === 0) {
+                    this.addEditItem();
+                }
+                this.editOpen = true;
+                this.deliveryFormOpen = false;
+                this.itemsOpen = false;
+                this.allocOpen = false;
+                this.quickPayOpen = false;
+            },
+            closeEdit() {
+                this.editOpen = false;
+                this.actionDeliveryId = null;
+            },
+            recomputeEditDueDate() {
+                if (!this.editDelivery.date) {
+                    this.editDelivery.due_date = '';
+                    return;
+                }
+
+                const term = parseInt(this.editDelivery.payment_term, 10);
+                const days = Number.isFinite(term) && term >= 0 ? term : 0;
+                const date = new Date(this.editDelivery.date + 'T00:00:00');
+                if (Number.isNaN(date.getTime())) {
+                    this.editDelivery.due_date = '';
+                    return;
+                }
+
+                date.setDate(date.getDate() + days);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                this.editDelivery.due_date = `${year}-${month}-${day}`;
+            },
+            addEditItem() {
+                this.editItems.push({
+                    product_id: '',
+                    qty: 1,
+                    unit_price: '',
+                    line_total: '0.00'
+                });
+            },
+            removeEditItem(index) {
+                this.editItems.splice(index, 1);
+            },
+            selectEditProduct(index) {
+                const item = this.editItems[index];
+                const product = this.products.find((row) => String(row.id) === String(item.product_id));
+                item.unit_price = product ? product.unit_price : '';
+                this.updateEditLine(index);
+            },
+            updateEditLine(index) {
+                const item = this.editItems[index];
+                const qty = parseFloat(item.qty) || 0;
+                const price = parseFloat(item.unit_price) || 0;
+                item.line_total = (qty * price).toFixed(2);
+            },
+            editTotal() {
+                return this.editItems
+                    .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
+                    .toFixed(2);
+            },
+            openVoid(id) {
+                this.actionDeliveryId = id;
+                this.voidOpen = true;
+                this.deliveryFormOpen = false;
+                this.itemsOpen = false;
+                this.allocOpen = false;
+                this.quickPayOpen = false;
+            },
+            closeVoid() {
+                this.voidOpen = false;
+                this.actionDeliveryId = null;
+            },
+            openHistory(id) {
+                this.actionDeliveryId = id;
+                this.historyOpen = true;
+                this.deliveryFormOpen = false;
+                this.itemsOpen = false;
+                this.allocOpen = false;
+                this.quickPayOpen = false;
+            },
+            closeHistory() {
+                this.historyOpen = false;
+                this.actionDeliveryId = null;
+            },
+            selectedHistories() {
+                return this.historiesByDelivery[this.actionDeliveryId] || [];
+            },
+            historyDelivery(value) {
+                if (!value) {
+                    return {};
+                }
+                try {
+                    return JSON.parse(value);
+                } catch (error) {
+                    return {};
+                }
             }
         };
     }

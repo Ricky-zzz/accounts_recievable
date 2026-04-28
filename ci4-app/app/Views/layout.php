@@ -458,7 +458,8 @@
     $reportsActive = $isNavActive('deliveries')
         || $isNavActive('payments')
         || $isNavActive('reports/credits')
-        || $isNavActive('reports/overdue');
+        || $isNavActive('reports/overdue')
+        || $isNavActive('reports/voided');
 
     $accountName = trim((string) (session()->get('name') ?: session()->get('username') ?: 'Account'));
     $accountInitial = strtoupper(substr($accountName, 0, 1)) ?: 'A';
@@ -514,6 +515,7 @@
                                 <a href="<?= base_url('payments') ?>" <?= $navAttributes('payments') ?>>Collections</a>
                                 <a href="<?= base_url('reports/credits') ?>" <?= $navAttributes('reports/credits') ?>>Credits</a>
                                 <a href="<?= base_url('reports/overdue') ?>" <?= $navAttributes('reports/overdue') ?>>Overdue</a>
+                                <a href="<?= base_url('reports/voided') ?>" <?= $navAttributes('reports/voided') ?>>Voided</a>
                             </div>
                         </details>
                         <a href="<?= base_url('boa') ?>" <?= $navAttributes('boa') ?>>BOA</a>

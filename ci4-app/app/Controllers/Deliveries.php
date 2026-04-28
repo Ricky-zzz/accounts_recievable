@@ -4,11 +4,13 @@ namespace App\Controllers;
 
 use App\Models\BankModel;
 use App\Models\ClientModel;
+use App\Models\DeliveryHistoryModel;
 use App\Models\DeliveryItemModel;
 use App\Models\DeliveryModel;
 use App\Models\LedgerModel;
 use App\Models\ProductModel;
 use App\Models\UserModel;
+use App\Services\DeliveryHistoryService;
 use App\Services\PaymentPostingService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use Dompdf\Dompdf;
@@ -29,11 +31,13 @@ class Deliveries extends BaseController
             'deliveries' => $result['deliveries'],
             'itemsByDelivery' => $result['itemsByDelivery'],
             'allocationsByDelivery' => $result['allocationsByDelivery'],
+            'historiesByDelivery' => $result['historiesByDelivery'],
             'totalAmount' => $result['totalAmount'],
             'totalBalance' => $result['totalBalance'],
             'pagerLinks' => $result['pagerLinks'],
             'rowOffset' => $result['rowOffset'],
             'quickPayData' => $this->buildQuickPayData(),
+            'deliveryActionData' => $this->buildDeliveryActionData(),
         ]);
     }
 
@@ -88,12 +92,14 @@ class Deliveries extends BaseController
             'deliveries' => $result['deliveries'],
             'itemsByDelivery' => $result['itemsByDelivery'],
             'allocationsByDelivery' => $result['allocationsByDelivery'],
+            'historiesByDelivery' => $result['historiesByDelivery'],
             'totalAmount' => $result['totalAmount'],
             'totalBalance' => $result['totalBalance'],
             'pagerLinks' => $result['pagerLinks'],
             'rowOffset' => $result['rowOffset'],
             'deliveryFormData' => $formData,
             'quickPayData' => $this->buildQuickPayData(),
+            'deliveryActionData' => $this->buildDeliveryActionData(),
         ]);
     }
 
@@ -290,6 +296,185 @@ class Deliveries extends BaseController
         return redirect()->to('clients/' . $postedClientId . '/deliveries?' . $query)->with('success', 'Delivery saved.');
     }
 
+    public function update(int $deliveryId)
+    {
+        $delivery = $this->fetchDeliveryWithBalance($deliveryId);
+        if (! $delivery) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        if (! empty($delivery['voided_at']) || ($delivery['status'] ?? '') === 'voided') {
+            return redirect()->back()->withInput()->with('error', 'Voided deliveries cannot be edited.');
+        }
+
+        if ((float) ($delivery['allocated_amount'] ?? 0) > 0) {
+            return redirect()->back()->withInput()->with('error', 'Deliveries with payments cannot be edited.');
+        }
+
+        $rules = [
+            'dr_no' => 'required|max_length[50]',
+            'date' => 'required|valid_date',
+            'payment_term' => 'permit_empty|is_natural',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('error', 'Please check the delivery form and try again.');
+        }
+
+        $clientId = (int) $delivery['client_id'];
+        $drNo = trim((string) $this->request->getPost('dr_no'));
+        $date = (string) $this->request->getPost('date');
+        $postedPaymentTerm = trim((string) $this->request->getPost('payment_term'));
+        $items = $this->request->getPost('items');
+
+        $deliveryModel = new DeliveryModel();
+        $existing = $deliveryModel
+            ->where('client_id', $clientId)
+            ->where('dr_no', $drNo)
+            ->where('id !=', $deliveryId)
+            ->first();
+
+        if ($existing) {
+            return redirect()->back()->withInput()->with('error', 'DR number already exists for this client.');
+        }
+
+        if (! is_array($items) || count($items) === 0) {
+            return redirect()->back()->withInput()->with('error', 'At least one item is required.');
+        }
+
+        $cleanItems = $this->cleanDeliveryItems($items);
+        if (empty($cleanItems)) {
+            return redirect()->back()->withInput()->with('error', 'Add at least one valid item with quantity.');
+        }
+
+        $total = 0.0;
+        foreach ($cleanItems as $item) {
+            $total += (float) $item['line_total'];
+        }
+
+        $effectivePaymentTerm = $postedPaymentTerm === ''
+            ? (int) ($delivery['payment_term'] ?? 0)
+            : (int) $postedPaymentTerm;
+        $effectivePaymentTerm = max(0, $effectivePaymentTerm);
+        $dueDate = $this->calculateDueDate($date, $effectivePaymentTerm);
+
+        $oldItems = $this->fetchDeliveryItems($deliveryId);
+        $oldDelivery = $delivery;
+        $oldTotal = (float) ($oldDelivery['total_amount'] ?? 0);
+
+        $newDelivery = [
+            'client_id' => $clientId,
+            'dr_no' => $drNo,
+            'date' => $date,
+            'payment_term' => $effectivePaymentTerm,
+            'due_date' => $dueDate,
+            'total_amount' => $total,
+            'status' => $delivery['status'] ?? 'active',
+        ];
+
+        $db = db_connect();
+        $db->transStart();
+
+        $deliveryModel->update($deliveryId, $newDelivery);
+
+        $itemModel = new DeliveryItemModel();
+        $itemModel->where('delivery_id', $deliveryId)->delete();
+        foreach ($cleanItems as $index => $item) {
+            $cleanItems[$index]['delivery_id'] = $deliveryId;
+        }
+        $itemModel->insertBatch($cleanItems);
+
+        $difference = round($total - $oldTotal, 2);
+        if (abs($difference) > 0.005) {
+            $this->insertDeliveryAdjustmentLedgerRow($clientId, $deliveryId, $drNo, $difference);
+        }
+
+        $freshDelivery = $this->fetchDeliveryWithBalance($deliveryId) ?? array_merge($oldDelivery, $newDelivery);
+        $freshItems = $this->fetchDeliveryItems($deliveryId);
+        (new DeliveryHistoryService())->record(
+            $deliveryId,
+            (int) (session('user_id') ?? 0) ?: null,
+            'edit',
+            $oldDelivery,
+            $oldItems,
+            $freshDelivery,
+            $freshItems,
+            $this->buildDeliveryChangeSummary($oldDelivery, $freshDelivery, $oldItems, $freshItems)
+        );
+
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            return redirect()->back()->withInput()->with('error', 'Failed to update delivery.');
+        }
+
+        return redirect()->back()->with('success', 'Delivery updated.');
+    }
+
+    public function void(int $deliveryId)
+    {
+        $delivery = $this->fetchDeliveryWithBalance($deliveryId);
+        if (! $delivery) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $reason = trim((string) $this->request->getPost('void_reason'));
+        if ($reason === '') {
+            return redirect()->back()->withInput()->with('error', 'Reason for voiding is required.');
+        }
+
+        if (! empty($delivery['voided_at']) || ($delivery['status'] ?? '') === 'voided') {
+            return redirect()->back()->with('error', 'Delivery is already voided.');
+        }
+
+        if ((float) ($delivery['allocated_amount'] ?? 0) > 0) {
+            return redirect()->back()->with('error', 'Deliveries with partial or full payments cannot be voided.');
+        }
+
+        if ((float) ($delivery['balance'] ?? 0) <= 0) {
+            return redirect()->back()->with('error', 'Deliveries with zero balance cannot be voided.');
+        }
+
+        $oldItems = $this->fetchDeliveryItems($deliveryId);
+        $voidedAt = date('Y-m-d H:i:s');
+
+        $db = db_connect();
+        $db->transStart();
+
+        (new DeliveryModel())->update($deliveryId, [
+            'status' => 'voided',
+            'void_reason' => $reason,
+            'voided_at' => $voidedAt,
+        ]);
+
+        $this->insertVoidLedgerRow($delivery, $voidedAt);
+
+        $newDelivery = $this->fetchDeliveryWithBalance($deliveryId) ?? array_merge($delivery, [
+            'status' => 'voided',
+            'void_reason' => $reason,
+            'voided_at' => $voidedAt,
+        ]);
+
+        (new DeliveryHistoryService())->record(
+            $deliveryId,
+            (int) (session('user_id') ?? 0) ?: null,
+            'void',
+            $delivery,
+            $oldItems,
+            $newDelivery,
+            $oldItems,
+            'Voided delivery. Reason: ' . $reason
+        );
+
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            return redirect()->back()->with('error', 'Failed to void delivery.');
+        }
+
+        return redirect()->back()->with('success', 'Delivery voided.');
+    }
+
     private function createFormWithErrors($validation = null, array $errors = [], $clientId = null)
     {
         if ($this->request->getHeaderLine('Referer') !== '') {
@@ -301,6 +486,140 @@ class Deliveries extends BaseController
         }
 
         return view('deliveries/form', $this->buildFormData($clientId, $validation, $errors));
+    }
+
+    private function cleanDeliveryItems(array $items): array
+    {
+        $cleanItems = [];
+
+        foreach ($items as $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $qty = (float) ($item['qty'] ?? 0);
+            $unitPrice = (float) ($item['unit_price'] ?? 0);
+
+            if ($productId <= 0 || $qty <= 0) {
+                continue;
+            }
+
+            $cleanItems[] = [
+                'product_id' => $productId,
+                'qty' => $qty,
+                'unit_price' => $unitPrice,
+                'line_total' => $qty * $unitPrice,
+            ];
+        }
+
+        return $cleanItems;
+    }
+
+    private function fetchDeliveryWithBalance(int $deliveryId): ?array
+    {
+        $row = db_connect()->table('deliveries d')
+            ->select('d.*')
+            ->select('c.name as client_name')
+            ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
+            ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
+            ->join('clients c', 'c.id = d.client_id', 'left')
+            ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
+            ->join('payments p', 'p.id = pa.payment_id', 'left')
+            ->where('d.id', $deliveryId)
+            ->groupBy('d.id')
+            ->get()
+            ->getRowArray();
+
+        return $row ?: null;
+    }
+
+    private function fetchDeliveryItems(int $deliveryId): array
+    {
+        return (new DeliveryItemModel())
+            ->select('delivery_items.*, products.product_name')
+            ->join('products', 'products.id = delivery_items.product_id', 'left')
+            ->where('delivery_id', $deliveryId)
+            ->orderBy('delivery_items.id', 'asc')
+            ->findAll();
+    }
+
+    private function insertVoidLedgerRow(array $delivery, string $voidedAt): void
+    {
+        $clientId = (int) $delivery['client_id'];
+        $amount = (float) $delivery['total_amount'];
+        $previousBalance = $this->latestLedgerBalance($clientId);
+
+        (new LedgerModel())->insert([
+            'client_id' => $clientId,
+            'entry_date' => date('Y-m-d', strtotime($voidedAt)),
+            'dr_no' => (string) $delivery['dr_no'],
+            'pr_no' => null,
+            'qty' => null,
+            'price' => null,
+            'amount' => 0,
+            'collection' => 0,
+            'account_title' => 'Voided',
+            'other_accounts' => $amount,
+            'balance' => $previousBalance - $amount,
+            'delivery_id' => (int) $delivery['id'],
+            'payment_id' => null,
+            'created_at' => $voidedAt,
+        ]);
+    }
+
+    private function insertDeliveryAdjustmentLedgerRow(int $clientId, int $deliveryId, string $drNo, float $difference): void
+    {
+        $previousBalance = $this->latestLedgerBalance($clientId);
+        $amount = $difference > 0 ? $difference : 0;
+        $otherAccounts = $difference < 0 ? abs($difference) : 0;
+
+        (new LedgerModel())->insert([
+            'client_id' => $clientId,
+            'entry_date' => date('Y-m-d'),
+            'dr_no' => $drNo,
+            'pr_no' => null,
+            'qty' => null,
+            'price' => null,
+            'amount' => $amount,
+            'collection' => 0,
+            'account_title' => 'Delivery Adjustment',
+            'other_accounts' => $otherAccounts,
+            'balance' => $previousBalance + $amount - $otherAccounts,
+            'delivery_id' => $deliveryId,
+            'payment_id' => null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function latestLedgerBalance(int $clientId): float
+    {
+        $lastLedger = (new LedgerModel())
+            ->select('balance')
+            ->where('client_id', $clientId)
+            ->orderBy('entry_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return (float) ($lastLedger['balance'] ?? 0);
+    }
+
+    private function buildDeliveryChangeSummary(array $oldDelivery, array $newDelivery, array $oldItems, array $newItems): string
+    {
+        $changes = [];
+        foreach (['dr_no' => 'DR#', 'date' => 'Date', 'due_date' => 'Due date', 'payment_term' => 'Term'] as $field => $label) {
+            if ((string) ($oldDelivery[$field] ?? '') !== (string) ($newDelivery[$field] ?? '')) {
+                $changes[] = $label . ' changed from ' . ($oldDelivery[$field] ?? '-') . ' to ' . ($newDelivery[$field] ?? '-');
+            }
+        }
+
+        $oldTotal = (float) ($oldDelivery['total_amount'] ?? 0);
+        $newTotal = (float) ($newDelivery['total_amount'] ?? 0);
+        if (abs($oldTotal - $newTotal) > 0.005) {
+            $changes[] = 'Total changed from ' . number_format($oldTotal, 2) . ' to ' . number_format($newTotal, 2);
+        }
+
+        if (count($oldItems) !== count($newItems)) {
+            $changes[] = 'Item count changed from ' . count($oldItems) . ' to ' . count($newItems);
+        }
+
+        return empty($changes) ? 'Delivery details updated.' : implode('; ', $changes) . '.';
     }
 
     private function buildFormData($clientId = null, $validation = null, array $errors = [], bool $embeddedForm = false): array
@@ -351,6 +670,13 @@ class Deliveries extends BaseController
         ];
     }
 
+    private function buildDeliveryActionData(): array
+    {
+        return [
+            'products' => (new ProductModel())->orderBy('product_name', 'asc')->findAll(),
+        ];
+    }
+
     private function resolveDateRange(): array
     {
         $fromDate = trim((string) ($this->request->getGet('from_date') ?? ''));
@@ -392,7 +718,7 @@ class Deliveries extends BaseController
         $db = db_connect();
         $builder = $db->table('deliveries d');
         $builder
-            ->select('d.id, d.client_id, d.dr_no, d.date, d.payment_term, d.due_date, d.total_amount')
+            ->select('d.id, d.client_id, d.dr_no, d.date, d.payment_term, d.due_date, d.total_amount, d.status, d.void_reason, d.voided_at')
             ->select('c.name as client_name')
             ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
             ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
@@ -438,6 +764,7 @@ class Deliveries extends BaseController
         $deliveryIds = array_filter(array_map('intval', array_column($deliveries, 'id')));
         $itemsByDelivery = [];
         $allocationsByDelivery = [];
+        $historiesByDelivery = [];
 
         if (! empty($deliveryIds)) {
             $itemModel = new DeliveryItemModel();
@@ -467,12 +794,28 @@ class Deliveries extends BaseController
                 $deliveryId = (int) $allocation['delivery_id'];
                 $allocationsByDelivery[$deliveryId][] = $allocation;
             }
+
+            if ($db->tableExists('delivery_histories')) {
+                $histories = (new DeliveryHistoryModel())
+                    ->select('delivery_histories.*, users.name as editor_name, users.username as editor_username')
+                    ->join('users', 'users.id = delivery_histories.edited_by', 'left')
+                    ->whereIn('delivery_id', $deliveryIds)
+                    ->orderBy('created_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->findAll();
+
+                foreach ($histories as $history) {
+                    $deliveryId = (int) $history['delivery_id'];
+                    $historiesByDelivery[$deliveryId][] = $history;
+                }
+            }
         }
 
         return [
             'deliveries' => $deliveries,
             'itemsByDelivery' => $itemsByDelivery,
             'allocationsByDelivery' => $allocationsByDelivery,
+            'historiesByDelivery' => $historiesByDelivery,
             'totalAmount' => (float) ($totals['total_amount'] ?? 0),
             'totalBalance' => (float) ($totals['total_balance'] ?? 0),
             'pagerLinks' => $pagerLinks,

@@ -177,39 +177,64 @@ class Clients extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        $asOf = date('Y-m-d');
-        $rows = db_connect()->table('deliveries d')
-            ->select('d.dr_no, d.date, d.due_date, d.total_amount as amount')
-            ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
-            ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
-            ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
-            ->join('payments p', 'p.id = pa.payment_id', 'left')
-            ->where('d.client_id', $id)
-            ->where('d.voided_at', null)
-            ->where('d.due_date IS NOT NULL', null, false)
-            ->where('d.due_date <', $asOf)
-            ->groupBy('d.id')
-            ->having('balance >', 0)
-            ->orderBy('d.due_date', 'asc')
-            ->orderBy('d.date', 'asc')
-            ->orderBy('d.dr_no', 'asc')
+        $start = trim((string) ($this->request->getGet('start') ?? ''));
+        $end = trim((string) ($this->request->getGet('end') ?? ''));
+        $dueDate = trim((string) ($this->request->getGet('due_date') ?? ''));
+
+        if ($start === '') {
+            $start = date('Y-m-01');
+        }
+
+        if ($end === '') {
+            $end = date('Y-m-t');
+        }
+
+        if ($start > $end) {
+            [$start, $end] = [$end, $start];
+        }
+
+        $ledger = db_connect()->table('ledger');
+        $openingRow = $ledger
+            ->select('balance')
+            ->where('client_id', $id)
+            ->where('entry_date <', $start)
+            ->orderBy('entry_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->getFirstRow('array');
+
+        $openingBalance = (float) ($openingRow['balance'] ?? 0);
+
+        $rows = $ledger
+            ->select('entry_date, dr_no, pr_no, account_title, amount, collection, other_accounts, balance')
+            ->where('client_id', $id)
+            ->where('entry_date >=', $start)
+            ->where('entry_date <=', $end)
+            ->orderBy('entry_date', 'asc')
+            ->orderBy('id', 'asc')
             ->get()
             ->getResultArray();
 
-        $totalAmount = 0.0;
-        $totalBalance = 0.0;
+        $totalDebit = 0.0;
+        $totalCredit = 0.0;
+        $endingBalance = $openingBalance;
 
         foreach ($rows as $row) {
-            $totalAmount += (float) ($row['amount'] ?? 0);
-            $totalBalance += (float) ($row['balance'] ?? 0);
+            $totalDebit += (float) ($row['amount'] ?? 0);
+            $totalCredit += (float) ($row['collection'] ?? 0) + (float) ($row['other_accounts'] ?? 0);
+            $endingBalance = (float) ($row['balance'] ?? $endingBalance);
         }
 
         $html = view('clients/soa_print', [
             'client' => $client,
-            'asOf' => $asOf,
+            'start' => $start,
+            'end' => $end,
+            'dueDate' => $dueDate,
+            'openingBalance' => $openingBalance,
             'rows' => $rows,
-            'totalAmount' => $totalAmount,
-            'totalBalance' => $totalBalance,
+            'totalDebit' => $totalDebit,
+            'totalCredit' => $totalCredit,
+            'endingBalance' => $endingBalance,
         ]);
 
         $options = new Options();

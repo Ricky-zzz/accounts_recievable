@@ -2,10 +2,14 @@
 <?php
 /**
  * @var array{id?: int|string, name?: string|null, address?: string|null} $client
- * @var string $asOf
- * @var list<array{dr_no?: string|null, date?: string|null, due_date?: string|null, amount?: int|float|string|null, balance?: int|float|string|null}> $rows
- * @var int|float|string $totalAmount
- * @var int|float|string $totalBalance
+ * @var string $start
+ * @var string $end
+ * @var string $dueDate
+ * @var int|float|string $openingBalance
+ * @var list<array{entry_date?: string|null, dr_no?: string|null, pr_no?: string|null, account_title?: string|null, amount?: int|float|string|null, collection?: int|float|string|null, other_accounts?: int|float|string|null, balance?: int|float|string|null}> $rows
+ * @var int|float|string $totalDebit
+ * @var int|float|string $totalCredit
+ * @var int|float|string $endingBalance
  */
 ?>
 <html lang="en">
@@ -13,6 +17,7 @@
 <head>
     <meta charset="utf-8">
     <title>Statement of Account</title>
+
     <style>
         @page {
             margin: 24px;
@@ -75,80 +80,160 @@
             text-align: right;
         }
 
-        tfoot .text-right,
-        .summary .text-right {
-            text-align: left;
-        }
-
         .text-center {
             text-align: center;
         }
 
+        tfoot th {
+            background: #eaeaea;
+            font-weight: 700;
+        }
+
+        tfoot .text-right {
+            text-align: right;
+        }
+
         .summary {
-            margin-top: 14px;
+            margin-top: 16px;
             width: 100%;
             border-collapse: collapse;
         }
 
         .summary td {
-            padding: 4px 0;
+            padding: 5px 0;
+            font-size: 15px;
+        }
+
+        .summary .amount-due {
+            text-align: right;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .payment-notice {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border: 1px solid #333;
+            background: #f7f7f7;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            text-transform: uppercase;
         }
     </style>
 </head>
 
 <body>
+
     <div class="header">
         <?php
         $logoPath = FCPATH . 'logo.png';
         $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
         ?>
+
         <?php if ($logoSrc !== ''): ?>
             <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
         <?php endif; ?>
+
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Statement of Account</div>
+
         <div class="meta">For: <?= esc((string) ($client['name'] ?? '')) ?></div>
+
         <?php if (! empty($client['address'])): ?>
             <div class="meta">Address: <?= esc((string) $client['address']) ?></div>
         <?php endif; ?>
-        <div class="meta">As of: <?= esc($asOf) ?></div>
+
+        <div class="meta">
+            Billing period: <?= esc($start ?: 'All') ?> to <?= esc($end ?: 'All') ?>
+        </div>
     </div>
 
     <table class="table">
         <thead>
             <tr>
-                <th>#</th>
-                <th>DR #</th>
-                <th>Date</th>
-                <th>Due Date</th>
-                <th class="text-right">Amount</th>
-                <th class="text-right">Balance</th>
+                <th style="width: 40px;">#</th>
+                <th style="width: 100px;">Date</th>
+                <th>Description</th>
+                <th class="text-right" style="width: 150px;">Deliveries (Debit)</th>
+                <th class="text-right" style="width: 165px;">Collections (Credit)</th>
+                <th class="text-right" style="width: 120px;">Balance</th>
             </tr>
         </thead>
+
         <tbody>
             <?php if (empty($rows)): ?>
                 <tr>
-                    <td class="text-center" colspan="6">No overdue balances found for this client.</td>
+                    <td class="text-center" colspan="6">
+                        No transactions found for this billing period.
+                    </td>
                 </tr>
             <?php else: ?>
+
+                <tr>
+                    <td>1</td>
+                    <td><?= esc($start ?: '') ?></td>
+                    <td>Previous Balance</td>
+                    <td class="text-right">0.00</td>
+                    <td class="text-right">0.00</td>
+                    <td class="text-right">
+                        <?= esc(number_format((float) ($openingBalance ?? 0), 2)) ?>
+                    </td>
+                </tr>
+
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
-                        <td><?= esc((string) ($index + 1)) ?></td>
-                        <td><?= esc((string) ($row['dr_no'] ?? '')) ?></td>
-                        <td><?= esc((string) ($row['date'] ?? '')) ?></td>
-                        <td><?= esc((string) ($row['due_date'] ?? '')) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($row['amount'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?></td>
+                        <td><?= esc((string) ($index + 2)) ?></td>
+                        <td><?= esc((string) ($row['entry_date'] ?? '')) ?></td>
+
+                        <td>
+                            <?php
+                            $description = '';
+
+                            if ((float) ($row['amount'] ?? 0) > 0 && ! empty($row['dr_no'])) {
+                                $description = 'DR ' . $row['dr_no'];
+                            } elseif ((float) ($row['collection'] ?? 0) > 0 && ! empty($row['pr_no'])) {
+                                $description = 'PR ' . $row['pr_no'];
+                            } elseif ((float) ($row['other_accounts'] ?? 0) > 0 && ! empty($row['account_title'])) {
+                                $description = (string) $row['account_title'];
+                            } elseif (! empty($row['account_title'])) {
+                                $description = (string) $row['account_title'];
+                            }
+                            ?>
+
+                            <?= esc($description) ?>
+                        </td>
+
+                        <td class="text-right">
+                            <?= esc(number_format((float) ($row['amount'] ?? 0), 2)) ?>
+                        </td>
+
+                        <td class="text-right">
+                            <?= esc(number_format((float) (($row['collection'] ?? 0) + ($row['other_accounts'] ?? 0)), 2)) ?>
+                        </td>
+
+                        <td class="text-right">
+                            <?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
+
             <?php endif; ?>
         </tbody>
+
         <?php if (! empty($rows)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="4">Total</th>
-                    <th class="text-right"><?= esc(number_format((float) $totalAmount, 2)) ?></th>
-                    <th class="text-right"><?= esc(number_format((float) $totalBalance, 2)) ?></th>
+                    <th colspan="3">Totals</th>
+                    <th class="text-right">
+                        <?= esc(number_format((float) $totalDebit, 2)) ?>
+                    </th>
+                    <th class="text-right">
+                        <?= esc(number_format((float) $totalCredit, 2)) ?>
+                    </th>
+                    <th class="text-right">
+                        <?= esc(number_format((float) $endingBalance, 2)) ?>
+                    </th>
                 </tr>
             </tfoot>
         <?php endif; ?>
@@ -156,10 +241,28 @@
 
     <table class="summary">
         <tr>
-            <td><strong>Total Amount Due:</strong></td>
-            <td class="text-right"><strong><?= esc(number_format((float) $totalBalance, 2)) ?></strong></td>
+            <td>
+                <strong>Total Amount Due:</strong>
+            </td>
+            <td class="amount-due">
+                <?= esc(number_format((float) $endingBalance, 2)) ?>
+            </td>
         </tr>
     </table>
-</body>
 
+    <?php if (! empty($dueDate)): ?>
+        <div class="payment-notice">
+            Payment is due on or before <?= esc($dueDate) ?>.
+            Failure to settle the outstanding balance may result in service interruption,
+            delayed processing, or additional charges.
+        </div>
+    <?php else: ?>
+        <div class="payment-notice">
+            Payment is due immediately upon receipt of this statement.
+            Failure to settle the outstanding balance may result in service interruption,
+            delayed processing, or additional charges.
+        </div>
+    <?php endif; ?>
+
+</body>
 </html>

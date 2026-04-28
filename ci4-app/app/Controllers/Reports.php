@@ -9,6 +9,7 @@ use Dompdf\Options;
 class Reports extends BaseController
 {
     private const REPORTS_PER_PAGE = 50;
+    private const VOIDED_PER_PAGE = 20;
 
     public function credits(): string
     {
@@ -42,6 +43,23 @@ class Reports extends BaseController
         $html = view('reports/overdue/print', $this->buildOverdueReportData($fromDueDate, $toDueDate, $drNo, $dueSort, false));
 
         return $this->renderPdf($html, 'overdue-report.pdf', 'landscape');
+    }
+
+    public function voided(): string
+    {
+        [$fromVoidedDate, $toVoidedDate] = $this->resolveVoidedDateRange();
+        $drNo = $this->resolveDrNoFilter();
+
+        return view('reports/voided/index', $this->buildVoidedReportData($fromVoidedDate, $toVoidedDate, $drNo, true));
+    }
+
+    public function voidedPrint()
+    {
+        [$fromVoidedDate, $toVoidedDate] = $this->resolveVoidedDateRange();
+        $drNo = $this->resolveDrNoFilter();
+        $html = view('reports/voided/print', $this->buildVoidedReportData($fromVoidedDate, $toVoidedDate, $drNo, false));
+
+        return $this->renderPdf($html, 'voided-deliveries-report.pdf', 'landscape');
     }
 
     private function buildCreditsReportData(string $sort, bool $paginate): array
@@ -198,6 +216,110 @@ class Reports extends BaseController
         ];
     }
 
+    private function buildVoidedReportData(string $fromVoidedDate, string $toVoidedDate, string $drNo, bool $paginate): array
+    {
+        $db = db_connect();
+
+        $builder = $db->table('deliveries d')
+            ->select('d.id, d.date, d.dr_no, d.due_date, d.total_amount, d.void_reason, d.voided_at')
+            ->select('c.name as client_name')
+            ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
+            ->join('clients c', 'c.id = d.client_id', 'left')
+            ->join('payment_allocations pa', 'pa.delivery_id = d.id', 'left')
+            ->join('payments p', 'p.id = pa.payment_id', 'left')
+            ->where('d.voided_at IS NOT NULL', null, false);
+
+        if ($fromVoidedDate !== '') {
+            $builder->where('d.voided_at >=', $fromVoidedDate . ' 00:00:00');
+        }
+
+        if ($toVoidedDate !== '') {
+            $builder->where('d.voided_at <=', $toVoidedDate . ' 23:59:59');
+        }
+
+        if ($drNo !== '') {
+            $builder->like('d.dr_no', $drNo);
+        }
+
+        $rows = $builder
+            ->groupBy('d.id')
+            ->orderBy('d.voided_at', 'desc')
+            ->orderBy('d.id', 'desc')
+            ->get()
+            ->getResultArray();
+
+        $totalAmount = 0.0;
+        $totalBalance = 0.0;
+
+        foreach ($rows as $row) {
+            $totalAmount += (float) ($row['total_amount'] ?? 0);
+            $totalBalance += (float) ($row['balance'] ?? 0);
+        }
+
+        $pagedRows = $rows;
+        $currentPage = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $totalRows = count($rows);
+        $totalPages = max(1, (int) ceil($totalRows / self::VOIDED_PER_PAGE));
+
+        if ($paginate) {
+            $currentPage = min($currentPage, $totalPages);
+            $offset = ($currentPage - 1) * self::VOIDED_PER_PAGE;
+            $pagedRows = array_slice($rows, $offset, self::VOIDED_PER_PAGE);
+        } else {
+            $currentPage = 1;
+            $totalPages = 1;
+        }
+
+        $itemsByDelivery = [];
+        $allocationsByDelivery = [];
+        $deliveryIds = array_filter(array_map('intval', array_column($pagedRows, 'id') ?? []));
+
+        if (! empty($deliveryIds)) {
+            $itemModel = new \App\Models\DeliveryItemModel();
+            $items = $itemModel
+                ->select('delivery_items.*, products.product_name')
+                ->join('products', 'products.id = delivery_items.product_id', 'left')
+                ->whereIn('delivery_id', $deliveryIds)
+                ->orderBy('delivery_id', 'asc')
+                ->orderBy('id', 'asc')
+                ->findAll();
+
+            foreach ($items as $item) {
+                $deliveryIdKey = (int) $item['delivery_id'];
+                $itemsByDelivery[$deliveryIdKey][] = $item;
+            }
+
+            $allocations = $db->table('payment_allocations pa')
+                ->select('pa.delivery_id, pa.amount, p.pr_no, p.date')
+                ->join('payments p', 'p.id = pa.payment_id', 'left')
+                ->where('p.status', 'posted')
+                ->whereIn('pa.delivery_id', $deliveryIds)
+                ->orderBy('p.date', 'asc')
+                ->get()
+                ->getResultArray();
+
+            foreach ($allocations as $allocation) {
+                $deliveryIdKey = (int) $allocation['delivery_id'];
+                $allocationsByDelivery[$deliveryIdKey][] = $allocation;
+            }
+        }
+
+        return [
+            'fromVoidedDate' => $fromVoidedDate,
+            'toVoidedDate' => $toVoidedDate,
+            'drNo' => $drNo,
+            'rows' => $pagedRows,
+            'allRowsCount' => $totalRows,
+            'currentPage' => $currentPage,
+            'perPage' => self::VOIDED_PER_PAGE,
+            'totalPages' => $totalPages,
+            'totalAmount' => $totalAmount,
+            'totalBalance' => $totalBalance,
+            'itemsByDelivery' => $itemsByDelivery,
+            'allocationsByDelivery' => $allocationsByDelivery,
+        ];
+    }
+
     private function resolveCreditSort(): string
     {
         return strtolower((string) $this->request->getGet('sort')) === 'desc' ? 'desc' : 'asc';
@@ -218,6 +340,18 @@ class Reports extends BaseController
     private function resolveDrNoFilter(): string
     {
         return trim((string) ($this->request->getGet('dr_no') ?? ''));
+    }
+
+    private function resolveVoidedDateRange(): array
+    {
+        $fromVoidedDate = trim((string) ($this->request->getGet('from_voided_date') ?? ''));
+        $toVoidedDate = trim((string) ($this->request->getGet('to_voided_date') ?? ''));
+
+        if ($fromVoidedDate !== '' && $toVoidedDate !== '' && $fromVoidedDate > $toVoidedDate) {
+            [$fromVoidedDate, $toVoidedDate] = [$toVoidedDate, $fromVoidedDate];
+        }
+
+        return [$fromVoidedDate, $toVoidedDate];
     }
 
     private function resolveDueSort(): string

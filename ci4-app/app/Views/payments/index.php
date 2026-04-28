@@ -98,9 +98,9 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak>
-        <div class="modal-panel max-w-lg p-6">
-            <h2 class="text-lg font-semibold">PR Summary</h2>
+    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
+        <div class="modal-panel max-w-lg p-6" @click.stop>
+            <h2 class="text-lg font-semibold">PR Summary for: <span x-text="selectedPrNumber()"></span></h2>
             <table class="table mt-4">
                 <thead>
                     <tr>
@@ -221,6 +221,10 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
                     .toFixed(2);
+            },
+            selectedPrNumber() {
+                const payment = this.paymentsById[String(this.selectedPaymentId)];
+                return payment ? payment.pr_no : '';
             }
         };
     }

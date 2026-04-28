@@ -41,6 +41,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('clients/(:num)/deliveries', 'Deliveries::clientList/$1');
     $routes->get('clients/(:num)/deliveries/print', 'Deliveries::listPrint/$1');
     $routes->post('deliveries', 'Deliveries::create');
+    $routes->post('deliveries/(:num)', 'Deliveries::update/$1');
+    $routes->post('deliveries/(:num)/void', 'Deliveries::void/$1');
 
     $routes->get('other-accounts', 'OtherAccounts::index');
     $routes->post('other-accounts', 'OtherAccounts::create');
@@ -66,6 +68,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('reports/credits/print', 'Reports::creditsPrint');
     $routes->get('reports/overdue', 'Reports::overdue');
     $routes->get('reports/overdue/print', 'Reports::overduePrint');
+    $routes->get('reports/voided', 'Reports::voided');
+    $routes->get('reports/voided/print', 'Reports::voidedPrint');
 
     $routes->get('excess', 'Excess::index');
 });
