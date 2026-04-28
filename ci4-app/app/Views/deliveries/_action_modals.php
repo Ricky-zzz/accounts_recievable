@@ -174,12 +174,68 @@ $products = $deliveryActionData['products'] ?? [];
                             <p class="mt-2">DR#: <span x-text="historyDelivery(history.old_delivery_json).dr_no || '-'"></span></p>
                             <p>Date: <span x-text="historyDelivery(history.old_delivery_json).date || '-'"></span></p>
                             <p>Total: <span x-text="formatAmount(historyDelivery(history.old_delivery_json).total_amount || 0)"></span></p>
+                            <div class="mt-3">
+                                <p class="font-semibold">Items</p>
+                                <table class="table mt-2 text-xs">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Qty</th>
+                                            <th>Price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-if="historyItems(history.old_items_json).length === 0">
+                                            <tr>
+                                                <td class="py-2" colspan="4">No items recorded.</td>
+                                            </tr>
+                                        </template>
+                                        <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
+                                            <tr>
+                                                <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
+                                                <td x-text="item.qty"></td>
+                                                <td x-text="formatAmount(item.unit_price || 0)"></td>
+                                                <td x-text="formatAmount(item.line_total || 0)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         <div class="rounded border border-gray-200 p-3">
                             <p class="font-semibold">After</p>
                             <p class="mt-2">DR#: <span x-text="historyDelivery(history.new_delivery_json).dr_no || '-'"></span></p>
                             <p>Date: <span x-text="historyDelivery(history.new_delivery_json).date || '-'"></span></p>
                             <p>Total: <span x-text="formatAmount(historyDelivery(history.new_delivery_json).total_amount || 0)"></span></p>
+                            <div class="mt-3">
+                                <p class="font-semibold">Items</p>
+                                <table class="table mt-2 text-xs">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Qty</th>
+                                            <th>Price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-if="historyItems(history.new_items_json).length === 0">
+                                            <tr>
+                                                <td class="py-2" colspan="4">No items recorded.</td>
+                                            </tr>
+                                        </template>
+                                        <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
+                                            <tr>
+                                                <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
+                                                <td x-text="item.qty"></td>
+                                                <td x-text="formatAmount(item.unit_price || 0)"></td>
+                                                <td x-text="formatAmount(item.line_total || 0)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

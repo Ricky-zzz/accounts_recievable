@@ -555,6 +555,17 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                 } catch (error) {
                     return {};
                 }
+            },
+            historyItems(value) {
+                if (!value) {
+                    return [];
+                }
+                try {
+                    const items = JSON.parse(value);
+                    return Array.isArray(items) ? items : [];
+                } catch (error) {
+                    return [];
+                }
             }
         };
     }
