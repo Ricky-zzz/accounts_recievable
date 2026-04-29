@@ -4,9 +4,11 @@
  * @var \CodeIgniter\Pager\Pager|null $pager
  * @var string $search
  * @var int $rowOffset
+ * @var string|null $layout
+ * @var string|null $basePath
  */
 ?>
-<?= $this->extend('layout') ?>
+<?= $this->extend($layout ?? 'layout') ?>
 <?= $this->section('content') ?>
 <?php
 $formMode = (string) (session()->getFlashdata('form_mode') ?? '');
@@ -18,6 +20,7 @@ $oldForm = [
 ];
 $search = (string) ($search ?? '');
 $rowOffset = (int) ($rowOffset ?? 0);
+$basePath = trim((string) ($basePath ?? 'products'), '/');
 
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 ?>
@@ -28,13 +31,13 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         <button class="btn" type="button" @click="openCreate()">New Product</button>
     </div>
 
-    <form class="flex flex-wrap items-end gap-3" method="get" action="<?= base_url('products') ?>">
+    <form class="flex flex-wrap items-end gap-3" method="get" action="<?= base_url($basePath) ?>">
         <div>
             <label class="block text-sm font-medium" for="q">Search Product</label>
             <input class="input mt-1" id="q" name="q" value="<?= esc($search) ?>" placeholder="Product ID or name">
         </div>
         <button class="btn" type="submit">Filter</button>
-        <a class="btn btn-secondary" href="<?= base_url('products') ?>">Clear</a>
+        <a class="btn btn-secondary" href="<?= base_url($basePath) ?>">Clear</a>
     </form>
 
     <table class="table">
@@ -61,7 +64,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td><?= esc(number_format((float) $product['unit_price'], 2)) ?></td>
                         <td class="text-left">
                             <button class="btn-link" type="button" @click="openEdit(<?= (int) $product['id'] ?>)">Edit</button>
-                            <form class="inline" method="post" action="<?= base_url('products/' . $product['id'] . '/delete') ?>" onsubmit="return confirm('Delete this product?');">
+                            <form class="inline" method="post" action="<?= base_url($basePath . '/' . $product['id'] . '/delete') ?>" onsubmit="return confirm('Delete this product?');">
                                 <?= csrf_field() ?>
                                 <button class="ml-3 btn-link" type="submit">Delete</button>
                             </form>
@@ -120,7 +123,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             products,
             open: false,
             isEdit: false,
-            formAction: '<?= base_url('products') ?>',
+            formAction: '<?= base_url($basePath) ?>',
             form: {
                 product_id: '',
                 product_name: '',
@@ -150,7 +153,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             openCreate() {
                 this.isEdit = false;
-                this.formAction = '<?= base_url('products') ?>';
+                this.formAction = '<?= base_url($basePath) ?>';
                 this.form = {
                     product_id: '',
                     product_name: '',
@@ -165,7 +168,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 }
 
                 this.isEdit = true;
-                this.formAction = `<?= base_url('products') ?>/${product.id}`;
+                this.formAction = `<?= base_url($basePath) ?>/${product.id}`;
                 this.form = {
                     product_id: product.product_id || '',
                     product_name: product.product_name || '',

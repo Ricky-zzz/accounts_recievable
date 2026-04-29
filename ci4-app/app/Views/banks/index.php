@@ -1,9 +1,11 @@
 <?php
 /**
  * @var list<array{id: int|string, bank_name: string, account_name?: string|null, bank_number?: string|null}> $banks
+ * @var string|null $layout
+ * @var string|null $basePath
  */
 ?>
-<?= $this->extend('layout') ?>
+<?= $this->extend($layout ?? 'layout') ?>
 <?= $this->section('content') ?>
 <?php
 $formMode = (string) (session()->getFlashdata('form_mode') ?? '');
@@ -15,6 +17,7 @@ $oldForm = [
 ];
 
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
+$basePath = trim((string) ($basePath ?? 'banks'), '/');
 ?>
 
 <div class="space-y-6" x-data="bankManager()">
@@ -47,7 +50,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td><?= esc((string) ($bank['bank_number'] ?? '')) ?></td>
                         <td class="text-left">
                             <button class="btn-link" type="button" @click="openEdit(<?= (int) $bank['id'] ?>)">Edit</button>
-                            <form class="inline" method="post" action="<?= base_url('banks/' . $bank['id'] . '/delete') ?>" onsubmit="return confirm('Delete this bank?');">
+                            <form class="inline" method="post" action="<?= base_url($basePath . '/' . $bank['id'] . '/delete') ?>" onsubmit="return confirm('Delete this bank?');">
                                 <?= csrf_field() ?>
                                 <button class="ml-3 btn-link" type="submit">Delete</button>
                             </form>
@@ -100,7 +103,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             banks,
             open: false,
             isEdit: false,
-            formAction: '<?= base_url('banks') ?>',
+            formAction: '<?= base_url($basePath) ?>',
             currentId: null,
             form: {
                 bank_name: '',
@@ -132,7 +135,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             openCreate() {
                 this.isEdit = false;
                 this.currentId = null;
-                this.formAction = '<?= base_url('banks') ?>';
+                this.formAction = '<?= base_url($basePath) ?>';
                 this.form = {
                     bank_name: '',
                     account_name: '',
@@ -148,7 +151,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 
                 this.isEdit = true;
                 this.currentId = bank.id;
-                this.formAction = `<?= base_url('banks') ?>/${bank.id}`;
+                this.formAction = `<?= base_url($basePath) ?>/${bank.id}`;
                 this.form = {
                     bank_name: bank.bank_name || '',
                     account_name: bank.account_name || '',

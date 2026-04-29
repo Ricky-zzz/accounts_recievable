@@ -9,10 +9,10 @@ class Products extends BaseController
 {
     private const PER_PAGE = 20;
 
-    private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [])
+    private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [], string $basePath = 'products')
     {
         $redirect = redirect()
-            ->to('/products')
+            ->to('/' . trim($basePath, '/'))
             ->withInput()
             ->with('error', $message)
             ->with('form_mode', $mode);
@@ -25,6 +25,16 @@ class Products extends BaseController
     }
 
     public function index(): string
+    {
+        return $this->renderIndex('layout', 'products');
+    }
+
+    public function payablesIndex(): string
+    {
+        return $this->renderIndex('payables_layout', 'payables/products');
+    }
+
+    private function renderIndex(string $layout, string $basePath): string
     {
         $model = new ProductModel();
         $createdProductId = (int) ($this->request->getGet('created_product_id') ?? 0);
@@ -46,6 +56,8 @@ class Products extends BaseController
         $products = $model->orderBy('product_name', 'asc')->paginate(self::PER_PAGE, 'products');
 
         return view('products/index', [
+            'layout' => $layout,
+            'basePath' => $basePath,
             'products' => $products,
             'pager' => $model->pager,
             'search' => $search,
@@ -54,6 +66,16 @@ class Products extends BaseController
     }
 
     public function create()
+    {
+        return $this->createFor('products');
+    }
+
+    public function createPayables()
+    {
+        return $this->createFor('payables/products');
+    }
+
+    private function createFor(string $basePath)
     {
         $rules = [
             'product_id' => 'required|max_length[50]',
@@ -72,7 +94,8 @@ class Products extends BaseController
                 'Please correct the highlighted fields.',
                 'create',
                 null,
-                $this->validator->getErrors()
+                $this->validator->getErrors(),
+                $basePath
             );
         }
 
@@ -80,7 +103,7 @@ class Products extends BaseController
         $createdProductId = (int) $model->insert($product, true);
 
         return redirect()
-            ->to('/products?' . http_build_query([
+            ->to('/' . trim($basePath, '/') . '?' . http_build_query([
                 'q' => $product['product_name'],
                 'created_product_id' => $createdProductId,
             ]))
@@ -88,6 +111,16 @@ class Products extends BaseController
     }
 
     public function update(int $id)
+    {
+        return $this->updateFor($id, 'products');
+    }
+
+    public function updatePayables(int $id)
+    {
+        return $this->updateFor($id, 'payables/products');
+    }
+
+    private function updateFor(int $id, string $basePath)
     {
         $model = new ProductModel();
         $existing = $model->find($id);
@@ -113,20 +146,31 @@ class Products extends BaseController
                 'Please correct the highlighted fields.',
                 'edit',
                 $id,
-                $this->validator->getErrors()
+                $this->validator->getErrors(),
+                $basePath
             );
         }
 
         $model->update($id, $product);
 
-        return redirect()->to('/products')->with('success', 'Product updated.');
+        return redirect()->to('/' . trim($basePath, '/'))->with('success', 'Product updated.');
     }
 
     public function delete(int $id)
     {
+        return $this->deleteFor($id, 'products');
+    }
+
+    public function deletePayables(int $id)
+    {
+        return $this->deleteFor($id, 'payables/products');
+    }
+
+    private function deleteFor(int $id, string $basePath)
+    {
         $model = new ProductModel();
         $model->delete($id);
 
-        return redirect()->to('/products')->with('success', 'Product deleted.');
+        return redirect()->to('/' . trim($basePath, '/'))->with('success', 'Product deleted.');
     }
 }

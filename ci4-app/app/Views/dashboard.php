@@ -2,6 +2,12 @@
 <?= $this->section('content') ?>
 <?php helper('permissions'); ?>
 <div class="card overflow-hidden">
+    <div class="border-b border-gray-200 px-6">
+        <nav class="flex gap-2">
+            <a class="tab-link tab-link-active" href="<?= base_url('/') ?>">Receivables</a>
+            <a class="tab-link" href="<?= base_url('payables-dashboard') ?>">Payables</a>
+        </nav>
+    </div>
     <div class="flex flex-col gap-5 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-4">
             <img class="h-16 w-16 rounded-2xl border border-stone-200 object-cover bg-white" src="<?= esc(base_url('logo.png')) ?>" alt="SRC Enterprises logo">

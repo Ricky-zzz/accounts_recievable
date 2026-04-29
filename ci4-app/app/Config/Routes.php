@@ -11,6 +11,7 @@ $routes->get('logout', 'Auth::logout');
 
 $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Dashboard::index');
+    $routes->get('payables-dashboard', 'PayablesDashboard::index');
 
     $routes->get('clients', 'Clients::index');
     $routes->get('clients/(:num)/soa', 'Clients::soaPrint/$1');
@@ -22,11 +23,24 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('products', 'Products::create');
     $routes->post('products/(:num)', 'Products::update/$1');
     $routes->post('products/(:num)/delete', 'Products::delete/$1');
+    $routes->get('payables/products', 'Products::payablesIndex');
+    $routes->post('payables/products', 'Products::createPayables');
+    $routes->post('payables/products/(:num)', 'Products::updatePayables/$1');
+    $routes->post('payables/products/(:num)/delete', 'Products::deletePayables/$1');
 
     $routes->get('banks', 'Banks::index', ['filter' => 'permission:banks.view']);
     $routes->post('banks', 'Banks::create', ['filter' => 'permission:banks.view']);
     $routes->post('banks/(:num)', 'Banks::update/$1', ['filter' => 'permission:banks.view']);
     $routes->post('banks/(:num)/delete', 'Banks::delete/$1', ['filter' => 'permission:banks.view']);
+    $routes->get('payables/banks', 'Banks::payablesIndex', ['filter' => 'permission:banks.view']);
+    $routes->post('payables/banks', 'Banks::createPayables', ['filter' => 'permission:banks.view']);
+    $routes->post('payables/banks/(:num)', 'Banks::updatePayables/$1', ['filter' => 'permission:banks.view']);
+    $routes->post('payables/banks/(:num)/delete', 'Banks::deletePayables/$1', ['filter' => 'permission:banks.view']);
+
+    $routes->get('suppliers', 'Suppliers::index');
+    $routes->post('suppliers', 'Suppliers::create');
+    $routes->post('suppliers/(:num)', 'Suppliers::update/$1');
+    $routes->post('suppliers/(:num)/delete', 'Suppliers::delete/$1');
 
     $routes->get('cashiers', 'Cashiers::index', ['filter' => 'permission:cashiers.view']);
     $routes->post('cashiers', 'Cashiers::create', ['filter' => 'permission:cashiers.view']);
@@ -61,6 +75,24 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('payments', 'Payments::store');
     $routes->post('payments/quick-pay', 'Payments::quickPay');
 
+    $routes->get('purchase-orders', 'PurchaseOrders::index');
+    $routes->get('purchase-orders/print', 'PurchaseOrders::print');
+    $routes->get('suppliers/(:num)/purchase-orders', 'PurchaseOrders::supplierList/$1');
+    $routes->post('purchase-orders', 'PurchaseOrders::create');
+    $routes->post('purchase-orders/(:num)', 'PurchaseOrders::update/$1');
+    $routes->post('purchase-orders/(:num)/void', 'PurchaseOrders::void/$1');
+
+    $routes->get('payable-ledger', 'PayableLedger::index');
+    $routes->get('payable-ledger/print', 'PayableLedger::print');
+
+    $routes->get('payables', 'Payables::index');
+    $routes->get('payables/print', 'Payables::print');
+    $routes->get('payables/supplier/(:num)', 'Payables::supplierList/$1');
+    $routes->get('payables/supplier/(:num)/print', 'Payables::supplierPrint/$1');
+    $routes->get('payables/supplier/(:num)/create', 'Payables::createForm/$1');
+    $routes->post('payables', 'Payables::store');
+    $routes->post('payables/quick-pay', 'Payables::quickPay');
+
     $routes->get('boa', 'Boa::index');
     $routes->get('boa/print', 'Boa::print');
 
@@ -70,6 +102,13 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('reports/overdue/print', 'Reports::overduePrint');
     $routes->get('reports/voided', 'Reports::voided');
     $routes->get('reports/voided/print', 'Reports::voidedPrint');
+
+    $routes->get('payable-reports/credits', 'PayableReports::credits');
+    $routes->get('payable-reports/credits/print', 'PayableReports::creditsPrint');
+    $routes->get('payable-reports/overdue', 'PayableReports::overdue');
+    $routes->get('payable-reports/overdue/print', 'PayableReports::overduePrint');
+    $routes->get('payable-reports/voided', 'PayableReports::voided');
+    $routes->get('payable-reports/voided/print', 'PayableReports::voidedPrint');
 
     $routes->get('excess', 'Excess::index');
 });
