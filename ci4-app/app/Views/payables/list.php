@@ -1,5 +1,6 @@
 <?php
 /**
+ * @var array{id?: int|string, name?: string|null}|null $supplier
  * @var string $fromDate
  * @var string $toDate
  * @var string $prNo
@@ -17,8 +18,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 $payablesJson = json_encode($payablesById ?? [], $jsonFlags);
 $allocationsJson = json_encode($allocationsByPayable ?? [], $jsonFlags);
 $otherJson = json_encode($otherAccountsByPayable ?? [], $jsonFlags);
-$listUrl = base_url('payables');
-$printUrl = base_url('payables/print');
+$listUrl = base_url('payables/supplier/' . ($supplier['id'] ?? 0));
+$printUrl = base_url('payables/supplier/' . ($supplier['id'] ?? 0) . '/print');
 $printQuery = http_build_query([
     'from_date' => $fromDate ?? '',
     'to_date' => $toDate ?? '',
@@ -30,11 +31,14 @@ $printQuery = http_build_query([
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold">
-                Payments
+                Payments for <?= esc((string) ($supplier['name'] ?? '')) ?>
             </h1>
             <p class="mt-1 text-sm muted">Filter payments by PR number and date range.</p>
         </div>
         <div class="flex items-center gap-2">
+            <a class="btn" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0) . '/create') ?>">Pay Supplier</a>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/purchase-orders') ?>">Orders</a>
+            <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . ($supplier['id'] ?? 0)) ?>">Ledger</a>
             <a class="btn btn-secondary" target="_blank" href="<?= esc($printUrl . '?' . $printQuery) ?>">Print PDF</a>
             <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>">Back</a>
         </div>
@@ -63,19 +67,17 @@ $printQuery = http_build_query([
         <thead>
             <tr>
                 <th>Date</th>
-                <th>Supplier</th>
                 <th>PR #</th>
                 <th class="text-right" style="text-align: right;">Amount Paid</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($payables)): ?>
-                <tr><td colspan="4">No payables found.</td></tr>
+                <tr><td colspan="3">No payables found.</td></tr>
             <?php else: ?>
                 <?php foreach ($payables as $payable): ?>
                     <tr>
                         <td><?= esc((string) ($payable['date'] ?? '')) ?></td>
-                        <td><?= esc((string) ($payable['supplier_name'] ?? '')) ?></td>
                         <td>
                             <button class="btn-link" type="button" @click="openPayable(<?= (int) $payable['id'] ?>)">
                                 <?= esc((string) ($payable['pr_no'] ?? '')) ?>

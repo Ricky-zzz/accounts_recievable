@@ -56,7 +56,7 @@ class PayableLedger extends BaseController
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
         return $this->response
@@ -68,7 +68,6 @@ class PayableLedger extends BaseController
     private function buildReportData(int $supplierId, string $start, string $end, bool $paginate): array
     {
         $supplierModel = new SupplierModel();
-        $suppliers = $supplierModel->orderBy('name', 'asc')->findAll();
         $selectedSupplier = $supplierId > 0 ? $supplierModel->find($supplierId) : null;
         $openingBalance = 0.0;
         $rows = [];
@@ -196,7 +195,6 @@ class PayableLedger extends BaseController
         }
 
         return [
-            'suppliers' => $suppliers,
             'selectedSupplier' => $selectedSupplier,
             'supplierId' => $supplierId,
             'start' => $start,

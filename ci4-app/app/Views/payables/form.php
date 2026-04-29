@@ -49,7 +49,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
         </div>
 
         <div class="overflow-x-auto pb-2">
-            <div class="flex min-w-[1320px] gap-6">
+            <div class="flex min-w-[1040px] gap-6">
                 <div class="card w-[440px] shrink-0 p-4">
                     <div class="flex items-center justify-between"><h2 class="text-sm font-semibold">Unpaid Purchase Orders</h2><span class="text-xs muted" x-text="visibleOrders.length + ' items'"></span></div>
                     <table class="table mt-4">
@@ -84,22 +84,15 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
                     </div>
                 </div>
 
-                <div class="card w-[260px] shrink-0 p-4">
-                    <h2 class="text-sm font-semibold">A/P Other</h2>
-                    <div class="mt-4 grid gap-4">
-                        <div><label class="block text-sm font-medium" for="ar_other_description">Description</label><input class="input mt-1" id="ar_other_description" name="ar_other_description" x-model="arOtherDescription"></div>
-                        <div><label class="block text-sm font-medium" for="ar_other_amount">Amount</label><input class="input mt-1" id="ar_other_amount" name="ar_other_amount" type="number" step="0.01" min="0" x-model="arOtherAmount"></div>
-                    </div>
-                </div>
+                <?php /* A/P Other is hidden until the payable-side accounting treatment is confirmed. */ ?>
             </div>
         </div>
 
         <div class="card p-4">
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 text-sm">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
                 <div><p class="muted">Amount Paid</p><p class="font-semibold" x-text="formatAmount(amountReceived)"></p></div>
                 <div><p class="muted">Allocated Total</p><p class="font-semibold" x-text="formatAmount(allocatedTotal())"></p></div>
                 <div><p class="muted">Other Accounts Total</p><p class="font-semibold" x-text="formatAmount(fixedAccountsTotal())"></p></div>
-                <div><p class="muted">A/P Other Total</p><p class="font-semibold" x-text="formatAmount(arOtherAmount)"></p></div>
                 <div><p class="muted">Unallocated</p><p class="font-semibold" x-text="formatAmount(balanceAmount())"></p></div>
             </div>
             <div class="mt-4 flex flex-wrap items-end gap-3">
@@ -130,8 +123,8 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
             allocations: [],
             method: '<?= esc(old('method') ?: 'cash') ?>',
             amountReceived: '<?= esc(old('amount_received')) ?>',
-            arOtherDescription: '<?= esc(old('ar_other_description')) ?>',
-            arOtherAmount: '<?= esc(old('ar_other_amount')) ?>',
+            arOtherDescription: '',
+            arOtherAmount: '0',
             salesDiscount: '<?= esc(old('sales_discount')) ?>',
             deliveryCharges: '<?= esc(old('delivery_charges')) ?>',
             taxes: '<?= esc(old('taxes')) ?>',
@@ -150,7 +143,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
             visibleOrdersTotal() { return this.visibleOrders.reduce((sum, order) => sum + (parseFloat(order.working_balance) || 0), 0); },
             allocatedTotal() { return this.allocations.reduce((sum, allocation) => sum + (parseFloat(allocation.amount) || 0), 0); },
             fixedAccountsTotal() { return [this.salesDiscount, this.deliveryCharges, this.taxes, this.commissions].reduce((sum, value) => sum + (parseFloat(value) || 0), 0); },
-            balanceAmount() { return (parseFloat(this.amountReceived) || 0) + this.fixedAccountsTotal() - this.allocatedTotal() - (parseFloat(this.arOtherAmount) || 0); },
+            balanceAmount() { return (parseFloat(this.amountReceived) || 0) + this.fixedAccountsTotal() - this.allocatedTotal(); },
             openPayModal(order) { this.modalOrder = order; this.modalAmount = ''; this.modalOpen = true; },
             closePayModal() { this.modalOpen = false; this.modalOrder = null; this.modalAmount = ''; },
             confirmAllocation() {

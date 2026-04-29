@@ -1,6 +1,5 @@
 <?php
 /**
- * @var list<array{id: int|string, name: string}> $suppliers
  * @var array{id: int|string, name: string}|null $selectedSupplier
  * @var int $supplierId
  * @var string $start
@@ -81,15 +80,9 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
     </div>
 
     <form class="mt-6 flex flex-wrap items-end gap-3" method="get" action="<?= base_url('payable-ledger') ?>">
-        <div>
-            <label class="block text-sm font-medium" for="supplier_id">Supplier</label>
-            <select class="input mt-1" id="supplier_id" name="supplier_id" required>
-                <option value="">Select supplier</option>
-                <?php foreach ($suppliers as $supplier): ?>
-                    <option value="<?= esc((string) $supplier['id']) ?>" <?= (string) $supplierId === (string) $supplier['id'] ? 'selected' : '' ?>><?= esc((string) $supplier['name']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+        <?php if ($selectedSupplier): ?>
+            <input type="hidden" name="supplier_id" value="<?= esc((string) $supplierId) ?>">
+        <?php endif; ?>
         <div><label class="block text-sm font-medium" for="start">Start Date</label><input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>"></div>
         <div><label class="block text-sm font-medium" for="end">End Date</label><input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>"></div>
         <div class="flex items-end gap-2">
@@ -163,6 +156,10 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
                 </div>
             </div>
         <?php endif; ?>
+    <?php else: ?>
+        <div class="mt-6 card p-4 text-sm">
+            Select a supplier from the Suppliers page to view its payable ledger.
+        </div>
     <?php endif; ?>
 
     <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">

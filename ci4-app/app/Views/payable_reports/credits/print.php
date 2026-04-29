@@ -2,37 +2,98 @@
 <?php
 /**
  * @var list<array{supplier_name: string, credit_limit: int|float|string, current_balance: int|float|string, available_balance: int|float|string}> $rows
+ * @var string $sort
  * @var int|float|string $totalBalance
  */
 ?>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <title>Supplier Credits Report</title>
     <style>
-        @page { margin: 24px; }
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #111; }
-        .header { text-align: center; margin-bottom: 16px; }
-        .print-logo { width: 72px; height: 72px; object-fit: contain; margin-bottom: 8px; }
-        .company-title { font-size: 32px; font-weight: 700; text-transform: uppercase; }
-        .report-title { margin-top: 14px; font-size: 18px; font-weight: 700; text-transform: uppercase; }
-        .table { width: 100%; border-collapse: collapse; }
-        .table th, .table td { border: 1px solid #333; padding: 6px 8px; vertical-align: top; }
-        .table th { background: #f2f2f2; text-align: left; }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
+        @page {
+            margin: 24px;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            color: #111;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .print-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            margin-top: 14px;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .meta {
+            margin-top: 6px;
+            font-size: 13px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            vertical-align: top;
+        }
+
+        .table th {
+            background: #f2f2f2;
+            text-align: left;
+        }
+
+        .table th.text-right,
+        .table td.text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
     </style>
 </head>
+
 <body>
     <div class="header">
         <?php
         $logoPath = FCPATH . 'logo.png';
         $logoSrc = is_file($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
         ?>
-        <?php if ($logoSrc !== ''): ?><img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo"><?php endif; ?>
+        <?php if ($logoSrc !== ''): ?>
+            <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
+        <?php endif; ?>
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Supplier Credits Report</div>
+        <div class="meta">Available Balance Sort: <?= esc(strtoupper($sort ?? 'asc')) ?></div>
     </div>
+
     <table class="table">
         <thead>
             <tr>
@@ -45,7 +106,9 @@
         </thead>
         <tbody>
             <?php if (empty($rows)): ?>
-                <tr><td class="text-center" colspan="5">No suppliers found.</td></tr>
+                <tr>
+                    <td class="text-center" colspan="5">No suppliers found.</td>
+                </tr>
             <?php else: ?>
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
@@ -67,4 +130,5 @@
         </tfoot>
     </table>
 </body>
+
 </html>

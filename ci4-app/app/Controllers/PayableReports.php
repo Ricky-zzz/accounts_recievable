@@ -24,7 +24,7 @@ class PayableReports extends BaseController
         $sort = $this->resolveCreditSort();
         $html = view('payable_reports/credits/print', $this->buildCreditsReportData($sort, false));
 
-        return $this->renderPdf($html, 'supplier-credits-report.pdf', 'portrait');
+        return $this->renderPdf($html, 'supplier-credits-report.pdf', 'landscape');
     }
 
     public function overdue(): string

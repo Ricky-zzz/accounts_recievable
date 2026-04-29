@@ -1,6 +1,5 @@
 <?php
 /**
- * @var array{id: int|string, name: string}|null $supplier
  * @var string $fromDate
  * @var string $toDate
  * @var string $poNo
@@ -36,23 +35,20 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
 $activeReceipt = $quickPayData['activeReceipt'] ?? null;
 $rangeEnd = $quickPayData['rangeEnd'] ?? null;
 $banks = $quickPayData['banks'] ?? [];
-$listUrl = base_url('suppliers/' . ($supplier['id'] ?? 0) . '/purchase-orders');
+$listUrl = base_url('purchase-orders');
 $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_no' => $poNo ?? ''];
-$printParams['supplier_id'] = $supplier['id'] ?? 0;
 ?>
 
 <div x-data="purchaseOrderList()">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold">
-                Purchase Orders for <?= esc((string) ($supplier['name'] ?? '')) ?>
+                Purchase Orders
             </h1>
             <p class="mt-1 text-sm muted">Filter purchase orders by date range or PO number.</p>
         </div>
         <div class="flex items-center gap-2">
             <button class="btn" type="button" @click="openOrderForm()">New Order</button>
-            <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . ($supplier['id'] ?? 0)) ?>">Ledger</a>
-            <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0)) ?>">Payables</a>
             <a class="btn btn-secondary" target="_blank" href="<?= base_url('purchase-orders/print') ?>?<?= esc(http_build_query($printParams)) ?>">Print PDF</a>
             <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>">Back</a>
         </div>
@@ -82,6 +78,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
             <tr>
                 <th>#</th>
                 <th>Date</th>
+                <th>Supplier</th>
                 <th>PO #</th>
                 <th>Due Date</th>
                 <th>Term</th>
@@ -93,12 +90,13 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
         </thead>
         <tbody>
             <?php if (empty($purchaseOrders)): ?>
-                <tr><td class="py-3" colspan="9">No purchase orders found for the selected filters.</td></tr>
+                <tr><td class="py-3" colspan="10">No purchase orders found for the selected filters.</td></tr>
             <?php else: ?>
                 <?php foreach ($purchaseOrders as $index => $order): ?>
                     <tr>
                         <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                         <td><?= esc((string) $order['date']) ?></td>
+                        <td><?= esc((string) ($order['supplier_name'] ?? '')) ?></td>
                         <td>
                             <button class="btn-link" type="button" @click="openPoDetails(<?= (int) $order['id'] ?>)">
                                 <?= esc((string) ($order['po_no'] ?? '')) ?>

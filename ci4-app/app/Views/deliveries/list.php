@@ -26,7 +26,6 @@ $itemsJson = json_encode($itemsByDelivery ?? [], $jsonFlags);
 $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
 $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
 $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
-$quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
 ?>
 
 <div x-data="deliveryList()" @close-delivery-form.window="deliveryFormOpen = false">
@@ -101,6 +100,13 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                 </tr>
             <?php else: ?>
                 <?php foreach ($deliveries as $index => $delivery): ?>
+                    <?php
+                        $deliveryBalance = (float) ($delivery['balance'] ?? 0);
+                        $deliveryAllocated = (float) ($delivery['allocated_amount'] ?? 0);
+                        $canCollectDelivery = $deliveryBalance > 0;
+                        $canEditDelivery = $deliveryAllocated <= 0;
+                        $canVoidDelivery = $deliveryAllocated <= 0 && $deliveryBalance > 0;
+                    ?>
                     <tr>
                         <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                         <td><?= esc((string) $delivery['date']) ?></td>
@@ -116,20 +122,20 @@ $quickPayActiveReceipt = ! empty($quickPayData['activeReceipt']);
                         <td><?= esc((string) ($delivery['due_date'] ?? '')) ?></td>
                         <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) $delivery['total_amount'], 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) $delivery['balance'], 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format($deliveryBalance, 2)) ?></td>
                         <td class="text-right">
                             <button
                                 class="btn btn-secondary"
                                 type="button"
                                 @click="openQuickPay(<?= (int) $delivery['id'] ?>)"
-                                <?= ((float) $delivery['balance'] > 0 && $quickPayActiveReceipt) ? '' : 'disabled' ?>>
+                                <?= $canCollectDelivery ? '' : 'disabled' ?>>
                                 Collect
                             </button>
                         </td>
                         <td class="text-center">
                             <div class="flex justify-center gap-2">
-                                <button class="btn btn-secondary" type="button" @click="openEdit(<?= (int) $delivery['id'] ?>)" <?= (float) ($delivery['allocated_amount'] ?? 0) > 0 ? 'disabled' : '' ?>>Edit</button>
-                                <button class="btn btn-secondary" type="button" @click="openVoid(<?= (int) $delivery['id'] ?>)" <?= ((float) ($delivery['allocated_amount'] ?? 0) <= 0 && (float) $delivery['balance'] > 0) ? '' : 'disabled' ?>>Void</button>
+                                <button class="btn btn-secondary" type="button" @click="openEdit(<?= (int) $delivery['id'] ?>)" <?= $canEditDelivery ? '' : 'disabled' ?>>Edit</button>
+                                <button class="btn btn-secondary" type="button" @click="openVoid(<?= (int) $delivery['id'] ?>)" <?= $canVoidDelivery ? '' : 'disabled' ?>>Void</button>
                                 <button class="btn btn-secondary" type="button" @click="openHistory(<?= (int) $delivery['id'] ?>)">History</button>
                             </div>
                         </td>

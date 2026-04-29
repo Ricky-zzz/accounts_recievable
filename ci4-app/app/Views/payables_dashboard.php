@@ -21,15 +21,29 @@
 </div>
 
 <div class="mt-6 grid gap-4 sm:grid-cols-3">
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('suppliers') ?>">Suppliers</a>
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables/products') ?>">Products</a>
+    <?php if (can_access('suppliers.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('suppliers') ?>">Suppliers</a>
+    <?php endif; ?>
+    <?php if (can_access('products.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables/products') ?>">Products</a>
+    <?php endif; ?>
     <?php if (can_access('banks.view')): ?>
         <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables/banks') ?>">Banks</a>
     <?php endif; ?>
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('purchase-orders') ?>">Purchase Orders</a>
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables') ?>">Payables</a>
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/credits') ?>">Credits</a>
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/overdue') ?>">Overdue</a>
-    <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/voided') ?>">Voided</a>
+    <?php if (can_access('purchase_orders.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('purchase-orders') ?>">Purchase Orders</a>
+    <?php endif; ?>
+    <?php if (can_access('payables.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables') ?>">Payments</a>
+    <?php endif; ?>
+    <?php if (can_access('payable_reports.credits.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/credits') ?>">Credits</a>
+    <?php endif; ?>
+    <?php if (can_access('payable_reports.overdue.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/overdue') ?>">Overdue</a>
+    <?php endif; ?>
+    <?php if (can_access('payable_reports.voided.view')): ?>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/voided') ?>">Voided</a>
+    <?php endif; ?>
 </div>
 <?= $this->endSection() ?>

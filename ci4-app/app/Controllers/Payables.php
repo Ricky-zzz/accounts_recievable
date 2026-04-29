@@ -43,7 +43,7 @@ class Payables extends BaseController
         $prNo = $this->resolvePrNoFilter();
         $result = $this->fetchPayables($supplierId, $fromDate, $toDate, $prNo);
 
-        return view('payables/index', [
+        return view('payables/list', [
             'supplier' => $supplier,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
@@ -103,7 +103,7 @@ class Payables extends BaseController
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
         return $this->response

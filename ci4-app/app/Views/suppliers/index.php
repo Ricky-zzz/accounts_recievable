@@ -64,7 +64,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td>
                             <a class="btn-link" href="<?= base_url('payable-ledger?supplier_id=' . $supplier['id']) ?>">Ledger</a> |
                             <a class="btn-link" href="<?= base_url('suppliers/' . $supplier['id'] . '/purchase-orders') ?>">Orders</a> |
-                            <a class="btn-link" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Payables</a>
+                            <a class="btn-link" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Payments</a>
                         </td>
                         <td class="text-left">
                             <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $supplier['id'] ?>)">Edit</button>

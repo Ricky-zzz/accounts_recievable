@@ -24,7 +24,7 @@ class PurchaseOrders extends BaseController
         $poNo = $this->resolvePoNoFilter();
         $result = $this->fetchPurchaseOrders(null, $fromDate, $toDate, $poNo, true);
 
-        return view('purchase_orders/list', [
+        return view('purchase_orders/index', [
             'supplier' => null,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
