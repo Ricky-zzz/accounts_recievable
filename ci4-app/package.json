@@ -1,0 +1,14 @@
+{
+  "name": "ci4-app",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "tailwindcss -i ./resources/css/app.css -o ./public/assets/css/app.css --minify",
+    "build:js": "copy node_modules\\alpinejs\\dist\\cdn.min.js public\\assets\\js\\alpine.min.js",
+    "watch:css": "tailwindcss -i ./resources/css/app.css -o ./public/assets/css/app.css --watch"
+  },
+  "devDependencies": {
+    "alpinejs": "^3.14.9",
+    "tailwindcss": "^3.4.17"
+  }
+}

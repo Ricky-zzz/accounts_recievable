@@ -87,6 +87,11 @@ php_errors.log
 vendor/
 
 #-------------------------
+# Node / Frontend Build
+#-------------------------
+node_modules/
+
+#-------------------------
 # IDE / Development Files
 #-------------------------
 
