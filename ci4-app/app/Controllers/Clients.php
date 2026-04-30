@@ -115,7 +115,9 @@ class Clients extends BaseController
         $model = new ClientModel();
         $model->insert($client);
 
-        return redirect()->to('/clients')->with('success', 'Client created.');
+        $query = http_build_query(['q' => $client['name']]);
+
+        return redirect()->to("/clients?{$query}")->with('success', 'Client created.');
     }
 
     public function update(int $id)

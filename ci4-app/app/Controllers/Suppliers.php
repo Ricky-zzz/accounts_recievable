@@ -101,7 +101,9 @@ class Suppliers extends BaseController
 
         (new SupplierModel())->insert($supplier);
 
-        return redirect()->to('/suppliers')->with('success', 'Supplier created.');
+        $query = http_build_query(['q' => $supplier['name']]);
+
+        return redirect()->to("/suppliers?{$query}")->with('success', 'Supplier created.');
     }
 
     public function update(int $id)
