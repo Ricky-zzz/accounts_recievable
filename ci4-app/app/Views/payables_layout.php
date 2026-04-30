@@ -80,6 +80,11 @@
             box-shadow: 0 12px 30px rgba(15, 23, 42, .04);
         }
 
+        .filter-card {
+            background: var(--surface);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .03);
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -87,8 +92,9 @@
             gap: .25rem;
             border: 1px solid var(--line-strong);
             background: var(--surface);
+            color: var(--ink);
             padding: .35rem .7rem;
-            font-weight: 500;
+            font-weight: 600;
             font-size: .85rem;
             border-radius: .25rem;
             transition: background .15s ease, border-color .15s ease, color .15s ease;
@@ -105,7 +111,19 @@
 
         .btn-secondary {
             border-color: var(--line);
-            color: var(--muted);
+            font-weight: 500;
+            color: #3f444a;
+        }
+
+        .btn-strong {
+            color: var(--ink);
+            font-size: .92rem;
+            font-weight: 900;
+        }
+
+        .total-highlight {
+            font-size: 1.1rem;
+            font-weight: 700;
         }
 
         .btn-link {
@@ -414,6 +432,7 @@
                 </a>
                 <?php if (session()->get('user_id')): ?>
                     <nav class="flex flex-wrap items-center gap-1 text-sm text-black">
+                        <a href="<?= base_url('/') ?>">Recievables</a>
                         <?php if (can_access('suppliers.view')): ?>
                             <a href="<?= base_url('suppliers') ?>" <?= $navAttributes('suppliers') ?>>Suppliers</a>
                         <?php endif; ?>

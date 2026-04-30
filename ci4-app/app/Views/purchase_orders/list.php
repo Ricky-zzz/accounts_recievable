@@ -50,30 +50,32 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
             <p class="mt-1 text-sm muted">Filter purchase orders by date range or PO number.</p>
         </div>
         <div class="flex items-center gap-2">
-            <button class="btn" type="button" @click="openOrderForm()">New Order</button>
+            <button class="btn btn-strong" type="button" @click="openOrderForm()">New Order</button>
             <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . ($supplier['id'] ?? 0)) ?>">Ledger</a>
-            <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0)) ?>">Payables</a>
-            <a class="btn btn-secondary" target="_blank" href="<?= base_url('purchase-orders/print') ?>?<?= esc(http_build_query($printParams)) ?>">Print PDF</a>
-            <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>">Back</a>
+            <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0)) ?>">Payments</a>
+            <button class="btn btn-secondary" type="button" @click='openSupplierStatementModal(<?= (int) ($supplier['id'] ?? 0) ?>, <?= json_encode((string) ($supplier['name'] ?? ''), $jsonFlags) ?>, <?= json_encode((string) ($supplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
+            <a class="btn btn-secondary" target="_blank" href="<?= base_url('purchase-orders/print') ?>?<?= esc(http_build_query($printParams)) ?>">Print</a>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>?q=<?= rawurlencode((string) ($supplier['name'] ?? '')) ?>">Back</a>
         </div>
     </div>
 
-    <form method="get" action="<?= esc($listUrl) ?>" class="mt-4 grid gap-4 md:grid-cols-4">
+    <form method="get" action="<?= esc($listUrl) ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
+        <div class="grid gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium" for="po_no">PO Number</label>
-            <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>">
+            <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="from_date">From Date</label>
-            <input class="input mt-1" id="from_date" name="from_date" type="date" value="<?= esc($fromDate ?? '') ?>">
+            <input class="input mt-1" id="from_date" name="from_date" type="date" value="<?= esc($fromDate ?? '') ?>" @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="to_date">To Date</label>
-            <input class="input mt-1" id="to_date" name="to_date" type="date" value="<?= esc($toDate ?? '') ?>">
+            <input class="input mt-1" id="to_date" name="to_date" type="date" value="<?= esc($toDate ?? '') ?>" @change="$el.form.requestSubmit()">
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn btn-secondary" type="submit">Filter</button>
             <a class="btn btn-secondary" href="<?= esc($listUrl) ?>">Clear</a>
+        </div>
         </div>
     </form>
 
@@ -86,8 +88,8 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                 <th>Due Date</th>
                 <th>Term</th>
                 <th class="text-right" style="text-align: right;">Total Amount</th>
+                <th class="text-right" style="text-align: right;">Paid</th>
                 <th class="text-right" style="text-align: right;">Balance</th>
-                <th class="text-right" style="text-align: right;">Pay</th>
                 <th class="text-center" style="text-align: center;">Actions</th>
             </tr>
         </thead>
@@ -107,18 +109,11 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                         <td><?= esc((string) ($order['due_date'] ?? '')) ?></td>
                         <td><?= esc(($order['payment_term'] ?? '') !== '' ? $order['payment_term'] . ' days' : '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) $order['total_amount'], 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['allocated_amount'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) $order['balance'], 2)) ?></td>
-                        <td class="text-right">
-                            <button
-                                class="btn btn-secondary"
-                                type="button"
-                                @click="openQuickPay(<?= (int) $order['id'] ?>)"
-                                <?= (float) $order['balance'] > 0 ? '' : 'disabled' ?>>
-                                Pay
-                            </button>
-                        </td>
                         <td class="text-center">
-                            <div class="flex justify-center gap-2">
+                            <div class="flex flex-wrap justify-center gap-2">
+                                <button class="btn btn-secondary btn-strong" type="button" @click="openQuickPay(<?= (int) $order['id'] ?>)" <?= (float) $order['balance'] > 0 ? '' : 'disabled' ?>>Pay</button>
                                 <button class="btn btn-secondary" type="button" @click="openEdit(<?= (int) $order['id'] ?>)" <?= (float) ($order['allocated_amount'] ?? 0) > 0 ? 'disabled' : '' ?>>Edit</button>
                                 <button class="btn btn-secondary" type="button" @click="openVoid(<?= (int) $order['id'] ?>)" <?= ((float) ($order['allocated_amount'] ?? 0) <= 0 && (float) $order['balance'] > 0) ? '' : 'disabled' ?>>Void</button>
                                 <button class="btn btn-secondary" type="button" @click="openHistory(<?= (int) $order['id'] ?>)">History</button>
@@ -133,8 +128,8 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
     <?php if (! empty($pagerLinks ?? '')): ?><div class="mt-4"><?= $pagerLinks ?></div><?php endif; ?>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-2">
-        <div class="card p-4 text-sm"><div class="flex justify-between"><span>Total Amount</span><span><?= esc(number_format((float) $totalAmount, 2)) ?></span></div></div>
-        <div class="card p-4 text-sm"><div class="flex justify-between"><span>Total Balance</span><span><?= esc(number_format((float) $totalBalance, 2)) ?></span></div></div>
+        <div class="card p-4 total-highlight"><div class="flex justify-between"><span>Total Amount</span><span><?= esc(number_format((float) $totalAmount, 2)) ?></span></div></div>
+        <div class="card p-4 total-highlight"><div class="flex justify-between"><span>Total Balance</span><span><?= esc(number_format((float) $totalBalance, 2)) ?></span></div></div>
     </div>
 
     <div class="modal-backdrop" x-show="orderFormOpen" x-cloak @click.self="orderFormOpen = false">
@@ -206,13 +201,13 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                             </div>
                         </template>
                     </div>
-                    <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-4 text-sm">
-                        <span class="font-semibold">Total</span>
+                    <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-4 text-lg font-bold">
+                        <span>Total</span>
                         <span x-text="itemsTotal(newItems)"></span>
                     </div>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit">Save Purchase Order</button>
+                    <button class="btn btn-strong" type="submit">Save Purchase Order</button>
                     <button class="btn btn-secondary" type="button" @click="orderFormOpen = false">Cancel</button>
                 </div>
             </form>
@@ -287,7 +282,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                         <div><p class="muted">Other Accounts</p><p class="font-semibold" x-text="formatAmount(quickPayFixedAccountsTotal())"></p></div>
                         <div><p class="muted">Unallocated</p><p class="font-semibold" x-text="formatAmount(quickPayBalanceAmount())"></p></div>
                     </div>
-                    <div class="mt-4 flex flex-wrap gap-3"><button class="btn" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayOrder()">Commit Payable</button><button class="btn btn-secondary" type="button" @click="closeQuickPay()">Cancel</button></div>
+                    <div class="mt-4 flex flex-wrap gap-3"><button class="btn btn-strong" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayOrder()">Commit Payable</button><button class="btn btn-secondary" type="button" @click="closeQuickPay()">Cancel</button></div>
                 </div>
             </form>
         </div>
@@ -320,7 +315,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                     </div>
                     <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-4 text-sm"><span class="font-semibold">Total</span><span x-text="itemsTotal(editItems)"></span></div>
                 </div>
-                <div class="flex gap-3"><button class="btn" type="submit">Save Changes</button><button class="btn btn-secondary" type="button" @click="closeEdit()">Cancel</button></div>
+                <div class="flex gap-3"><button class="btn btn-strong" type="submit">Save Changes</button><button class="btn btn-secondary" type="button" @click="closeEdit()">Cancel</button></div>
             </form>
         </div>
     </div>
@@ -339,21 +334,116 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
     </div>
 
     <div class="modal-backdrop" x-show="historyOpen" x-cloak @click.self="closeHistory()">
-        <div class="modal-panel max-h-[92vh] max-w-3xl overflow-y-auto p-6" @click.stop>
-            <div class="flex items-start justify-between gap-4"><h2 class="text-lg font-semibold">Purchase Order History</h2><button class="btn btn-secondary" type="button" @click="closeHistory()">Close</button></div>
+        <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
+            <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">Purchase Order History</h2>
+                        <p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'PO# ' + (selectedActionOrder().po_no || '-') + ' | Current total ' + formatAmount(selectedActionOrder().total_amount || 0) : ''"></p>
+                    </div>
+                    <button class="btn btn-secondary" type="button" @click="closeHistory()">Close</button>
+                </div>
+            </div>
+
             <div class="mt-5 space-y-4">
-                <template x-if="selectedHistories().length === 0"><div class="card p-4 text-sm">No history recorded for this purchase order yet.</div></template>
+                <template x-if="selectedHistories().length === 0">
+                    <div class="card p-4 text-sm">No history recorded for this purchase order yet.</div>
+                </template>
                 <template x-for="history in selectedHistories()" :key="history.id">
-                    <div class="card p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-sm font-semibold" x-text="history.action === 'void' ? 'Voided' : 'Edited'"></h3><p class="mt-1 text-sm muted" x-text="history.change_summary || 'No summary available.'"></p></div><div class="text-right text-xs muted"><p x-text="history.created_at"></p><p x-text="history.editor_name || history.editor_username || 'System'"></p></div></div></div>
+                    <div class="card p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold" x-text="history.action === 'void' ? 'Voided' : 'Edited'"></h3>
+                                <p class="mt-1 text-sm muted" x-text="history.change_summary || 'No summary available.'"></p>
+                            </div>
+                            <div class="text-right text-xs muted">
+                                <p x-text="history.created_at"></p>
+                                <p x-text="history.editor_name || history.editor_username || 'System'"></p>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                            <div class="rounded border border-gray-200 p-3">
+                                <p class="font-semibold">Before</p>
+                                <p class="mt-2">PO#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
+                                <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'" ></span></p>
+                                <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)" ></span></p>
+                                <div class="mt-3">
+                                    <p class="font-semibold">Items</p>
+                                    <table class="table mt-2 text-xs">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Qty</th>
+                                                <th>Price</th>
+                                                <th>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-if="historyItems(history.old_items_json).length === 0">
+                                                <tr>
+                                                    <td class="py-2" colspan="4">No items recorded.</td>
+                                                </tr>
+                                            </template>
+                                            <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
+                                                <tr>
+                                                    <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
+                                                    <td x-text="item.qty"></td>
+                                                    <td x-text="formatAmount(item.unit_price || 0)"></td>
+                                                    <td x-text="formatAmount(item.line_total || 0)"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="rounded border border-gray-200 p-3">
+                                <p class="font-semibold">After</p>
+                                <p class="mt-2">PO#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
+                                <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'" ></span></p>
+                                <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)" ></span></p>
+                                <div class="mt-3">
+                                    <p class="font-semibold">Items</p>
+                                    <table class="table mt-2 text-xs">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Qty</th>
+                                                <th>Price</th>
+                                                <th>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-if="historyItems(history.new_items_json).length === 0">
+                                                <tr>
+                                                    <td class="py-2" colspan="4">No items recorded.</td>
+                                                </tr>
+                                            </template>
+                                            <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
+                                                <tr>
+                                                    <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
+                                                    <td x-text="item.qty"></td>
+                                                    <td x-text="formatAmount(item.unit_price || 0)"></td>
+                                                    <td x-text="formatAmount(item.line_total || 0)"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </template>
             </div>
         </div>
     </div>
+
+    <?= view('suppliers/_statement_modal') ?>
 </div>
 
 <script>
     function purchaseOrderList() {
         return {
+            ...supplierStatementModalState(),
             orders: <?= $ordersJson ?>,
             itemsByPurchaseOrder: <?= $itemsJson ?>,
             allocationsByPurchaseOrder: <?= $allocationsJson ?>,
@@ -476,6 +566,27 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
             openHistory(id) { this.actionOrderId = id; this.historyOpen = true; this.quickPayOpen = false; },
             closeHistory() { this.historyOpen = false; this.actionOrderId = null; },
             selectedHistories() { return this.historiesByPurchaseOrder[this.actionOrderId] || []; },
+            historyOrder(value) {
+                if (!value) {
+                    return {};
+                }
+                try {
+                    return JSON.parse(value);
+                } catch (error) {
+                    return {};
+                }
+            },
+            historyItems(value) {
+                if (!value) {
+                    return [];
+                }
+                try {
+                    const items = JSON.parse(value);
+                    return Array.isArray(items) ? items : [];
+                } catch (error) {
+                    return [];
+                }
+            },
         };
     }
 </script>

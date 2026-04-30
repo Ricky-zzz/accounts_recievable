@@ -21,17 +21,18 @@
         <a class="btn" href="<?= base_url('reports/credits/print?' . http_build_query(['sort' => $sort])) ?>" target="_blank">Print</a>
     </div>
 
-    <form method="get" action="<?= base_url('reports/credits') ?>" class="grid gap-4 sm:grid-cols-3">
+    <form method="get" action="<?= base_url('reports/credits') ?>" class="filter-card rounded border border-gray-200 p-4" x-data>
+        <div class="grid gap-4 sm:grid-cols-3">
         <div>
             <label class="block text-sm font-medium" for="sort">Available Balance</label>
-            <select class="input mt-1" id="sort" name="sort">
+            <select class="input mt-1" id="sort" name="sort" @change="$el.form.requestSubmit()">
                 <option value="asc" <?= ($sort ?? 'asc') === 'asc' ? 'selected' : '' ?>>Ascending</option>
                 <option value="desc" <?= ($sort ?? 'asc') === 'desc' ? 'selected' : '' ?>>Descending</option>
             </select>
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn btn-secondary" type="submit">Filter</button>
             <a class="btn btn-secondary" href="<?= base_url('reports/credits') ?>">Clear</a>
+        </div>
         </div>
     </form>
 
@@ -63,7 +64,7 @@
             <?php endif; ?>
         </tbody>
         <tfoot>
-            <tr>
+            <tr class="total-highlight">
                 <th colspan="3">Total Balance</th>
                 <th class="text-left"><?= esc(number_format((float) $totalBalance, 2)) ?></th>
                 <th></th>

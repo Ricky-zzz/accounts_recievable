@@ -554,10 +554,10 @@ class PurchaseOrders extends BaseController
         if ($supplierId !== null) {
             $builder->where('po.supplier_id', $supplierId);
         }
-        if ($fromDate !== '') {
+        if ($poNo === '' && $fromDate !== '') {
             $builder->where('po.date >=', $fromDate);
         }
-        if ($toDate !== '') {
+        if ($poNo === '' && $toDate !== '') {
             $builder->where('po.date <=', $toDate);
         }
         if ($poNo !== '') {

@@ -268,10 +268,10 @@ SQL;
         if ($supplierId !== null) {
             $builder->where('p.supplier_id', $supplierId);
         }
-        if ($fromDate !== '') {
+        if ($prNo === '' && $fromDate !== '') {
             $builder->where('p.date >=', $fromDate);
         }
-        if ($toDate !== '') {
+        if ($prNo === '' && $toDate !== '') {
             $builder->where('p.date <=', $toDate);
         }
         if ($prNo !== '') {

@@ -34,29 +34,30 @@
         <a class="btn" href="<?= base_url('reports/overdue/print?' . http_build_query($filterQuery)) ?>" target="_blank">Print</a>
     </div>
 
-    <form method="get" action="<?= base_url('reports/overdue') ?>" class="grid gap-4 md:grid-cols-5">
+    <form method="get" action="<?= base_url('reports/overdue') ?>" class="filter-card rounded border border-gray-200 p-4" x-data>
+        <div class="grid gap-4 md:grid-cols-5">
         <div>
             <label class="block text-sm font-medium" for="dr_no">DR Number</label>
-            <input class="input mt-1" id="dr_no" name="dr_no" value="<?= esc($drNo ?? '') ?>">
+            <input class="input mt-1" id="dr_no" name="dr_no" value="<?= esc($drNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="from_due_date">From Due Date</label>
-            <input class="input mt-1" id="from_due_date" name="from_due_date" type="date" value="<?= esc($fromDueDate ?? '') ?>">
+            <input class="input mt-1" id="from_due_date" name="from_due_date" type="date" value="<?= esc($fromDueDate ?? '') ?>" @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="to_due_date">To Due Date</label>
-            <input class="input mt-1" id="to_due_date" name="to_due_date" type="date" value="<?= esc($toDueDate ?? '') ?>">
+            <input class="input mt-1" id="to_due_date" name="to_due_date" type="date" value="<?= esc($toDueDate ?? '') ?>" @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="due_sort">Due Order</label>
-            <select class="input mt-1" id="due_sort" name="due_sort">
+            <select class="input mt-1" id="due_sort" name="due_sort" @change="$el.form.requestSubmit()">
                 <option value="asc" <?= ($dueSort ?? 'asc') === 'asc' ? 'selected' : '' ?>>Oldest Due First</option>
                 <option value="desc" <?= ($dueSort ?? 'asc') === 'desc' ? 'selected' : '' ?>>Latest Due First</option>
             </select>
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn btn-secondary" type="submit">Filter</button>
             <a class="btn btn-secondary" href="<?= base_url('reports/overdue') ?>">Clear</a>
+        </div>
         </div>
     </form>
 
@@ -92,7 +93,7 @@
             <?php endif; ?>
         </tbody>
         <tfoot>
-            <tr>
+            <tr class="total-highlight">
                 <th colspan="5">Totals</th>
                 <th class="text-left"><?= esc(number_format((float) $totalAmount, 2)) ?></th>
                 <th class="text-left"><?= esc(number_format((float) $totalBalance, 2)) ?></th>

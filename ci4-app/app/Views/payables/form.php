@@ -56,10 +56,10 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
                         <thead><tr><th>PO#</th><th>Date</th><th>Due Date</th><th>Balance</th><th class="text-right">Pay</th></tr></thead>
                         <tbody>
                             <template x-if="visibleOrders.length === 0"><tr><td colspan="5">No unpaid purchase orders.</td></tr></template>
-                            <template x-for="order in visibleOrders" :key="order.purchase_order_id"><tr><td x-text="order.po_no"></td><td x-text="order.date"></td><td x-text="order.due_date || '-'"></td><td x-text="formatAmount(order.working_balance)"></td><td class="text-right"><button class="btn btn-secondary" type="button" @click="openPayModal(order)" :disabled="Number(order.working_balance) <= 0">Pay</button></td></tr></template>
+                            <template x-for="order in visibleOrders" :key="order.purchase_order_id"><tr><td x-text="order.po_no"></td><td x-text="order.date"></td><td x-text="order.due_date || '-'"></td><td x-text="formatAmount(order.working_balance)"></td><td class="text-right"><button class="btn btn-secondary btn-strong" type="button" @click="openPayModal(order)" :disabled="Number(order.working_balance) <= 0">Pay</button></td></tr></template>
                         </tbody>
                     </table>
-                    <div class="mt-3 flex items-center justify-between text-sm"><span class="font-semibold">Total Balance</span><span class="font-semibold" x-text="formatAmount(visibleOrdersTotal())"></span></div>
+                    <div class="mt-3 flex items-center justify-between total-highlight"><span>Total Balance</span><span x-text="formatAmount(visibleOrdersTotal())"></span></div>
                     <?php if (! empty($unpaidPagerLinks)): ?><div class="mt-4 flex justify-end"><?= $unpaidPagerLinks ?></div><?php endif; ?>
                 </div>
 
@@ -96,7 +96,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
                 <div><p class="muted">Unallocated</p><p class="font-semibold" x-text="formatAmount(balanceAmount())"></p></div>
             </div>
             <div class="mt-4 flex flex-wrap items-end gap-3">
-                <button class="btn" type="submit" <?= $activeReceipt ? '' : 'disabled' ?>>Commit Payable</button>
+                <button class="btn btn-strong" type="submit" <?= $activeReceipt ? '' : 'disabled' ?>>Commit Payable</button>
                 <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Cancel</a>
             </div>
         </div>
@@ -111,7 +111,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
                 <div class="flex justify-between text-sm"><span>Balance</span><span x-text="modalOrder ? formatAmount(modalOrder.working_balance) : ''"></span></div>
                 <div><label class="block text-sm font-medium" for="pay_amount">Amount to Pay</label><input class="input mt-1" id="pay_amount" type="number" step="0.01" min="0" x-model="modalAmount"></div>
             </div>
-            <div class="mt-4 flex gap-3"><button class="btn" type="button" @click="confirmAllocation()">OK</button><button class="btn btn-secondary" type="button" @click="closePayModal()">Cancel</button></div>
+            <div class="mt-4 flex gap-3"><button class="btn btn-strong" type="button" @click="confirmAllocation()">OK</button><button class="btn btn-secondary" type="button" @click="closePayModal()">Cancel</button></div>
         </div>
     </div>
 </div>

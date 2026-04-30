@@ -13,11 +13,13 @@
             <p class="mt-1 text-sm muted">Manage chart of accounts for DR and CR entries.</p>
         </div>
         <div class="flex items-center gap-3">
-            <form class="flex items-center gap-2" method="get" action="<?= base_url('other-accounts') ?>">
-                <input class="input" name="q" placeholder="Search account" value="<?= esc($query ?? '') ?>">
-                <button class="btn btn-secondary" type="submit">Search</button>
+            <form class="filter-card flex items-center gap-2 rounded border border-gray-200 p-3" method="get" action="<?= base_url('other-accounts') ?>" x-data>
+                <input class="input" name="q" placeholder="Search account" value="<?= esc($query ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
+                <?php if (! empty($query)): ?>
+                    <a class="btn btn-secondary" href="<?= base_url('other-accounts') ?>">Clear</a>
+                <?php endif; ?>
             </form>
-            <button class="btn" type="button" @click="openModal()">New Account</button>
+            <button class="btn btn-strong" type="button" @click="openModal()">New Account</button>
         </div>
     </div>
 
@@ -94,7 +96,7 @@
                     </select>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit" :disabled="loading">
+                    <button class="btn btn-strong" type="submit" :disabled="loading">
                         <span x-show="!loading" x-text="isEdit ? 'Update' : 'Create'"></span>
                         <span x-show="loading">Saving...</span>
                     </button>

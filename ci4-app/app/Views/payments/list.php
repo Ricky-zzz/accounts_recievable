@@ -3,6 +3,7 @@
  * @var array{id: int|string, name: string} $client
  * @var string $fromDate
  * @var string $toDate
+ * @var string $prNo
  * @var list<array{id: int|string, client_id?: int|string|null, pr_no?: int|string|null, date?: string|null, amount_received?: int|float|string|null}> $payments
  * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayment
  * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
@@ -29,16 +30,27 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
 
         <div class="flex items-center gap-2">
             <?php if (! empty($client['id'])): ?>
-                <a class="btn" href="<?= base_url('payments/client/' . $client['id'] . '/create') ?>">Collect</a>
+                <a class="btn btn-strong" href="<?= base_url('payments/client/' . $client['id'] . '/create') ?>">Collect</a>
                 <a class="btn btn-secondary" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a>
                 <a class="btn btn-secondary" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a>
-                <a class="btn btn-secondary" target="_blank" href="<?= base_url('payments/client/' . $client['id'] . '/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>">Print PDF</a>
+                <button class="btn btn-secondary" type="button" @click="openSoaModal(<?= (int) $client['id'] ?>, '<?= esc((string) ($client['name'] ?? ''), 'js') ?>', '<?= esc((string) ($client['payment_term'] ?? ''), 'js') ?>')">SOA</button>
+                <a class="btn btn-secondary" target="_blank" href="<?= base_url('payments/client/' . $client['id'] . '/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>&pr_no=<?= esc($prNo ?? '') ?>">Print</a>
             <?php endif; ?>
-            <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
+            <a class="btn btn-secondary" href="<?= base_url('clients') ?>?q=<?= rawurlencode((string) ($client['name'] ?? '')) ?>">Back</a>
         </div>
     </div>
 
-    <form method="get" action="<?= base_url('payments/client/' . ($client['id'] ?? 0)) ?>" class="mt-4 grid gap-4 sm:grid-cols-3">
+    <form method="get" action="<?= base_url('payments/client/' . ($client['id'] ?? 0)) ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
+        <div class="grid gap-4 md:grid-cols-4">
+        <div>
+            <label class="block text-sm font-medium" for="pr_no">PR Number</label>
+            <input
+                class="input mt-1"
+                id="pr_no"
+                name="pr_no"
+                value="<?= esc($prNo ?? '') ?>"
+                @input.debounce.1000ms="$el.form.requestSubmit()">
+        </div>
         <div>
             <label class="block text-sm font-medium" for="from_date">From Date</label>
             <input
@@ -46,7 +58,8 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                 id="from_date"
                 name="from_date"
                 type="date"
-                value="<?= esc($fromDate ?? '') ?>">
+                value="<?= esc($fromDate ?? '') ?>"
+                @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="to_date">To Date</label>
@@ -55,23 +68,14 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                 id="to_date"
                 name="to_date"
                 type="date"
-                value="<?= esc($toDate ?? '') ?>">
+                value="<?= esc($toDate ?? '') ?>"
+                @change="$el.form.requestSubmit()">
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn btn-secondary" type="submit">Filter</button>
             <a class="btn btn-secondary" href="<?= base_url('payments/client/' . ($client['id'] ?? 0)) ?>">Clear</a>
         </div>
+        </div>
     </form>
-
-    <div class="mt-4 max-w-sm">
-        <label class="block text-sm font-medium" for="search_pr">Search PR #</label>
-        <input
-            class="input mt-1"
-            id="search_pr"
-            type="search"
-            placeholder="Type PR number"
-            x-model="searchPr">
-    </div>
 
     <table class="table mt-6">
         <thead>
@@ -89,7 +93,7 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                 </tr>
             <?php else: ?>
                 <?php foreach ($payments as $index => $payment): ?>
-                    <tr x-show="matchesPr('<?= esc((string) ($payment['pr_no'] ?? '')) ?>')">
+                    <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc((string) $payment['date']) ?></td>
                         <td>
@@ -104,15 +108,12 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                         <td><?= esc(number_format((float) $payment['amount_received'], 2)) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <tr x-show="!hasSearchMatches()" x-cloak>
-                    <td class="py-3" colspan="4">No payments match that PR number.</td>
-                </tr>
             <?php endif; ?>
         </tbody>
     </table>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-2">
-        <div class="card p-4 text-sm">
+        <div class="card p-4 total-highlight">
             <div class="flex justify-between">
                 <span>Total Collections</span>
                 <span><?= esc(number_format((float) $totalCollections, 2)) ?></span>
@@ -202,33 +203,19 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
             </div>
         </div>
     </div>
+    <?= view('clients/_soa_modal') ?>
 </div>
 
 <script>
     function paymentList() {
         return {
+            ...soaModalState(),
             allocationsByPayment: <?= $allocationsJson ?>,
             otherAccountsByPayment: <?= $paymentOtherJson ?>,
             paymentsById: <?= $paymentsByIdJson ?>,
             payments: <?= $paymentsJson ?>,
-            searchPr: '',
             allocOpen: false,
             selectedPaymentId: null,
-            matchesPr(prNo) {
-                if (!this.searchPr) {
-                    return true;
-                }
-                return String(prNo || '')
-                    .toLowerCase()
-                    .includes(this.searchPr.trim().toLowerCase());
-            },
-            hasSearchMatches() {
-                if (!this.searchPr) {
-                    return true;
-                }
-                const term = this.searchPr.trim().toLowerCase();
-                return this.payments.some((payment) => String(payment.pr_no || '').toLowerCase().includes(term));
-            },
             openAllocations(id) {
                 this.selectedPaymentId = id;
                 this.allocOpen = true;

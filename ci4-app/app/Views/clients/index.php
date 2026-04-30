@@ -18,21 +18,19 @@ $oldForm = [
     'credit_limit' => old('credit_limit'),
     'payment_term' => old('payment_term'),
 ];
+$formErrors = (array) (session()->getFlashdata('form_errors') ?? []);
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
-$defaultSoaStart = date('Y-m-01');
-$defaultSoaEnd = date('Y-m-t');
 ?>
 
 <div class="space-y-6" x-data="clientManager()">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">Clients</h1>
         <div class="flex items-center gap-3">
-            <form class="flex items-center gap-2" method="get" action="<?= base_url('clients') ?>">
-                <input class="input" name="q" placeholder="Search client" value="<?= esc($query ?? '') ?>">
-                <button class="btn btn-secondary" type="submit">Search</button>
+            <form class="filter-card flex items-center gap-2 rounded border border-gray-200 p-3" method="get" action="<?= base_url('clients') ?>" x-data>
+                <input class="input" name="q" placeholder="Search client" value="<?= esc($query ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
                 <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Clear</a>
             </form>
-            <button class="btn" type="button" @click="openCreate()">New Client</button>
+            <button class="btn btn-strong" type="button" @click="openCreate()">New Client</button>
         </div>
     </div>
 
@@ -76,7 +74,7 @@ $defaultSoaEnd = date('Y-m-t');
                             <a class="btn-link" href="<?= base_url('ledger?client_id=' . $client['id']) ?>">Ledger</a> |
                             <a class="btn-link" href="<?= base_url('clients/' . $client['id'] . '/deliveries') ?>">Deliveries</a> |
                             <a class="btn-link" href="<?= base_url('payments/client/' . $client['id']) ?>">Collections</a> |
-                            <button class="btn-link" type="button" @click="openSoaModal(<?= (int) $client['id'] ?>, '<?= esc((string) $client['name'], 'js') ?>')">SOA</button>
+                            <button class="btn-link" type="button" @click="openSoaModal(<?= (int) $client['id'] ?>, '<?= esc((string) $client['name'], 'js') ?>', '<?= esc((string) ($client['payment_term'] ?? ''), 'js') ?>')">SOA</button>
                         </td>
                         <td class="text-left">
                             <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $client['id'] ?>)">Edit</button>
@@ -109,7 +107,10 @@ $defaultSoaEnd = date('Y-m-t');
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium" for="name">Name</label>
-                        <input class="input mt-1" id="name" name="name" x-model="form.name" required>
+                        <input class="input mt-1<?= isset($formErrors['name']) ? ' border-red-500' : '' ?>" id="name" name="name" x-model="form.name" required>
+                        <?php if (! empty($formErrors['name'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['name']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium" for="address">Address</label>
@@ -117,23 +118,35 @@ $defaultSoaEnd = date('Y-m-t');
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="email">Email</label>
-                        <input class="input mt-1" id="email" name="email" x-model="form.email">
+                        <input class="input mt-1<?= isset($formErrors['email']) ? ' border-red-500' : '' ?>" id="email" name="email" x-model="form.email">
+                        <?php if (! empty($formErrors['email'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['email']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="phone">Phone</label>
-                        <input class="input mt-1" id="phone" name="phone" x-model="form.phone">
+                        <input class="input mt-1<?= isset($formErrors['phone']) ? ' border-red-500' : '' ?>" id="phone" name="phone" x-model="form.phone">
+                        <?php if (! empty($formErrors['phone'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['phone']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="credit_limit">Credit Limit</label>
-                        <input class="input mt-1" id="credit_limit" name="credit_limit" type="number" step="0.01" min="0" x-model="form.credit_limit">
+                        <input class="input mt-1<?= isset($formErrors['credit_limit']) ? ' border-red-500' : '' ?>" id="credit_limit" name="credit_limit" type="number" step="0.01" min="0" x-model="form.credit_limit">
+                        <?php if (! empty($formErrors['credit_limit'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['credit_limit']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="payment_term">Default Collection Term (days)</label>
-                        <input class="input mt-1" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
+                        <input class="input mt-1<?= isset($formErrors['payment_term']) ? ' border-red-500' : '' ?>" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
+                        <?php if (! empty($formErrors['payment_term'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['payment_term']) ?></p>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit" x-text="isEdit ? 'Update Client' : 'Create Client'"></button>
+                    <button class="btn btn-strong" type="submit" x-text="isEdit ? 'Update Client' : 'Create Client'"></button>
                     <button class="btn btn-secondary" type="button" @click="closeModal()">Cancel</button>
                 </div>
             </form>
@@ -165,34 +178,7 @@ $defaultSoaEnd = date('Y-m-t');
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="openSoa" x-cloak @click.self="closeSoaModal()">
-        <div class="modal-panel max-w-md p-6" @click.stop>
-            <div class="flex items-start justify-between gap-4">
-                <h2 class="text-lg font-semibold" x-text="`SOA for ${soaClientName}`"></h2>
-                <button class="btn btn-secondary" type="button" @click="closeSoaModal()">Close</button>
-            </div>
-
-            <div class="mt-4 space-y-3 text-sm">
-                <div>
-                    <label class="block text-sm font-medium" for="soa_start">Billing From</label>
-                    <input class="input mt-1" id="soa_start" type="date" x-model="soaStart">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium" for="soa_end">Billing To</label>
-                    <input class="input mt-1" id="soa_end" type="date" x-model="soaEnd">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium" for="soa_due">Due Date</label>
-                    <input class="input mt-1" id="soa_due" type="date" x-model="soaDueDate">
-                </div>
-            </div>
-
-            <div class="mt-5 flex gap-3">
-                <button class="btn" type="button" @click="openSoaPrint()">Preview SOA</button>
-                <button class="btn btn-secondary" type="button" @click="closeSoaModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
+    <?= view('clients/_soa_modal') ?>
 </div>
 
 <script>
@@ -202,22 +188,14 @@ $defaultSoaEnd = date('Y-m-t');
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
         const hasOldValues = Object.values(oldForm).some((value) => value !== null && String(value).trim() !== '');
-        const baseUrl = '<?= rtrim(base_url(), '/') ?>';
-        const defaultSoaStart = '<?= esc($defaultSoaStart, 'js') ?>';
-        const defaultSoaEnd = '<?= esc($defaultSoaEnd, 'js') ?>';
 
         return {
+            ...soaModalState(),
             clients,
             open: false,
             openCredit: false,
-            openSoa: false,
             isEdit: false,
             formAction: '<?= base_url('clients') ?>',
-            soaClientId: null,
-            soaClientName: '',
-            soaStart: defaultSoaStart,
-            soaEnd: defaultSoaEnd,
-            soaDueDate: '',
             selectedCredit: {
                 name: '',
                 credit_limit: 0,
@@ -304,30 +282,6 @@ $defaultSoaEnd = date('Y-m-t');
             },
             closeCreditModal() {
                 this.openCredit = false;
-            },
-            openSoaModal(id, name) {
-                this.soaClientId = id;
-                this.soaClientName = name || '';
-                this.soaStart = defaultSoaStart;
-                this.soaEnd = defaultSoaEnd;
-                this.soaDueDate = '';
-                this.openSoa = true;
-            },
-            closeSoaModal() {
-                this.openSoa = false;
-            },
-            openSoaPrint() {
-                if (!this.soaClientId) {
-                    return;
-                }
-                const params = new URLSearchParams({
-                    start: this.soaStart || '',
-                    end: this.soaEnd || '',
-                    due_date: this.soaDueDate || '',
-                });
-                const url = `${baseUrl}/clients/${this.soaClientId}/soa?${params.toString()}`;
-                window.open(url, '_blank');
-                this.openSoa = false;
             },
             formatAmount(value) {
                 const number = Number(value || 0);

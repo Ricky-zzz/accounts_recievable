@@ -157,11 +157,11 @@ class Reports extends BaseController
             ->where('d.due_date IS NOT NULL', null, false)
             ->where('d.due_date <', $asOf);
 
-        if ($fromDueDate !== '') {
+        if ($drNo === '' && $fromDueDate !== '') {
             $builder->where('d.due_date >=', $fromDueDate);
         }
 
-        if ($toDueDate !== '') {
+        if ($drNo === '' && $toDueDate !== '') {
             $builder->where('d.due_date <=', $toDueDate);
         }
 
@@ -229,11 +229,11 @@ class Reports extends BaseController
             ->join('payments p', 'p.id = pa.payment_id', 'left')
             ->where('d.voided_at IS NOT NULL', null, false);
 
-        if ($fromVoidedDate !== '') {
+        if ($drNo === '' && $fromVoidedDate !== '') {
             $builder->where('d.voided_at >=', $fromVoidedDate . ' 00:00:00');
         }
 
-        if ($toVoidedDate !== '') {
+        if ($drNo === '' && $toVoidedDate !== '') {
             $builder->where('d.voided_at <=', $toVoidedDate . ' 23:59:59');
         }
 
@@ -272,6 +272,7 @@ class Reports extends BaseController
 
         $itemsByDelivery = [];
         $allocationsByDelivery = [];
+        $historiesByDelivery = [];
         $deliveryIds = array_filter(array_map('intval', array_column($pagedRows, 'id') ?? []));
 
         if (! empty($deliveryIds)) {
@@ -302,6 +303,21 @@ class Reports extends BaseController
                 $deliveryIdKey = (int) $allocation['delivery_id'];
                 $allocationsByDelivery[$deliveryIdKey][] = $allocation;
             }
+
+            if ($db->tableExists('delivery_histories')) {
+                $histories = (new \App\Models\DeliveryHistoryModel())
+                    ->select('delivery_histories.*, users.name as editor_name, users.username as editor_username')
+                    ->join('users', 'users.id = delivery_histories.edited_by', 'left')
+                    ->whereIn('delivery_id', $deliveryIds)
+                    ->orderBy('created_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->findAll();
+
+                foreach ($histories as $history) {
+                    $deliveryIdKey = (int) $history['delivery_id'];
+                    $historiesByDelivery[$deliveryIdKey][] = $history;
+                }
+            }
         }
 
         return [
@@ -317,6 +333,7 @@ class Reports extends BaseController
             'totalBalance' => $totalBalance,
             'itemsByDelivery' => $itemsByDelivery,
             'allocationsByDelivery' => $allocationsByDelivery,
+            'historiesByDelivery' => $historiesByDelivery,
         ];
     }
 

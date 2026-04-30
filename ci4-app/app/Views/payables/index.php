@@ -35,27 +35,28 @@ $printQuery = http_build_query([
             <p class="mt-1 text-sm muted">Filter payments by PR number and date range.</p>
         </div>
         <div class="flex items-center gap-2">
-            <a class="btn btn-secondary" target="_blank" href="<?= esc($printUrl . '?' . $printQuery) ?>">Print PDF</a>
+            <a class="btn btn-secondary" target="_blank" href="<?= esc($printUrl . '?' . $printQuery) ?>">Print</a>
             <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>">Back</a>
         </div>
     </div>
 
-    <form class="grid gap-4 md:grid-cols-4" method="get" action="<?= esc($listUrl) ?>">
+    <form class="filter-card rounded border border-gray-200 p-4" method="get" action="<?= esc($listUrl) ?>" x-data>
+        <div class="grid gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium" for="pr_no">PR Number</label>
-            <input class="input mt-1" id="pr_no" name="pr_no" value="<?= esc($prNo ?? '') ?>">
+            <input class="input mt-1" id="pr_no" name="pr_no" value="<?= esc($prNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="from_date">From Date</label>
-            <input class="input mt-1" id="from_date" name="from_date" type="date" value="<?= esc($fromDate ?? '') ?>">
+            <input class="input mt-1" id="from_date" name="from_date" type="date" value="<?= esc($fromDate ?? '') ?>" @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="to_date">To Date</label>
-            <input class="input mt-1" id="to_date" name="to_date" type="date" value="<?= esc($toDate ?? '') ?>">
+            <input class="input mt-1" id="to_date" name="to_date" type="date" value="<?= esc($toDate ?? '') ?>" @change="$el.form.requestSubmit()">
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn" type="submit">Filter</button>
             <a class="btn btn-secondary" href="<?= esc($listUrl) ?>">Clear</a>
+        </div>
         </div>
     </form>
 
@@ -88,7 +89,7 @@ $printQuery = http_build_query([
         </tbody>
     </table>
 
-    <div class="card p-4 text-sm">
+    <div class="card p-4 total-highlight">
         <div class="flex justify-between">
             <span>Total Payments</span>
             <span><?= esc(number_format((float) $totalPayments, 2)) ?></span>

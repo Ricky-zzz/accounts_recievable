@@ -77,6 +77,7 @@ class PayableLedger extends BaseController
         $allocationsByPayable = [];
         $otherAccountsByPayable = [];
         $payablesById = [];
+        $currentBalance = 0.0;
         $currentPage = max(1, (int) ($this->request->getGet('page') ?? 1));
         $totalRows = 0;
         $totalPages = 1;
@@ -108,6 +109,12 @@ class PayableLedger extends BaseController
             $rows = $allRows;
             $totalRows = count($allRows);
             $totalPages = max(1, (int) ceil($totalRows / self::LEDGER_PER_PAGE));
+            $currentBalance = $openingBalance;
+
+            if (! empty($allRows)) {
+                $lastRow = end($allRows);
+                $currentBalance = (float) ($lastRow['balance'] ?? $openingBalance);
+            }
 
             if ($paginate) {
                 $currentPage = min($currentPage, $totalPages);
@@ -200,6 +207,7 @@ class PayableLedger extends BaseController
             'start' => $start,
             'end' => $end,
             'openingBalance' => $openingBalance,
+            'currentBalance' => $currentBalance,
             'rows' => $rows,
             'allRowsCount' => $totalRows,
             'currentPage' => $currentPage,

@@ -38,6 +38,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('payables/banks/(:num)/delete', 'Banks::deletePayables/$1', ['filter' => 'permission:banks.view']);
 
     $routes->get('suppliers', 'Suppliers::index', ['filter' => 'permission:suppliers.view']);
+    $routes->get('suppliers/(:num)/payables', 'Suppliers::payablesStatement/$1', ['filter' => 'permission:suppliers.view']);
     $routes->post('suppliers', 'Suppliers::create', ['filter' => 'permission:suppliers.view']);
     $routes->post('suppliers/(:num)', 'Suppliers::update/$1', ['filter' => 'permission:suppliers.view']);
     $routes->post('suppliers/(:num)/delete', 'Suppliers::delete/$1', ['filter' => 'permission:suppliers.view']);

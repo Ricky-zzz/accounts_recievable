@@ -698,11 +698,11 @@ class Deliveries extends BaseController
             $builder->where('d.client_id', $clientId);
         }
 
-        if ($fromDate !== '') {
+        if ($drNo === '' && $fromDate !== '') {
             $builder->where('d.date >=', $fromDate);
         }
 
-        if ($toDate !== '') {
+        if ($drNo === '' && $toDate !== '') {
             $builder->where('d.date <=', $toDate);
         }
 
@@ -720,6 +720,7 @@ class Deliveries extends BaseController
         $builder
             ->select('d.id, d.client_id, d.dr_no, d.date, d.payment_term, d.due_date, d.total_amount, d.status, d.void_reason, d.voided_at')
             ->select('c.name as client_name')
+            ->select('c.payment_term as client_payment_term')
             ->select("COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0) as allocated_amount")
             ->select("(d.total_amount - COALESCE(SUM(CASE WHEN p.status = 'posted' THEN pa.amount ELSE 0 END), 0)) as balance")
             ->join('clients c', 'c.id = d.client_id', 'left')

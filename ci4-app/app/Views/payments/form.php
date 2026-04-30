@@ -120,7 +120,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                                         <td x-text="delivery.due_date || '-'"></td>
                                         <td x-text="formatAmount(delivery.working_balance)"></td>
                                         <td class="text-right">
-                                            <button class="btn btn-secondary" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>
+                                            <button class="btn btn-secondary btn-strong" type="button" @click="openPayModal(delivery)" :disabled="Number(delivery.working_balance) <= 0">Pay</button>
                                         </td>
                                     </tr>
                                 </template>
@@ -128,9 +128,9 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
                         </table>
                     </div>
 
-                    <div class="mt-3 flex items-center justify-between text-sm">
-                        <span class="font-semibold">Total Balance</span>
-                        <span class="font-semibold" x-text="formatAmount(visibleDeliveriesTotal())"></span>
+                    <div class="mt-3 flex items-center justify-between total-highlight">
+                        <span>Total Balance</span>
+                        <span x-text="formatAmount(visibleDeliveriesTotal())"></span>
                     </div>
 
                     <?php if (! empty($unpaidPagerLinks)): ?>
@@ -236,7 +236,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
             </div>
 
             <div class="mt-4 flex flex-wrap items-end gap-3">
-                <button class="btn" type="submit" <?= $activeReceipt ? '' : 'disabled' ?>>Commit Transaction</button>
+                <button class="btn btn-strong" type="submit" <?= $activeReceipt ? '' : 'disabled' ?>>Commit Transaction</button>
                 <a class="btn btn-secondary" href="<?= base_url('payments') ?>">Cancel</a>
             </div>
         </div>
@@ -263,7 +263,7 @@ $collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assign
             </div>
 
             <div class="mt-4 flex gap-3">
-                <button class="btn" type="button" @click="confirmAllocation()">OK</button>
+                <button class="btn btn-strong" type="button" @click="confirmAllocation()">OK</button>
                 <button class="btn btn-secondary" type="button" @click="closePayModal()">Cancel</button>
             </div>
         </div>

@@ -3,7 +3,7 @@
  * @var string $fromDate
  * @var string $toDate
  * @var string $drNo
- * @var list<array{id: int|string, client_id?: int|string|null, dr_no?: string|null, date?: string|null, due_date?: string|null, payment_term?: int|string|null, client_name?: string|null, total_amount?: int|float|string|null, balance?: int|float|string|null}> $deliveries
+ * @var list<array{id: int|string, client_id?: int|string|null, dr_no?: string|null, date?: string|null, due_date?: string|null, payment_term?: int|string|null, client_name?: string|null, total_amount?: int|float|string|null, allocated_amount?: int|float|string|null, balance?: int|float|string|null}> $deliveries
  * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
  * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
  * @var array<int|string, list<array<string, int|float|string|null>>> $historiesByDelivery
@@ -32,17 +32,19 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
             <h2 class="text-lg font-semibold">Deliveries</h2>
             <p class="mt-1 text-sm muted">Filter deliveries by date range or DR number.</p>
         </div>
-        <a class="btn btn-secondary" target="_blank" href="<?= base_url('deliveries/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>&dr_no=<?= esc($drNo ?? '') ?>">Print PDF</a>
+        <a class="btn btn-secondary" target="_blank" href="<?= base_url('deliveries/print') ?>?from_date=<?= esc($fromDate ?? '') ?>&to_date=<?= esc($toDate ?? '') ?>&dr_no=<?= esc($drNo ?? '') ?>">Print</a>
     </div>
 
-    <form method="get" action="<?= base_url('deliveries') ?>" class="mt-4 grid gap-4 md:grid-cols-4">
+    <form method="get" action="<?= base_url('deliveries') ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
+        <div class="grid gap-4 md:grid-cols-4">
         <div>
             <label class="block text-sm font-medium" for="dr_no">DR Number</label>
             <input
                 class="input mt-1"
                 id="dr_no"
                 name="dr_no"
-                value="<?= esc($drNo ?? '') ?>">
+                value="<?= esc($drNo ?? '') ?>"
+                @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="from_date">From Date</label>
@@ -51,7 +53,8 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
                 id="from_date"
                 name="from_date"
                 type="date"
-                value="<?= esc($fromDate ?? '') ?>">
+                value="<?= esc($fromDate ?? '') ?>"
+                @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="to_date">To Date</label>
@@ -60,11 +63,12 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
                 id="to_date"
                 name="to_date"
                 type="date"
-                value="<?= esc($toDate ?? '') ?>">
+                value="<?= esc($toDate ?? '') ?>"
+                @change="$el.form.requestSubmit()">
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn btn-secondary" type="submit">Filter</button>
             <a class="btn btn-secondary" href="<?= base_url('deliveries') ?>">Clear</a>
+        </div>
         </div>
     </form>
 
@@ -78,8 +82,8 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
                 <th>Due Date</th>
                 <th>Term</th>
                 <th class="text-right" style="text-align: right;">Total Amount</th>
+                <th class="text-right" style="text-align: right;">Collected</th>
                 <th class="text-right" style="text-align: right;">Balance</th>
-                <th class="text-right" style="text-align: right;">Collect</th>
                 <th class="text-center" style="text-align: center;">Actions</th>
             </tr>
         </thead>
@@ -113,18 +117,12 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
                         <td><?= esc((string) ($delivery['due_date'] ?? '')) ?></td>
                         <td><?= esc(($delivery['payment_term'] ?? '') !== '' ? $delivery['payment_term'] . ' days' : '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) $delivery['total_amount'], 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format($deliveryAllocated, 2)) ?></td>
                         <td class="text-right"><?= esc(number_format($deliveryBalance, 2)) ?></td>
-                        <td class="text-right">
-                            <button
-                                class="btn btn-secondary"
-                                type="button"
-                                @click="openQuickPay(<?= (int) $delivery['id'] ?>)"
-                                <?= $canCollectDelivery ? '' : 'disabled' ?>>
-                                Collect
-                            </button>
-                        </td>
                         <td class="text-center">
-                            <div class="flex justify-center gap-2">
+                            <div class="flex flex-wrap justify-center gap-2">
+                                <button class="btn btn-secondary btn-strong" type="button" @click="openQuickPay(<?= (int) $delivery['id'] ?>)" <?= $canCollectDelivery ? '' : 'disabled' ?>>Collect</button>
+                                <button class="btn btn-secondary" type="button" @click="openSoaModal(<?= (int) ($delivery['client_id'] ?? 0) ?>, '<?= esc((string) ($delivery['client_name'] ?? ''), 'js') ?>', '<?= esc((string) ($delivery['client_payment_term'] ?? $delivery['payment_term'] ?? ''), 'js') ?>')" <?= empty($delivery['client_id']) ? 'disabled' : '' ?>>SOA</button>
                                 <button class="btn btn-secondary" type="button" @click="openEdit(<?= (int) $delivery['id'] ?>)" <?= $canEditDelivery ? '' : 'disabled' ?>>Edit</button>
                                 <button class="btn btn-secondary" type="button" @click="openVoid(<?= (int) $delivery['id'] ?>)" <?= $canVoidDelivery ? '' : 'disabled' ?>>Void</button>
                                 <button class="btn btn-secondary" type="button" @click="openHistory(<?= (int) $delivery['id'] ?>)">History</button>
@@ -143,13 +141,13 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
     <?php endif; ?>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-2">
-        <div class="card p-4 text-sm">
+        <div class="card p-4 total-highlight">
             <div class="flex justify-between">
                 <span>Total Amount</span>
                 <span><?= esc(number_format((float) $totalAmount, 2)) ?></span>
             </div>
         </div>
-        <div class="card p-4 text-sm">
+        <div class="card p-4 total-highlight">
             <div class="flex justify-between">
                 <span>Total Balance</span>
                 <span><?= esc(number_format((float) $totalBalance, 2)) ?></span>
@@ -235,11 +233,13 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
 
     <?= view('deliveries/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
     <?= view('deliveries/_action_modals', ['deliveryActionData' => $deliveryActionData ?? []]) ?>
+    <?= view('clients/_soa_modal') ?>
 </div>
 
 <script>
     function deliveryList() {
         return {
+            ...soaModalState(),
             quickPayDeliveries: <?= $deliveriesJson ?>,
             itemsByDelivery: <?= $itemsJson ?>,
             allocationsByDelivery: <?= $allocationsJson ?>,

@@ -175,7 +175,7 @@ $banks = $quickPayData['banks'] ?? [];
                 </div>
 
                 <div class="mt-4 flex flex-wrap gap-3">
-                    <button class="btn" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayDelivery()">Commit Collection</button>
+                    <button class="btn btn-strong" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayDelivery()">Commit Collection</button>
                     <button class="btn btn-secondary" type="button" @click="closeQuickPay()">Cancel</button>
                 </div>
             </div>

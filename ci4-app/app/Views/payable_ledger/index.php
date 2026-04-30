@@ -5,6 +5,7 @@
  * @var string $start
  * @var string $end
  * @var int|float|string $openingBalance
+ * @var int|float|string $currentBalance
  * @var list<array<string, int|float|string|null>> $rows
  * @var int $allRowsCount
  * @var int $currentPage
@@ -38,6 +39,7 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
     };
     function payableLedger() {
         return {
+            ...supplierStatementModalState(),
             itemsByPurchaseOrder: window.payableLedgerData.itemsByPurchaseOrder,
             allocationsByPurchaseOrder: window.payableLedgerData.allocationsByPurchaseOrder,
             allocationsByPayable: window.payableLedgerData.allocationsByPayable,
@@ -67,35 +69,36 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
 <div x-data="payableLedger()">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h1 class="text-xl font-semibold">Supplier Ledger<?= $selectedSupplier ? ' for ' . esc((string) ($selectedSupplier['name'] ?? '')) : '' ?></h1>
+            <h1 class="text-xl font-semibold"> Ledger<?= $selectedSupplier ? ' for ' . esc((string) ($selectedSupplier['name'] ?? '')) : '' ?></h1>
             <p class="mt-1 text-sm muted">Shows payable balance with optional date range.</p>
         </div>
         <div class="flex items-center gap-2">
             <?php if ($selectedSupplier): ?>
                 <a class="btn btn-secondary" href="<?= base_url('suppliers/' . $supplierId . '/purchase-orders') ?>">Orders</a>
-                <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . $supplierId) ?>">Payables</a>
+                <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . $supplierId) ?>">Payments</a>
+                <button class="btn btn-secondary" type="button" @click='openSupplierStatementModal(<?= (int) $supplierId ?>, <?= json_encode((string) ($selectedSupplier['name'] ?? ''), $jsonFlags) ?>, <?= json_encode((string) ($selectedSupplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
             <?php endif; ?>
-            <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>">Back</a>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>?q=<?= rawurlencode((string) ($selectedSupplier['name'] ?? '')) ?>">Back</a>
         </div>
     </div>
 
-    <form class="mt-6 flex flex-wrap items-end gap-3" method="get" action="<?= base_url('payable-ledger') ?>">
+    <form class="filter-card mt-6 rounded border border-gray-200 p-4" method="get" action="<?= base_url('payable-ledger') ?>" x-data>
+        <div class="flex flex-wrap items-end gap-3">
         <?php if ($selectedSupplier): ?>
             <input type="hidden" name="supplier_id" value="<?= esc((string) $supplierId) ?>">
         <?php endif; ?>
-        <div><label class="block text-sm font-medium" for="start">Start Date</label><input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>"></div>
-        <div><label class="block text-sm font-medium" for="end">End Date</label><input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>"></div>
+        <div><label class="block text-sm font-medium" for="start">Start Date</label><input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>" @change="$el.form.requestSubmit()"></div>
+        <div><label class="block text-sm font-medium" for="end">End Date</label><input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>" @change="$el.form.requestSubmit()"></div>
         <div class="flex items-end gap-2">
-            <button class="btn" type="submit">Filter</button>
             <?php if ($selectedSupplier): ?>
-                <a class="btn btn-secondary" target="_blank" href="<?= base_url('payable-ledger/print') ?>?supplier_id=<?= esc((string) $supplierId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print PDF</a>
+                <a class="btn btn-secondary" target="_blank" href="<?= base_url('payable-ledger/print') ?>?supplier_id=<?= esc((string) $supplierId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print</a>
                 <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . $supplierId) ?>">Clear</a>
             <?php endif; ?>
+        </div>
         </div>
     </form>
 
     <?php if ($selectedSupplier): ?>
-        <div class="mt-6 card p-4 text-sm"><div class="flex justify-between"><span>Last Balance</span><span><?= esc(number_format((float) $openingBalance, 2)) ?></span></div></div>
         <table class="table mt-6">
             <thead>
                 <tr>
@@ -113,6 +116,19 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
                 </tr>
             </thead>
             <tbody>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>Balance Forwarded</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><?= esc(number_format((float) $openingBalance, 2)) ?></td>
+                </tr>
                 <?php if (empty($rows)): ?>
                     <tr><td colspan="11">No ledger rows in range.</td></tr>
                 <?php else: ?>
@@ -156,6 +172,9 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
                 </div>
             </div>
         <?php endif; ?>
+        <div class="mt-6 grid gap-3 sm:grid-cols-2">
+            <div class="card p-4 total-highlight"><div class="flex justify-between"><span>Current Balance</span><span><?= esc(number_format((float) ($currentBalance ?? $openingBalance ?? 0), 2)) ?></span></div></div>
+        </div>
     <?php else: ?>
         <div class="mt-6 card p-4 text-sm">
             Select a supplier from the Suppliers page to view its payable ledger.
@@ -186,5 +205,7 @@ $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
             </div>
         </div>
     </div>
+
+    <?= view('suppliers/_statement_modal') ?>
 </div>
 <?= $this->endSection() ?>

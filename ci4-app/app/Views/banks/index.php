@@ -23,7 +23,7 @@ $basePath = trim((string) ($basePath ?? 'banks'), '/');
 <div class="space-y-6" x-data="bankManager()">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">Banks</h1>
-        <button class="btn" type="button" @click="openCreate()">New Bank</button>
+        <button class="btn btn-strong" type="button" @click="openCreate()">New Bank</button>
     </div>
 
     <table class="table">
@@ -83,7 +83,7 @@ $basePath = trim((string) ($basePath ?? 'banks'), '/');
                     <input class="input mt-1" id="bank_number" name="bank_number" x-model="form.bank_number">
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit" x-text="isEdit ? 'Update Bank' : 'Create Bank'"></button>
+                    <button class="btn btn-strong" type="submit" x-text="isEdit ? 'Update Bank' : 'Create Bank'"></button>
                     <button class="btn btn-secondary" type="button" @click="closeModal()">Cancel</button>
                 </div>
             </form>

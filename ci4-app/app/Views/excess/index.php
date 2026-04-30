@@ -11,9 +11,11 @@
         <h1 class="text-xl font-semibold">Excess Payments</h1>
         <p class="mt-1 text-sm muted">Shows unallocated or used excess per payment.</p>
     </div>
-    <form class="flex items-center gap-2" method="get" action="<?= base_url('excess') ?>">
-        <input class="input" name="q" placeholder="Search client" value="<?= esc($query ?? '') ?>">
-        <button class="btn btn-secondary" type="submit">Search</button>
+    <form class="filter-card flex items-center gap-2 rounded border border-gray-200 p-3" method="get" action="<?= base_url('excess') ?>" x-data>
+        <input class="input" name="q" placeholder="Search client" value="<?= esc($query ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
+        <?php if (! empty($query)): ?>
+            <a class="btn btn-secondary" href="<?= base_url('excess') ?>">Clear</a>
+        <?php endif; ?>
     </form>
 </div>
 

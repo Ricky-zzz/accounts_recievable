@@ -16,11 +16,13 @@ class Payments extends BaseController
     public function index(): string
     {
         [$fromDate, $toDate] = $this->resolveDateRange();
-        $result = $this->fetchPayments(null, $fromDate, $toDate);
+        $prNo = $this->resolvePrNoFilter();
+        $result = $this->fetchPayments(null, $fromDate, $toDate, $prNo);
 
         return view('payments/index', [
             'fromDate' => $fromDate,
             'toDate' => $toDate,
+            'prNo' => $prNo,
             'payments' => $result['payments'],
             'allocationsByPayment' => $result['allocationsByPayment'],
             'otherAccountsByPayment' => $result['otherAccountsByPayment'],
@@ -32,11 +34,13 @@ class Payments extends BaseController
     public function print()
     {
         [$fromDate, $toDate] = $this->resolveDateRange();
-        $result = $this->fetchPayments(null, $fromDate, $toDate);
+        $prNo = $this->resolvePrNoFilter();
+        $result = $this->fetchPayments(null, $fromDate, $toDate, $prNo);
 
         $html = view('payments/print', [
             'fromDate' => $fromDate,
             'toDate' => $toDate,
+            'prNo' => $prNo,
             'payments' => $result['payments'],
             'totalCollections' => $result['totalCollections'],
         ]);
@@ -66,12 +70,14 @@ class Payments extends BaseController
         }
 
         [$fromDate, $toDate] = $this->resolveDateRange();
-        $result = $this->fetchPayments($clientId, $fromDate, $toDate);
+        $prNo = $this->resolvePrNoFilter();
+        $result = $this->fetchPayments($clientId, $fromDate, $toDate, $prNo);
 
         return view('payments/list', [
             'client' => $client,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
+            'prNo' => $prNo,
             'payments' => $result['payments'],
             'allocationsByPayment' => $result['allocationsByPayment'],
             'otherAccountsByPayment' => $result['otherAccountsByPayment'],
@@ -90,12 +96,14 @@ class Payments extends BaseController
         }
 
         [$fromDate, $toDate] = $this->resolveDateRange();
-        $result = $this->fetchPayments($clientId, $fromDate, $toDate);
+        $prNo = $this->resolvePrNoFilter();
+        $result = $this->fetchPayments($clientId, $fromDate, $toDate, $prNo);
 
         $html = view('payments/listprint', [
             'client' => $client,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
+            'prNo' => $prNo,
             'payments' => $result['payments'],
             'totalCollections' => $result['totalCollections'],
         ]);
@@ -126,6 +134,11 @@ class Payments extends BaseController
         }
 
         return [$fromDate, $toDate];
+    }
+
+    private function resolvePrNoFilter(): string
+    {
+        return trim((string) ($this->request->getGet('pr_no') ?? ''));
     }
 
     public function createForm(int $clientId): string
@@ -274,7 +287,7 @@ SQL;
         ];
     }
 
-    private function fetchPayments(?int $clientId, string $fromDate, string $toDate): array
+    private function fetchPayments(?int $clientId, string $fromDate, string $toDate, string $prNo = ''): array
     {
         $db = db_connect();
 
@@ -282,6 +295,7 @@ SQL;
         $builder
             ->select('p.id, p.client_id, p.pr_no, p.date, p.amount_received')
             ->select('c.name as client_name')
+            ->select('c.payment_term as client_payment_term')
             ->join('clients c', 'c.id = p.client_id', 'left')
             ->where('p.status', 'posted');
 
@@ -289,12 +303,16 @@ SQL;
             $builder->where('p.client_id', $clientId);
         }
 
-        if ($fromDate !== '') {
+        if ($prNo === '' && $fromDate !== '') {
             $builder->where('p.date >=', $fromDate);
         }
 
-        if ($toDate !== '') {
+        if ($prNo === '' && $toDate !== '') {
             $builder->where('p.date <=', $toDate);
+        }
+
+        if ($prNo !== '') {
+            $builder->like('p.pr_no', $prNo);
         }
 
         $payments = $builder

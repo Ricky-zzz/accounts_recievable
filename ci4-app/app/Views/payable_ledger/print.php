@@ -106,7 +106,6 @@
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Supplier Ledger Report</div>
         <div class="meta">Supplier: <?= esc((string) ($selectedSupplier['name'] ?? '')) ?></div>
-        <div class="meta">Last Balance: <?= esc(number_format((float) ($openingBalance ?? 0), 2)) ?></div>
         <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
@@ -125,6 +124,17 @@
             </tr>
         </thead>
         <tbody>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>Balance Forwarded</td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"><?= esc(number_format((float) ($openingBalance ?? 0), 2)) ?></td>
+            </tr>
             <?php if (empty($rows)): ?>
                 <tr>
                     <td class="text-center" colspan="9">No purchase orders in range.</td>

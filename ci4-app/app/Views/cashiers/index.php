@@ -29,16 +29,15 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             <h1 class="text-xl font-semibold">Users and Receipt Ranges</h1>
             <p class="mt-1 text-sm muted">Manage cashiers and assign receipt ranges.</p>
         </div>
-        <button class="btn" type="button" @click="openCreate()">New Cashier</button>
+        <button class="btn btn-strong" type="button" @click="openCreate()">New Cashier</button>
     </div>
 
-    <form method="get" action="<?= base_url('cashiers') ?>" class="card p-4">
+    <form method="get" action="<?= base_url('cashiers') ?>" class="card p-4" x-data>
         <div class="flex flex-wrap items-end gap-3">
             <div class="w-full max-w-md">
                 <label class="block text-sm font-medium" for="q">Search Cashier</label>
-                <input class="input mt-1" id="q" name="q" value="<?= esc($query ?? '') ?>" placeholder="Search by name or username">
+                <input class="input mt-1" id="q" name="q" value="<?= esc($query ?? '') ?>" placeholder="Search by name or username" @input.debounce.1000ms="$el.form.requestSubmit()">
             </div>
-            <button class="btn" type="submit">Search</button>
             <?php if (! empty($query)): ?>
                 <a class="btn btn-secondary" href="<?= base_url('cashiers') ?>">Clear</a>
             <?php endif; ?>
@@ -135,7 +134,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     <input class="input mt-1" id="password" name="password" type="password" :required="!isEdit">
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit" x-text="isEdit ? 'Update Cashier' : 'Create Cashier'"></button>
+                    <button class="btn btn-strong" type="submit" x-text="isEdit ? 'Update Cashier' : 'Create Cashier'"></button>
                     <button class="btn btn-secondary" type="button" @click="closeForm()">Cancel</button>
                 </div>
             </form>
@@ -160,7 +159,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     </div>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit">Save Range</button>
+                    <button class="btn btn-strong" type="submit">Save Range</button>
                     <button class="btn btn-secondary" type="button" @click="closeAssignModal()">Cancel</button>
                 </div>
             </form>

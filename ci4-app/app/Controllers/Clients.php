@@ -15,7 +15,8 @@ class Clients extends BaseController
             ->to('/clients')
             ->withInput()
             ->with('error', $message)
-            ->with('form_mode', $mode);
+            ->with('form_mode', $mode)
+            ->with('form_errors', $errors);
 
         if ($id !== null) {
             $redirect = $redirect->with('form_id', $id);
@@ -193,44 +194,46 @@ class Clients extends BaseController
             [$start, $end] = [$end, $start];
         }
 
-        $ledger = db_connect()->table('ledger');
-        $openingRow = $ledger
-            ->select('balance')
-            ->where('client_id', $id)
-            ->where('entry_date <', $start)
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->get()
-            ->getFirstRow('array');
+        $db = db_connect();
+        $postedAllocations = $db->table('payment_allocations pa')
+            ->select('pa.delivery_id, SUM(pa.amount) as allocated_amount')
+            ->join('payments p', 'p.id = pa.payment_id', 'inner')
+            ->where('p.status', 'posted')
+            ->groupBy('pa.delivery_id')
+            ->getCompiledSelect();
 
-        $openingBalance = (float) ($openingRow['balance'] ?? 0);
-
-        $rows = $ledger
-            ->select('entry_date, dr_no, pr_no, account_title, amount, collection, other_accounts, balance')
-            ->where('client_id', $id)
-            ->where('entry_date >=', $start)
-            ->where('entry_date <=', $end)
-            ->orderBy('entry_date', 'asc')
-            ->orderBy('id', 'asc')
+        $rows = $db->table('deliveries d')
+            ->select('d.date as entry_date, d.dr_no, d.due_date, d.total_amount as amount')
+            ->select('COALESCE(payments_summary.allocated_amount, 0) as collection')
+            ->select('(d.total_amount - COALESCE(payments_summary.allocated_amount, 0)) as balance')
+            ->join("({$postedAllocations}) payments_summary", 'payments_summary.delivery_id = d.id', 'left')
+            ->where('d.client_id', $id)
+            ->where('d.status', 'active')
+            ->where('d.voided_at', null)
+            ->where('d.date <=', date('Y-m-d'))
+            ->having('balance >', 0)
+            ->orderBy('d.date', 'asc')
+            ->orderBy('d.id', 'asc')
             ->get()
             ->getResultArray();
 
         $totalDebit = 0.0;
         $totalCredit = 0.0;
-        $endingBalance = $openingBalance;
+        $endingBalance = 0.0;
 
         foreach ($rows as $row) {
             $totalDebit += (float) ($row['amount'] ?? 0);
-            $totalCredit += (float) ($row['collection'] ?? 0) + (float) ($row['other_accounts'] ?? 0);
-            $endingBalance = (float) ($row['balance'] ?? $endingBalance);
+            $totalCredit += (float) ($row['collection'] ?? 0);
+            $endingBalance += (float) ($row['balance'] ?? 0);
         }
 
         $html = view('clients/soa_print', [
             'client' => $client,
             'start' => $start,
             'end' => $end,
+            'asOfDate' => date('Y-m-d'),
             'dueDate' => $dueDate,
-            'openingBalance' => $openingBalance,
+            'openingBalance' => 0,
             'rows' => $rows,
             'totalDebit' => $totalDebit,
             'totalCredit' => $totalCredit,

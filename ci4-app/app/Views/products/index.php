@@ -28,15 +28,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 <div class="space-y-6" x-data="productManager()">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">Products</h1>
-        <button class="btn" type="button" @click="openCreate()">New Product</button>
+        <button class="btn btn-strong" type="button" @click="openCreate()">New Product</button>
     </div>
 
-    <form class="flex flex-wrap items-end gap-3" method="get" action="<?= base_url($basePath) ?>">
+    <form class="filter-card flex flex-wrap items-end gap-3 rounded border border-gray-200 p-4" method="get" action="<?= base_url($basePath) ?>" x-data>
         <div>
             <label class="block text-sm font-medium" for="q">Search Product</label>
-            <input class="input mt-1" id="q" name="q" value="<?= esc($search) ?>" placeholder="Product ID or name">
+            <input class="input mt-1" id="q" name="q" value="<?= esc($search) ?>" placeholder="Product ID or name" @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
-        <button class="btn" type="submit">Filter</button>
         <a class="btn btn-secondary" href="<?= base_url($basePath) ?>">Clear</a>
     </form>
 
@@ -103,7 +102,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     <input class="input mt-1" id="unit_price" name="unit_price" type="number" step="0.01" x-model="form.unit_price" required>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit" x-text="isEdit ? 'Update Product' : 'Create Product'"></button>
+                    <button class="btn btn-strong" type="submit" x-text="isEdit ? 'Update Product' : 'Create Product'"></button>
                     <button class="btn btn-secondary" type="button" @click="closeModal()">Cancel</button>
                 </div>
             </form>

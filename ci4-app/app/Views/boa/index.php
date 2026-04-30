@@ -15,17 +15,16 @@
         <h1 class="text-xl font-semibold">BOA</h1>
         <p class="mt-1 text-sm muted">Filter BOA records by date range.</p>
     </div>
-    <form class="flex flex-wrap items-end gap-3" method="get" action="<?= base_url('boa') ?>">
+    <form class="filter-card flex flex-wrap items-end gap-3 rounded border border-gray-200 p-3" method="get" action="<?= base_url('boa') ?>" x-data>
         <div>
             <label class="block text-sm font-medium">From</label>
-            <input class="input" type="date" name="from" value="<?= esc($from) ?>">
+            <input class="input" type="date" name="from" value="<?= esc($from) ?>" @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium">To</label>
-            <input class="input" type="date" name="to" value="<?= esc($to) ?>">
+            <input class="input" type="date" name="to" value="<?= esc($to) ?>" @change="$el.form.requestSubmit()">
         </div>
-        <button class="btn btn-secondary" type="submit">Filter</button>
-        <a class="btn" target="_blank" href="<?= base_url('boa/print') ?>?from=<?= esc($from) ?>&to=<?= esc($to) ?>">Print PDF</a>
+        <a class="btn" target="_blank" href="<?= base_url('boa/print') ?>?from=<?= esc($from) ?>&to=<?= esc($to) ?>">Print</a>
     </form>
 </div>
 
@@ -79,7 +78,7 @@
         </tbody>
         <?php if (! empty($records)): ?>
             <tfoot>
-                <tr class="border-t border-gray-300 font-semibold">
+                <tr class="border-t border-gray-300 total-highlight">
                     <td>Totals:</td>
                     <td></td>
                     <td></td>

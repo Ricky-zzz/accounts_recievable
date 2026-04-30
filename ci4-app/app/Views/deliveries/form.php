@@ -140,14 +140,14 @@ if ($termValue === null) {
             </template>
         </div>
 
-        <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-4 text-sm">
-            <span class="font-semibold">Total</span>
+        <div class="mt-4 flex items-center justify-between border-t border-gray-300 pt-4 text-lg font-bold">
+            <span>Total</span>
             <span x-text="total()"></span>
         </div>
     </div>
 
     <div class="flex gap-3">
-        <button class="btn" type="submit">Save Delivery</button>
+        <button class="btn btn-strong" type="submit">Save Delivery</button>
         <?php if (! empty($embeddedForm)): ?>
             <button class="btn btn-secondary" type="button" @click="$dispatch('close-delivery-form')">Cancel</button>
         <?php else: ?>

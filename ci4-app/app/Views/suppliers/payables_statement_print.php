@@ -1,15 +1,12 @@
 <!doctype html>
 <?php
 /**
- * @var array{id?: int|string, name?: string|null, address?: string|null} $client
- * @var string $start
- * @var string $end
+ * @var array{id?: int|string, name?: string|null, address?: string|null} $supplier
  * @var string $asOfDate
  * @var string $dueDate
- * @var int|float|string $openingBalance
- * @var list<array{entry_date?: string|null, dr_no?: string|null, due_date?: string|null, amount?: int|float|string|null, collection?: int|float|string|null, balance?: int|float|string|null}> $rows
- * @var int|float|string $totalDebit
- * @var int|float|string $totalCredit
+ * @var list<array{entry_date?: string|null, po_no?: string|null, due_date?: string|null, amount?: int|float|string|null, payment?: int|float|string|null, balance?: int|float|string|null}> $rows
+ * @var int|float|string $totalPayables
+ * @var int|float|string $totalPayments
  * @var int|float|string $endingBalance
  */
 ?>
@@ -17,7 +14,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Statement of Account</title>
+    <title>Payables Statement</title>
 
     <style>
         @page {
@@ -60,7 +57,7 @@
             font-size: 13px;
         }
 
-        .client-info {
+        .supplier-info {
             margin: 12px 0 14px;
             font-size: 13px;
             text-align: left;
@@ -97,10 +94,10 @@
             font-weight: 700;
         }
 
-            .table th.text-right,
-            .table td.text-right {
-                text-align: right;
-            }
+        .table th.text-right,
+        .table td.text-right {
+            text-align: right;
+        }
 
         .summary {
             margin-top: 16px;
@@ -145,15 +142,15 @@
         <?php endif; ?>
 
         <div class="company-title">SRC ENTERPRISES INC</div>
-        <div class="report-title">Statement of Account</div>
+        <div class="report-title">ACCOUNT'S PAYABLE</div>
         <div class="meta">As of: <?= esc($asOfDate ?? date('Y-m-d')) ?></div>
     </div>
 
-    <div class="client-info">
-        <div><strong>Client:</strong> <?= esc((string) ($client['name'] ?? '')) ?></div>
+    <div class="supplier-info">
+        <div><strong>Supplier:</strong> <?= esc((string) ($supplier['name'] ?? '')) ?></div>
 
-        <?php if (! empty($client['address'])): ?>
-            <div><strong>Address:</strong> <?= esc((string) $client['address']) ?></div>
+        <?php if (! empty($supplier['address'])): ?>
+            <div><strong>Address:</strong> <?= esc((string) $supplier['address']) ?></div>
         <?php endif; ?>
     </div>
 
@@ -161,10 +158,10 @@
         <thead>
             <tr>
                 <th style="width: 40px;">#</th>
-                <th style="width: 100px;">Date</th>
-                <th style="width: 120px;">Due Date</th>
+                <th style="width: 110px;">Date</th>
                 <th>Description</th>
-                <th class="text-right" style="width: 140px;">Total Amount</th>
+                <th class="text-right" style="width: 140px;">Purchase Order</th>
+                <th class="text-right" style="width: 140px;">Payments</th>
                 <th class="text-right" style="width: 120px;">Balance</th>
             </tr>
         </thead>
@@ -173,7 +170,7 @@
             <?php if (empty($rows)): ?>
                 <tr>
                     <td class="text-center" colspan="6">
-                        No active delivery receipts with remaining balance.
+                        No active purchase orders with remaining balance.
                     </td>
                 </tr>
             <?php else: ?>
@@ -182,11 +179,14 @@
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc((string) ($row['entry_date'] ?? '')) ?></td>
-                        <td><?= esc((string) ($row['due_date'] ?? '')) ?></td>
-
                         <td>
                             <?php
-                            $description = ! empty($row['dr_no']) ? 'DR ' . $row['dr_no'] : 'Delivery Receipt';
+                            $rawPoNo = trim((string) ($row['po_no'] ?? ''));
+                            if ($rawPoNo !== '') {
+                                $description = stripos($rawPoNo, 'PO') === 0 ? $rawPoNo : 'PO ' . $rawPoNo;
+                            } else {
+                                $description = 'Purchase Order';
+                            }
                             ?>
 
                             <?= esc($description) ?>
@@ -194,6 +194,10 @@
 
                         <td class="text-right">
                             <?= esc(number_format((float) ($row['amount'] ?? 0), 2)) ?>
+                        </td>
+
+                        <td class="text-right">
+                            <?= esc(number_format((float) ($row['payment'] ?? 0), 2)) ?>
                         </td>
 
                         <td class="text-right">
@@ -208,9 +212,12 @@
         <?php if (! empty($rows)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="4">Totals</th>
+                    <th colspan="3">Totals</th>
                     <th class="text-right">
-                        <?= esc(number_format((float) $totalDebit, 2)) ?>
+                        <?= esc(number_format((float) $totalPayables, 2)) ?>
+                    </th>
+                    <th class="text-right">
+                        <?= esc(number_format((float) $totalPayments, 2)) ?>
                     </th>
                     <th class="text-right">
                         <?= esc(number_format((float) $endingBalance, 2)) ?>
@@ -223,7 +230,7 @@
     <table class="summary">
         <tr>
             <td>
-                <strong>Total Amount Due:</strong>
+                <strong>Total Amount to Settle:</strong>
             </td>
             <td class="amount-due">
                 <?= esc(number_format((float) $endingBalance, 2)) ?>
@@ -233,15 +240,13 @@
 
     <?php if (! empty($dueDate)): ?>
         <div class="payment-notice">
-            Payment is due on or before <?= esc($dueDate) ?>.
-            Failure to settle the outstanding balance may result in service interruption,
-            delayed processing, or additional charges.
+            Settlement is due on or before <?= esc($dueDate) ?>.
+            Failure to settle the outstanding balance may result in delayed processing or additional charges.
         </div>
     <?php else: ?>
         <div class="payment-notice">
-            Payment is due immediately upon receipt of this statement.
-            Failure to settle the outstanding balance may result in service interruption,
-            delayed processing, or additional charges.
+            Settlement is due immediately upon receipt of this statement.
+            Failure to settle the outstanding balance may result in delayed processing or additional charges.
         </div>
     <?php endif; ?>
 

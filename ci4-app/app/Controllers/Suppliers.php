@@ -4,16 +4,19 @@ namespace App\Controllers;
 
 use App\Models\SupplierModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class Suppliers extends BaseController
 {
-    private function redirectWithFormState(string $message, string $mode, ?int $id = null)
+    private function redirectWithFormState(string $message, string $mode, ?int $id = null, array $errors = [])
     {
         $redirect = redirect()
             ->to('/suppliers')
             ->withInput()
             ->with('error', $message)
-            ->with('form_mode', $mode);
+            ->with('form_mode', $mode)
+            ->with('form_errors', $errors);
 
         if ($id !== null) {
             $redirect = $redirect->with('form_id', $id);
@@ -88,7 +91,12 @@ class Suppliers extends BaseController
         $supplier = $this->supplierPayloadFromRequest();
 
         if (! $this->validate($rules)) {
-            return $this->redirectWithFormState('Please correct the highlighted fields.', 'create');
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'create',
+                null,
+                $this->validator->getErrors()
+            );
         }
 
         (new SupplierModel())->insert($supplier);
@@ -114,7 +122,12 @@ class Suppliers extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return $this->redirectWithFormState('Please correct the highlighted fields.', 'edit', $id);
+            return $this->redirectWithFormState(
+                'Please correct the highlighted fields.',
+                'edit',
+                $id,
+                $this->validator->getErrors()
+            );
         }
 
         $model->update($id, $this->supplierPayloadFromRequest());
@@ -127,6 +140,91 @@ class Suppliers extends BaseController
         (new SupplierModel())->delete($id);
 
         return redirect()->to('/suppliers')->with('success', 'Supplier deleted.');
+    }
+
+    public function payablesStatement(int $id)
+    {
+        $model = new SupplierModel();
+        $supplier = $model->find($id);
+
+        if (! $supplier) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $start = trim((string) ($this->request->getGet('start') ?? ''));
+        $end = trim((string) ($this->request->getGet('end') ?? ''));
+        $dueDate = trim((string) ($this->request->getGet('due_date') ?? ''));
+
+        if ($start === '') {
+            $start = date('Y-m-01');
+        }
+
+        if ($end === '') {
+            $end = date('Y-m-t');
+        }
+
+        if ($start > $end) {
+            [$start, $end] = [$end, $start];
+        }
+
+        $db = db_connect();
+        $postedAllocations = $db->table('payable_allocations pa')
+            ->select('pa.purchase_order_id, SUM(pa.amount) as allocated_amount')
+            ->join('payables p', 'p.id = pa.payable_id', 'inner')
+            ->where('p.status', 'posted')
+            ->groupBy('pa.purchase_order_id')
+            ->getCompiledSelect();
+
+        $rows = $db->table('purchase_orders po')
+            ->select('po.date as entry_date, po.po_no, po.due_date, po.total_amount as amount')
+            ->select('COALESCE(payments_summary.allocated_amount, 0) as payment')
+            ->select('(po.total_amount - COALESCE(payments_summary.allocated_amount, 0)) as balance')
+            ->join("({$postedAllocations}) payments_summary", 'payments_summary.purchase_order_id = po.id', 'left')
+            ->where('po.supplier_id', $id)
+            ->where('po.status', 'active')
+            ->where('po.voided_at', null)
+            ->where('po.date <=', date('Y-m-d'))
+            ->having('balance >', 0)
+            ->orderBy('po.date', 'asc')
+            ->orderBy('po.id', 'asc')
+            ->get()
+            ->getResultArray();
+
+        $totalPayables = 0.0;
+        $totalPayments = 0.0;
+        $endingBalance = 0.0;
+
+        foreach ($rows as $row) {
+            $totalPayables += (float) ($row['amount'] ?? 0);
+            $totalPayments += (float) ($row['payment'] ?? 0);
+            $endingBalance += (float) ($row['balance'] ?? 0);
+        }
+
+        $html = view('suppliers/payables_statement_print', [
+            'supplier' => $supplier,
+            'start' => $start,
+            'end' => $end,
+            'asOfDate' => date('Y-m-d'),
+            'dueDate' => $dueDate,
+            'rows' => $rows,
+            'totalPayables' => $totalPayables,
+            'totalPayments' => $totalPayments,
+            'endingBalance' => $endingBalance,
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $this->response
+            ->setContentType('application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="supplier-payables-statement.pdf"')
+            ->setBody($dompdf->output());
     }
 
     private function supplierPayloadFromRequest(): array

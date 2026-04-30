@@ -85,7 +85,7 @@ $products = $deliveryActionData['products'] ?? [];
             </div>
 
             <div class="flex gap-3">
-                <button class="btn" type="submit">Save Changes</button>
+                <button class="btn btn-strong" type="submit">Save Changes</button>
                 <button class="btn btn-secondary" type="button" @click="closeEdit()">Cancel</button>
             </div>
         </form>

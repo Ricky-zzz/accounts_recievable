@@ -13,6 +13,7 @@
  * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
  * @var array<int|string, array<string, int|float|string|null>> $paymentsById
  * @var array{amount?: int|float|string, collection?: int|float|string, other_accounts?: int|float|string, ending_balance?: int|float|string} $totals
+ * @var int|float|string $currentBalance
  */
 ?>
 <html lang="en">
@@ -27,7 +28,7 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 14px;
+            font-size: 11px;
             color: #111;
         }
 
@@ -92,6 +93,12 @@
             font-size: 11px;
             color: #555;
         }
+
+        .current-balance {
+            margin-top: 12px;
+            font-size: 16px;
+            font-weight: 700;
+        }
     </style>
 </head>
 
@@ -112,7 +119,6 @@
         <div class="company-title">SRC ENTERPRISES INC</div>
         <div class="report-title">Client Ledger Report</div>
         <div class="meta">Client: <?= esc((string) ($selectedClient['name'] ?? '')) ?></div>
-        <div class="meta">Last Balance: <?= esc(number_format((float) ($openingBalance ?? 0), 2)) ?></div>
         <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
     </div>
 
@@ -133,6 +139,19 @@
             </tr>
         </thead>
         <tbody>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>Balance Forwarded</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="text-right"><?= esc(number_format((float) ($openingBalance ?? 0), 2)) ?></td>
+            </tr>
             <?php if (empty($rows)): ?>
                 <tr>
                     <td class="text-center" colspan="11">No deliveries in range.</td>
@@ -167,6 +186,10 @@
             </tfoot>
         <?php endif; ?>
     </table>
+
+    <div class="current-balance">
+        Current Balance: <?= esc(number_format((float) ($currentBalance ?? $openingBalance ?? 0), 2)) ?>
+    </div>
 
     <?php if (empty($rows)): ?>
         <div class="footer-note">Generated with the selected date range.</div>

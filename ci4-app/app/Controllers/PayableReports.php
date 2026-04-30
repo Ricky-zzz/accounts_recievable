@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\PurchaseOrderHistoryModel;
 use App\Models\PurchaseOrderItemModel;
 use App\Models\SupplierModel;
 use Dompdf\Dompdf;
@@ -137,11 +138,11 @@ class PayableReports extends BaseController
             ->where('po.due_date IS NOT NULL', null, false)
             ->where('po.due_date <', $asOf);
 
-        if ($fromDueDate !== '') {
+        if ($poNo === '' && $fromDueDate !== '') {
             $builder->where('po.due_date >=', $fromDueDate);
         }
 
-        if ($toDueDate !== '') {
+        if ($poNo === '' && $toDueDate !== '') {
             $builder->where('po.due_date <=', $toDueDate);
         }
 
@@ -189,11 +190,11 @@ class PayableReports extends BaseController
             ->join('payables p', 'p.id = pa.payable_id', 'left')
             ->where('po.voided_at IS NOT NULL', null, false);
 
-        if ($fromVoidedDate !== '') {
+        if ($poNo === '' && $fromVoidedDate !== '') {
             $builder->where('po.voided_at >=', $fromVoidedDate . ' 00:00:00');
         }
 
-        if ($toVoidedDate !== '') {
+        if ($poNo === '' && $toVoidedDate !== '') {
             $builder->where('po.voided_at <=', $toVoidedDate . ' 23:59:59');
         }
 
@@ -219,6 +220,7 @@ class PayableReports extends BaseController
         $pagedRows = $pagination['rows'];
         $itemsByPurchaseOrder = [];
         $allocationsByPurchaseOrder = [];
+        $historiesByPurchaseOrder = [];
         $purchaseOrderIds = array_filter(array_map('intval', array_column($pagedRows, 'id') ?? []));
 
         if (! empty($purchaseOrderIds)) {
@@ -248,6 +250,20 @@ class PayableReports extends BaseController
                 $purchaseOrderId = (int) $allocation['purchase_order_id'];
                 $allocationsByPurchaseOrder[$purchaseOrderId][] = $allocation;
             }
+
+            if ($db->tableExists('purchase_order_histories')) {
+                $histories = (new PurchaseOrderHistoryModel())
+                    ->select('purchase_order_histories.*, users.name as editor_name, users.username as editor_username')
+                    ->join('users', 'users.id = purchase_order_histories.edited_by', 'left')
+                    ->whereIn('purchase_order_id', $purchaseOrderIds)
+                    ->orderBy('created_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->findAll();
+
+                foreach ($histories as $history) {
+                    $historiesByPurchaseOrder[(int) $history['purchase_order_id']][] = $history;
+                }
+            }
         }
 
         return $pagination + [
@@ -258,6 +274,7 @@ class PayableReports extends BaseController
             'totalBalance' => $totalBalance,
             'itemsByPurchaseOrder' => $itemsByPurchaseOrder,
             'allocationsByPurchaseOrder' => $allocationsByPurchaseOrder,
+            'historiesByPurchaseOrder' => $historiesByPurchaseOrder,
         ];
     }
 

@@ -87,6 +87,7 @@ class Ledger extends BaseController
         $totalRows = 0;
         $totalPages = 1;
         $rowOffset = 0;
+        $currentBalance = 0.0;
 
         if ($clientId > 0) {
             $selectedClient = $clientModel->find($clientId);
@@ -125,6 +126,14 @@ class Ledger extends BaseController
             $rows = $allRows;
             $totalRows = count($allRows);
             $totalPages = max(1, (int) ceil($totalRows / self::LEDGER_PER_PAGE));
+
+            $currentBalance = $openingBalance;
+            if (! empty($allRows)) {
+                $lastRow = $allRows[array_key_last($allRows)] ?? null;
+                if (is_array($lastRow) && array_key_exists('balance', $lastRow)) {
+                    $currentBalance = (float) ($lastRow['balance'] ?? $openingBalance);
+                }
+            }
 
             if ($paginate) {
                 $currentPage = min($currentPage, $totalPages);
@@ -229,6 +238,7 @@ class Ledger extends BaseController
             'start' => $start,
             'end' => $end,
             'openingBalance' => $openingBalance,
+            'currentBalance' => $currentBalance,
             'rows' => $rows,
             'allRowsCount' => $totalRows,
             'currentPage' => $currentPage,

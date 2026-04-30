@@ -80,6 +80,11 @@
             box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
         }
 
+        .filter-card {
+            background: var(--surface);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.03);
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -88,9 +93,10 @@
 
             border: 1px solid var(--line-strong);
             background: var(--surface);
+            color: var(--ink);
 
             padding: 0.35rem 0.7rem;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 0.85rem;
 
             border-radius: 0.25rem;
@@ -105,7 +111,18 @@
         .btn-secondary {
             border-color: var(--line);
             font-weight: 500;
-            color: var(--muted);
+            color: #3f444a;
+        }
+
+        .btn-strong {
+            color: var(--ink);
+            font-size: 0.92rem;
+            font-weight: 900;
+        }
+
+        .total-highlight {
+            font-size: 1.1rem;
+            font-weight: 700;
         }
 
         .btn-link {
@@ -500,6 +517,7 @@
                 </div>
                 <?php if (session()->get('user_id')): ?>
                     <nav class="flex flex-wrap items-center gap-1 text-sm text-black">
+                        <a href="<?= base_url('payables-dashboard') ?>">Payables</a>
                         <a href="<?= base_url('clients') ?>" <?= $navAttributes('clients') ?>>Clients</a>
                         <a href="<?= base_url('products') ?>" <?= $navAttributes('products') ?>>Products</a>
                         <?php if (can_access('banks.view')): ?>

@@ -1,11 +1,12 @@
 <?php
 /**
  * @var list<array{id: int|string, name: string}> $clients
- * @var array{id: int|string, name: string, address?: string|null}|null $selectedClient
+ * @var array{id: int|string, name: string, address?: string|null, payment_term?: int|string|null}|null $selectedClient
  * @var int $clientId
  * @var string $start
  * @var string $end
  * @var int|float|string $openingBalance
+ * @var int|float|string $currentBalance
  * @var list<array<string, int|float|string|null>> $rows
  * @var int $allRowsCount
  * @var int $currentPage
@@ -41,6 +42,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
 
     function ledgerItems() {
         return {
+            ...soaModalState(),
             itemsByDelivery: window.ledgerData.itemsByDelivery,
             allocationsByDelivery: window.ledgerData.allocationsByDelivery,
             allocationsByPayment: window.ledgerData.allocationsByPayment,
@@ -169,7 +171,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex flex-col">
             <h1 class="text-xl font-semibold">
-                Client Ledger<?= $selectedClient ? ' for ' . esc((string) ($selectedClient['name'] ?? '')) : '' ?>
+                Ledger<?= $selectedClient ? ' for ' . esc((string) ($selectedClient['name'] ?? '')) : '' ?>
             </h1>
             <p class="mt-1 text-sm muted">Shows overall balance with optional date range.</p>
         </div>
@@ -177,39 +179,34 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             <?php if ($selectedClient): ?>
                 <a class="btn btn-secondary" href="<?= base_url('clients/' . $clientId . '/deliveries') ?>">Deliveries</a>
                 <a class="btn btn-secondary" href="<?= base_url('payments/client/' . $clientId) ?>">Collections</a>
+                <button class="btn btn-secondary" type="button" @click="openSoaModal(<?= (int) $clientId ?>, '<?= esc((string) ($selectedClient['name'] ?? ''), 'js') ?>', '<?= esc((string) ($selectedClient['payment_term'] ?? ''), 'js') ?>')">SOA</button>
             <?php endif; ?>
-            <a class="btn btn-secondary" href="<?= base_url('clients') ?>">Back</a>
+            <a class="btn btn-secondary" href="<?= base_url('clients') ?>?q=<?= rawurlencode((string) ($selectedClient['name'] ?? '')) ?>">Back</a>
         </div>
     </div>
 
-    <form class="mt-6 flex flex-wrap items-end gap-3" method="get" action="<?= base_url('ledger') ?>">
+    <form class="filter-card mt-6 rounded border border-gray-200 p-4" method="get" action="<?= base_url('ledger') ?>" x-data>
+        <div class="flex flex-wrap items-end gap-3">
         <input type="hidden" name="client_id" value="<?= esc((string) $clientId) ?>">
         <div>
             <label class="block text-sm font-medium" for="start">Start Date</label>
-            <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>">
+            <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>" @change="$el.form.requestSubmit()">
         </div>
         <div>
             <label class="block text-sm font-medium" for="end">End Date</label>
-            <input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>">
+            <input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>" @change="$el.form.requestSubmit()">
         </div>
         <div class="flex items-end gap-2">
-            <button class="btn" type="submit">Filter</button>
             <?php if ($selectedClient): ?>
-                <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc((string) $clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print PDF</a>
+                <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc((string) $clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print</a>
                 <a class="btn btn-secondary" href="<?= base_url('ledger') ?>?client_id=<?= esc((string) $clientId) ?>">Clear</a>
             <?php endif; ?>
+        </div>
         </div>
     </form>
 
     <?php if ($selectedClient): ?>
 
-
-        <div class="mt-6 card p-4 text-sm">
-            <div class="flex justify-between">
-                <span>Last Balance</span>
-                <span><?= esc(number_format((float) $openingBalance, 2)) ?></span>
-            </div>
-        </div>
 
         <table class="table mt-6">
             <thead>
@@ -228,6 +225,19 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                 </tr>
             </thead>
             <tbody>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>Balance Forwarded</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><?= esc(number_format((float) $openingBalance, 2)) ?></td>
+                </tr>
                 <?php if (empty($rows)): ?>
                     <tr>
                         <td class="py-3" colspan="11">No deliveries in range.</td>
@@ -294,6 +304,15 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                 </div>
             </div>
         <?php endif; ?>
+
+        <div class="mt-6 grid gap-3 sm:grid-cols-2">
+            <div class="card p-4 total-highlight">
+                <div class="flex justify-between">
+                    <span>Current Balance</span>
+                    <span><?= esc(number_format((float) ($currentBalance ?? $openingBalance ?? 0), 2)) ?></span>
+                </div>
+            </div>
+        </div>
         
         <?php endif; ?>
     <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
@@ -496,6 +515,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
             </div>
         </div>
     </div>
+    <?= view('clients/_soa_modal') ?>
 </div>
 
 <?= $this->endSection() ?>

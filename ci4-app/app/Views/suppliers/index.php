@@ -18,6 +18,7 @@ $oldForm = [
     'credit_limit' => old('credit_limit'),
     'payment_term' => old('payment_term'),
 ];
+$formErrors = (array) (session()->getFlashdata('form_errors') ?? []);
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 ?>
 
@@ -25,12 +26,11 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">Suppliers</h1>
         <div class="flex items-center gap-3">
-            <form class="flex items-center gap-2" method="get" action="<?= base_url('suppliers') ?>">
-                <input class="input" name="q" placeholder="Search supplier" value="<?= esc($query ?? '') ?>">
-                <button class="btn btn-secondary" type="submit">Search</button>
+            <form class="filter-card flex items-center gap-2 rounded border border-gray-200 p-3" method="get" action="<?= base_url('suppliers') ?>" x-data>
+                <input class="input" name="q" placeholder="Search supplier" value="<?= esc($query ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
                 <a class="btn btn-secondary" href="<?= base_url('suppliers') ?>">Clear</a>
             </form>
-            <button class="btn" type="button" @click="openCreate()">New Supplier</button>
+            <button class="btn btn-strong" type="button" @click="openCreate()">New Supplier</button>
         </div>
     </div>
 
@@ -64,7 +64,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td>
                             <a class="btn-link" href="<?= base_url('payable-ledger?supplier_id=' . $supplier['id']) ?>">Ledger</a> |
                             <a class="btn-link" href="<?= base_url('suppliers/' . $supplier['id'] . '/purchase-orders') ?>">Orders</a> |
-                            <a class="btn-link" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Payments</a>
+                            <a class="btn-link" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Payments</a> |
+                            <button class="btn-link" type="button" @click='openSupplierStatementModal(<?= (int) $supplier['id'] ?>, <?= json_encode((string) $supplier['name'], $jsonFlags) ?>, <?= json_encode((string) ($supplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
                         </td>
                         <td class="text-left">
                             <button class="btn-link text-green-950" type="button" @click="openEdit(<?= (int) $supplier['id'] ?>)">Edit</button>
@@ -94,7 +95,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium" for="name">Name</label>
-                        <input class="input mt-1" id="name" name="name" x-model="form.name" required>
+                        <input class="input mt-1<?= isset($formErrors['name']) ? ' border-red-500' : '' ?>" id="name" name="name" x-model="form.name" required>
+                        <?php if (! empty($formErrors['name'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['name']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium" for="address">Address</label>
@@ -102,23 +106,35 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="email">Email</label>
-                        <input class="input mt-1" id="email" name="email" x-model="form.email">
+                        <input class="input mt-1<?= isset($formErrors['email']) ? ' border-red-500' : '' ?>" id="email" name="email" x-model="form.email">
+                        <?php if (! empty($formErrors['email'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['email']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="phone">Phone</label>
-                        <input class="input mt-1" id="phone" name="phone" x-model="form.phone">
+                        <input class="input mt-1<?= isset($formErrors['phone']) ? ' border-red-500' : '' ?>" id="phone" name="phone" x-model="form.phone">
+                        <?php if (! empty($formErrors['phone'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['phone']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="credit_limit">Credit Limit</label>
-                        <input class="input mt-1" id="credit_limit" name="credit_limit" type="number" step="0.01" min="0" x-model="form.credit_limit">
+                        <input class="input mt-1<?= isset($formErrors['credit_limit']) ? ' border-red-500' : '' ?>" id="credit_limit" name="credit_limit" type="number" step="0.01" min="0" x-model="form.credit_limit">
+                        <?php if (! empty($formErrors['credit_limit'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['credit_limit']) ?></p>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="payment_term">Payment Term (days)</label>
-                        <input class="input mt-1" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
+                        <input class="input mt-1<?= isset($formErrors['payment_term']) ? ' border-red-500' : '' ?>" id="payment_term" name="payment_term" type="number" step="1" min="0" x-model="form.payment_term">
+                        <?php if (! empty($formErrors['payment_term'])): ?>
+                            <p class="mt-1 text-xs text-red-600"><?= esc($formErrors['payment_term']) ?></p>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn" type="submit" x-text="isEdit ? 'Update Supplier' : 'Create Supplier'"></button>
+                    <button class="btn btn-strong" type="submit" x-text="isEdit ? 'Update Supplier' : 'Create Supplier'"></button>
                     <button class="btn btn-secondary" type="button" @click="closeModal()">Cancel</button>
                 </div>
             </form>
@@ -139,6 +155,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             </div>
         </div>
     </div>
+
+    <?= view('suppliers/_statement_modal') ?>
 </div>
 
 <script>
@@ -149,6 +167,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
         const formId = <?= $formId ?>;
         const hasOldValues = Object.values(oldForm).some((value) => value !== null && String(value).trim() !== '');
         return {
+            ...supplierStatementModalState(),
             suppliers,
             open: false,
             openCredit: false,
