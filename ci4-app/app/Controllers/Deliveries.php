@@ -8,6 +8,7 @@ use App\Models\DeliveryHistoryModel;
 use App\Models\DeliveryItemModel;
 use App\Models\DeliveryModel;
 use App\Models\LedgerModel;
+use App\Models\ProductClientPriceModel;
 use App\Models\ProductModel;
 use App\Models\UserModel;
 use App\Services\DeliveryHistoryService;
@@ -630,6 +631,7 @@ class Deliveries extends BaseController
         $products = $productModel->orderBy('product_name', 'asc')->findAll();
         $productsJson = json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
         $clients = $clientModel->orderBy('name', 'asc')->findAll();
+        $clientPriceMap = $this->buildClientPriceMap();
 
         $selectedClient = null;
         $defaultPaymentTerm = old('payment_term');
@@ -650,6 +652,8 @@ class Deliveries extends BaseController
             'defaultPaymentTerm' => $defaultPaymentTerm,
             'products' => $products,
             'productsJson' => $productsJson,
+            'clientPriceMap' => $clientPriceMap,
+            'clientPriceMapJson' => json_encode($clientPriceMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT),
             'validation' => $validation,
             'extraErrors' => $errors,
             'embeddedForm' => $embeddedForm,
@@ -674,7 +678,28 @@ class Deliveries extends BaseController
     {
         return [
             'products' => (new ProductModel())->orderBy('product_name', 'asc')->findAll(),
+            'clientPriceMap' => $this->buildClientPriceMap(),
         ];
+    }
+
+    private function buildClientPriceMap(): array
+    {
+        $rows = (new ProductClientPriceModel())
+            ->select('client_id, product_id, price')
+            ->findAll();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $clientId = (string) ($row['client_id'] ?? '');
+            $productId = (string) ($row['product_id'] ?? '');
+            if ($clientId === '' || $productId === '') {
+                continue;
+            }
+
+            $map[$clientId][$productId] = $row['price'];
+        }
+
+        return $map;
     }
 
     private function resolveDateRange(): array

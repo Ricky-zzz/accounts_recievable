@@ -63,6 +63,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td><?= esc(number_format((float) $product['unit_price'], 2)) ?></td>
                         <td class="text-left">
                             <button class="btn-link" type="button" @click="openEdit(<?= (int) $product['id'] ?>)">Edit</button>
+                            <?php if ($basePath === 'products'): ?>
+                                <a class="ml-3 btn-link" href="<?= base_url('products/' . $product['id'] . '/client-prices') ?>">Assign Price</a>
+                            <?php endif; ?>
                             <form class="inline" method="post" action="<?= base_url($basePath . '/' . $product['id'] . '/delete') ?>" onsubmit="return confirm('Delete this product?');">
                                 <?= csrf_field() ?>
                                 <button class="ml-3 btn-link" type="submit">Delete</button>

@@ -20,7 +20,9 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('clients/(:num)/delete', 'Clients::delete/$1');
 
     $routes->get('products', 'Products::index');
+    $routes->get('products/(:num)/client-prices', 'Products::clientPrices/$1');
     $routes->post('products', 'Products::create');
+    $routes->post('products/(:num)/client-prices/(:num)', 'Products::saveClientPrice/$1/$2');
     $routes->post('products/(:num)', 'Products::update/$1');
     $routes->post('products/(:num)/delete', 'Products::delete/$1');
     $routes->get('payables/products', 'Products::payablesIndex', ['filter' => 'permission:products.view']);

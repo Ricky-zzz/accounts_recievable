@@ -26,6 +26,7 @@ $itemsJson = json_encode($itemsByDelivery ?? [], $jsonFlags);
 $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
 $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
 $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
+$clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $jsonFlags);
 ?>
 
 <div x-data="deliveryList()" @close-delivery-form.window="deliveryFormOpen = false">
@@ -306,6 +307,7 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
             allocationsByDelivery: <?= $allocationsJson ?>,
             historiesByDelivery: <?= $historiesJson ?>,
             products: <?= $productsJson ?>,
+            clientPriceMap: <?= $clientPriceMapJson ?>,
             itemsOpen: false,
             drDetailsOpen: false,
             allocOpen: false,
@@ -350,6 +352,16 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
             },
             formatInputAmount(value) {
                 return this.normalizeAmount(value).toFixed(2);
+            },
+            effectiveUnitPrice(productId, clientId) {
+                const product = this.products.find((row) => String(row.id) === String(productId));
+                const defaultPrice = product ? product.unit_price : '';
+                const clientPrices = this.clientPriceMap[String(clientId)] || {};
+                const specialPrice = clientPrices[String(productId)];
+
+                return specialPrice !== undefined && specialPrice !== null && String(specialPrice) !== ''
+                    ? specialPrice
+                    : defaultPrice;
             },
             openDeliveryForm() {
                 this.deliveryFormOpen = true;
@@ -511,8 +523,8 @@ $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
             },
             selectEditProduct(index) {
                 const item = this.editItems[index];
-                const product = this.products.find((row) => String(row.id) === String(item.product_id));
-                item.unit_price = product ? product.unit_price : '';
+                const delivery = this.selectedActionDelivery();
+                item.unit_price = this.effectiveUnitPrice(item.product_id, delivery ? delivery.client_id : '');
                 this.updateEditLine(index);
             },
             updateEditLine(index) {

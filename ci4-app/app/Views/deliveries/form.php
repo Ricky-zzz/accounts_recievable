@@ -9,6 +9,7 @@
  * @var int|string|null $defaultPaymentTerm
  * @var list<array{id: int|string, product_id?: string|null, product_name: string, unit_price?: int|float|string|null}> $products
  * @var string|false $productsJson
+ * @var string|false $clientPriceMapJson
  * @var object|null $validation
  * @var list<string> $extraErrors
  * @var bool $embeddedForm
@@ -160,6 +161,7 @@ if ($termValue === null) {
     function deliveryForm() {
         return {
             products: <?= $productsJson ?>,
+            clientPriceMap: <?= $clientPriceMapJson ?? '[]' ?>,
             clients: <?= $clientsJson ?? '[]' ?>,
             selectedClientId: '<?= esc($selectedClientId, 'js') ?>',
             paymentTerm: '<?= esc((string) $termValue, 'js') ?>',
@@ -180,6 +182,7 @@ if ($termValue === null) {
             onClientChange() {
                 this.applyClientDefaultTerm();
                 this.recomputeDueDate();
+                this.refreshItemPrices();
             },
             applyClientDefaultTerm() {
                 const selected = this.clients.find((client) => String(client.id) === String(this.selectedClientId));
@@ -218,9 +221,25 @@ if ($termValue === null) {
             },
             selectProduct(index) {
                 const item = this.items[index];
-                const product = this.products.find((row) => String(row.id) === String(item.product_id));
-                item.unit_price = product ? product.unit_price : '';
+                item.unit_price = this.effectiveUnitPrice(item.product_id, this.selectedClientId);
                 this.updateLine(index);
+            },
+            refreshItemPrices() {
+                this.items.forEach((item, index) => {
+                    if (item.product_id) {
+                        this.selectProduct(index);
+                    }
+                });
+            },
+            effectiveUnitPrice(productId, clientId) {
+                const product = this.products.find((row) => String(row.id) === String(productId));
+                const defaultPrice = product ? product.unit_price : '';
+                const clientPrices = this.clientPriceMap[String(clientId)] || {};
+                const specialPrice = clientPrices[String(productId)];
+
+                return specialPrice !== undefined && specialPrice !== null && String(specialPrice) !== ''
+                    ? specialPrice
+                    : defaultPrice;
             },
             updateLine(index) {
                 const item = this.items[index];
