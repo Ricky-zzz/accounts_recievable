@@ -19,6 +19,9 @@
 -- Current Database: `ar`
 --
 
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `ar` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `ar`;
 
 --
 -- Table structure for table `banks`
@@ -320,7 +323,7 @@ CREATE TABLE `migrations` (
   `time` int NOT NULL,
   `batch` int unsigned NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=131 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=132 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -329,7 +332,7 @@ CREATE TABLE `migrations` (
 
 LOCK TABLES `migrations` WRITE;
 /*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
-INSERT INTO `migrations` VALUES (111,'2026-04-21-065247','App\\Database\\Migrations\\CreateUsers','default','App',1777466936,1),(112,'2026-04-21-065248','App\\Database\\Migrations\\CreateBanks','default','App',1777466936,1),(113,'2026-04-21-065248','App\\Database\\Migrations\\CreateClients','default','App',1777466936,1),(114,'2026-04-21-065248','App\\Database\\Migrations\\CreateProducts','default','App',1777466936,1),(115,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveries','default','App',1777466936,1),(116,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveryItems','default','App',1777466936,1),(117,'2026-04-21-135124','App\\Database\\Migrations\\CreateCashiers','default','App',1777466936,1),(118,'2026-04-21-135125','App\\Database\\Migrations\\CreateCashierReceiptRanges','default','App',1777466936,1),(119,'2026-04-21-135126','App\\Database\\Migrations\\CreatePayments','default','App',1777466936,1),(120,'2026-04-21-150100','App\\Database\\Migrations\\CreatePaymentAllocations','default','App',1777466937,1),(121,'2026-04-21-150200','App\\Database\\Migrations\\CreateLedger','default','App',1777466937,1),(122,'2026-04-21-155000','App\\Database\\Migrations\\CreateOtherAccounts','default','App',1777466937,1),(123,'2026-04-21-160000','App\\Database\\Migrations\\CreateBoa','default','App',1777466937,1),(124,'2026-04-22-090000','App\\Database\\Migrations\\UpdateOtherAccountsType','default','App',1777466937,1),(125,'2026-04-22-091000','App\\Database\\Migrations\\UpdateBoaForOtherAccounts','default','App',1777466937,1),(126,'2026-04-24-100000','App\\Database\\Migrations\\AddClientCreditFields','default','App',1777466937,1),(127,'2026-04-24-100100','App\\Database\\Migrations\\AddDeliveryTermsFields','default','App',1777466937,1),(128,'2026-04-25-090000','App\\Database\\Migrations\\AddOtherAccountsToLedger','default','App',1777466937,1),(129,'2026-04-29-000000','App\\Database\\Migrations\\CreateDeliveryHistories','default','App',1777466937,1),(130,'2026-04-29-010000','App\\Database\\Migrations\\CreatePayablesTables','default','App',1777466937,1);
+INSERT INTO `migrations` VALUES (111,'2026-04-21-065247','App\\Database\\Migrations\\CreateUsers','default','App',1777466936,1),(112,'2026-04-21-065248','App\\Database\\Migrations\\CreateBanks','default','App',1777466936,1),(113,'2026-04-21-065248','App\\Database\\Migrations\\CreateClients','default','App',1777466936,1),(114,'2026-04-21-065248','App\\Database\\Migrations\\CreateProducts','default','App',1777466936,1),(115,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveries','default','App',1777466936,1),(116,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveryItems','default','App',1777466936,1),(117,'2026-04-21-135124','App\\Database\\Migrations\\CreateCashiers','default','App',1777466936,1),(118,'2026-04-21-135125','App\\Database\\Migrations\\CreateCashierReceiptRanges','default','App',1777466936,1),(119,'2026-04-21-135126','App\\Database\\Migrations\\CreatePayments','default','App',1777466936,1),(120,'2026-04-21-150100','App\\Database\\Migrations\\CreatePaymentAllocations','default','App',1777466937,1),(121,'2026-04-21-150200','App\\Database\\Migrations\\CreateLedger','default','App',1777466937,1),(122,'2026-04-21-155000','App\\Database\\Migrations\\CreateOtherAccounts','default','App',1777466937,1),(123,'2026-04-21-160000','App\\Database\\Migrations\\CreateBoa','default','App',1777466937,1),(124,'2026-04-22-090000','App\\Database\\Migrations\\UpdateOtherAccountsType','default','App',1777466937,1),(125,'2026-04-22-091000','App\\Database\\Migrations\\UpdateBoaForOtherAccounts','default','App',1777466937,1),(126,'2026-04-24-100000','App\\Database\\Migrations\\AddClientCreditFields','default','App',1777466937,1),(127,'2026-04-24-100100','App\\Database\\Migrations\\AddDeliveryTermsFields','default','App',1777466937,1),(128,'2026-04-25-090000','App\\Database\\Migrations\\AddOtherAccountsToLedger','default','App',1777466937,1),(129,'2026-04-29-000000','App\\Database\\Migrations\\CreateDeliveryHistories','default','App',1777466937,1),(130,'2026-04-29-010000','App\\Database\\Migrations\\CreatePayablesTables','default','App',1777466937,1),(131,'2026-05-02-000000','App\\Database\\Migrations\\CreateProductClientPrices','default','App',1777724334,2);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -553,6 +556,39 @@ INSERT INTO `payments` VALUES (1,1,1,1001,'2026-04-29','cash',15000.00,16000.00,
 UNLOCK TABLES;
 
 --
+-- Table structure for table `product_client_prices`
+--
+
+DROP TABLE IF EXISTS `product_client_prices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `product_client_prices` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` int unsigned NOT NULL,
+  `client_id` int unsigned NOT NULL,
+  `price` decimal(12,2) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `product_id_client_id` (`product_id`,`client_id`),
+  KEY `product_id` (`product_id`),
+  KEY `client_id` (`client_id`),
+  CONSTRAINT `product_client_prices_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `product_client_prices_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `product_client_prices`
+--
+
+LOCK TABLES `product_client_prices` WRITE;
+/*!40000 ALTER TABLE `product_client_prices` DISABLE KEYS */;
+INSERT INTO `product_client_prices` VALUES (1,2,1,45.00,'2026-05-02 12:25:22','2026-05-02 12:25:22');
+/*!40000 ALTER TABLE `product_client_prices` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `products`
 --
 
@@ -759,4 +795,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-30  1:43:30
+-- Dump completed on 2026-05-03 20:00:33
