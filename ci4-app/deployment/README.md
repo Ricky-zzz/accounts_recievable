@@ -276,6 +276,81 @@ Then flush DNS:
 ipconfig /flushdns
 ```
 
+This `hosts` entry only works on the machine where you add it. For single-machine use, that is enough.
+
+## Sharing On The Local Network
+
+If other computers on the same office network need to use the app, do not rely on a random changing IP address. Pick one stable LAN name and make every user open the app with that same URL.
+
+Best options:
+
+- Best: ask the router/admin to reserve a fixed DHCP IP for the host PC, then create local DNS like `src-enterprise.local`.
+- Good without router access: use the Windows computer name, for example `SRC-SERVER`, and open `http://SRC-SERVER/` from other PCs.
+- Last resort: add a `hosts` entry on every client PC, but this needs a stable IP on the host PC.
+
+To use the Windows computer name approach, check the host PC name:
+
+```powershell
+hostname
+```
+
+Example result:
+
+```text
+SRC-SERVER
+```
+
+Then update the production `.env`:
+
+```ini
+app.baseURL = 'http://SRC-SERVER/'
+```
+
+Update `C:\Apache24\conf\extra\src-enterprise.local.conf`:
+
+```apache
+<VirtualHost *:80>
+    ServerName SRC-SERVER
+    ServerAlias src-enterprise.local
+    DocumentRoot "C:/src-enterprise/accounts_recievable/ci4-app/public"
+
+    <Directory "C:/src-enterprise/accounts_recievable/ci4-app/public">
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog "logs/src-enterprise-error.log"
+    CustomLog "logs/src-enterprise-access.log" common
+</VirtualHost>
+```
+
+Restart Apache:
+
+```powershell
+Restart-Service Apache24
+```
+
+Allow Apache through Windows Firewall for LAN access:
+
+```powershell
+New-NetFirewallRule -DisplayName "Apache HTTP Inbound" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+```
+
+From another PC on the same network, test:
+
+```powershell
+ping SRC-SERVER
+```
+
+Then open:
+
+```text
+http://SRC-SERVER/
+```
+
+Important: all users should use the same URL. If the app base URL is `http://SRC-SERVER/`, do not tell some users to use `http://192.168.x.x/`, because generated links and redirects will point back to the base URL.
+
 ## Run Migrations And Seed Initial Data
 
 From the app folder:
