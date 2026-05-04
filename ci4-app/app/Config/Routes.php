@@ -50,6 +50,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('cashiers/(:num)', 'Cashiers::update/$1', ['filter' => 'permission:cashiers.view']);
     $routes->post('cashiers/(:num)/delete', 'Cashiers::delete/$1', ['filter' => 'permission:cashiers.view']);
     $routes->post('cashiers/assign-range', 'Cashiers::assignRange', ['filter' => 'permission:cashiers.view']);
+    $routes->post('cashiers/ranges/(:num)', 'Cashiers::updateRange/$1', ['filter' => 'permission:cashiers.view']);
+    $routes->post('cashiers/ranges/(:num)/clear', 'Cashiers::clearRange/$1', ['filter' => 'permission:cashiers.view']);
 
     $routes->get('deliveries', 'Deliveries::index');
     $routes->get('deliveries/list', 'Deliveries::index');

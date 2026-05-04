@@ -217,22 +217,127 @@ class Cashiers extends BaseController
             ->where('status', 'active')
             ->first();
 
-        if ($active && (int) $active['next_no'] <= (int) $active['end_no']) {
-            return redirect()->back()->with('error', 'Active receipt range must be exhausted first.');
+        if ($active) {
+            $activeStart = max((int) $active['next_no'], (int) $active['start_no']);
+            $activeEnd = (int) $active['end_no'];
+
+            if ($activeStart > $activeEnd) {
+                $rangeModel->update($active['id'], ['status' => 'closed', 'next_no' => $activeEnd + 1]);
+            } else {
+                $nextAvailable = $rangeModel->findNextAvailableNumber($userId, $activeStart, $activeEnd);
+                if ($nextAvailable !== null) {
+                    if ($nextAvailable !== (int) $active['next_no']) {
+                        $rangeModel->update($active['id'], ['next_no' => $nextAvailable]);
+                    }
+
+                    return redirect()->back()->with('error', 'Active receipt range must be exhausted first.');
+                }
+
+                $rangeModel->update($active['id'], ['status' => 'closed', 'next_no' => $activeEnd + 1]);
+            }
         }
 
-        if ($active) {
-            $rangeModel->update($active['id'], ['status' => 'closed']);
+        $nextAvailable = $rangeModel->findNextAvailableNumber($userId, $startNo, $endNo);
+        if ($nextAvailable === null) {
+            return redirect()->back()->with('error', 'All receipt numbers in this range are already used.');
         }
 
         $rangeModel->insert([
             'user_id' => $userId,
             'start_no' => $startNo,
             'end_no' => $endNo,
-            'next_no' => $startNo,
+            'next_no' => $nextAvailable,
             'status' => 'active',
         ]);
 
         return redirect()->to('/cashiers')->with('success', 'Receipt range assigned.');
+    }
+
+    public function updateRange(int $id)
+    {
+        $startNo = (int) $this->request->getPost('start_no');
+        $endNo = (int) $this->request->getPost('end_no');
+
+        if ($startNo <= 0 || $endNo <= 0 || $startNo > $endNo) {
+            return redirect()->back()->with('error', 'Enter a valid receipt range.');
+        }
+
+        $rangeModel = new CashierReceiptRangeModel();
+        $range = $rangeModel->find($id);
+
+        if (! $range) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        if (($range['status'] ?? '') !== 'active') {
+            return redirect()->to('/cashiers')->with('error', 'Only active receipt ranges can be edited.');
+        }
+
+        $userModel = new UserModel();
+        $user = $userModel->find((int) $range['user_id']);
+
+        if (! $user) {
+            return redirect()->to('/cashiers')->with('error', 'Selected user was not found.');
+        }
+
+        $sessionUserId = (int) (session('user_id') ?? 0);
+        $userType = (string) ($user['type'] ?? '');
+        $isCashier = $userType === 'cashier';
+        $isCurrentAdmin = $userType === 'admin' && (int) $user['id'] === $sessionUserId;
+
+        if (! $isCashier && ! $isCurrentAdmin) {
+            return redirect()->to('/cashiers')->with('error', 'Receipt ranges can be edited for cashiers, or for your own admin account only.');
+        }
+
+        $nextAvailable = $rangeModel->findNextAvailableNumber((int) $range['user_id'], $startNo, $endNo);
+        if ($nextAvailable === null) {
+            return redirect()->back()->with('error', 'All receipt numbers in this range are already used.');
+        }
+
+        $rangeModel->update($id, [
+            'start_no' => $startNo,
+            'end_no' => $endNo,
+            'next_no' => $nextAvailable,
+            'status' => 'active',
+        ]);
+
+        return redirect()->to('/cashiers')->with('success', 'Receipt range updated.');
+    }
+
+    public function clearRange(int $id)
+    {
+        $rangeModel = new CashierReceiptRangeModel();
+        $range = $rangeModel->find($id);
+
+        if (! $range) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        if (($range['status'] ?? '') !== 'active') {
+            return redirect()->to('/cashiers')->with('error', 'Only active receipt ranges can be cleared.');
+        }
+
+        $userModel = new UserModel();
+        $user = $userModel->find((int) $range['user_id']);
+
+        if (! $user) {
+            return redirect()->to('/cashiers')->with('error', 'Selected user was not found.');
+        }
+
+        $sessionUserId = (int) (session('user_id') ?? 0);
+        $userType = (string) ($user['type'] ?? '');
+        $isCashier = $userType === 'cashier';
+        $isCurrentAdmin = $userType === 'admin' && (int) $user['id'] === $sessionUserId;
+
+        if (! $isCashier && ! $isCurrentAdmin) {
+            return redirect()->to('/cashiers')->with('error', 'Receipt ranges can be cleared for cashiers, or for your own admin account only.');
+        }
+
+        $rangeModel->update($id, [
+            'status' => 'closed',
+            'next_no' => (int) $range['end_no'] + 1,
+        ]);
+
+        return redirect()->to('/cashiers')->with('success', 'Receipt range cleared.');
     }
 }

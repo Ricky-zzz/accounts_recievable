@@ -17,13 +17,33 @@ class PayablePostingService
             return null;
         }
 
-        $range = (new CashierReceiptRangeModel())
+        $rangeModel = new CashierReceiptRangeModel();
+        $range = $rangeModel
             ->where('user_id', $userId)
             ->where('status', 'active')
             ->first();
 
-        if (! $range || (int) $range['next_no'] > (int) $range['end_no']) {
+        if (! $range) {
             return null;
+        }
+
+        $rangeStart = max((int) $range['next_no'], (int) $range['start_no']);
+        $rangeEnd = (int) $range['end_no'];
+
+        if ($rangeStart > $rangeEnd) {
+            $rangeModel->update($range['id'], ['status' => 'closed', 'next_no' => $rangeStart]);
+            return null;
+        }
+
+        $nextAvailable = $rangeModel->findNextAvailableNumber($userId, $rangeStart, $rangeEnd);
+        if ($nextAvailable === null) {
+            $rangeModel->update($range['id'], ['status' => 'closed', 'next_no' => $rangeEnd + 1]);
+            return null;
+        }
+
+        if ($nextAvailable !== (int) $range['next_no']) {
+            $rangeModel->update($range['id'], ['next_no' => $nextAvailable]);
+            $range['next_no'] = $nextAvailable;
         }
 
         return $range;

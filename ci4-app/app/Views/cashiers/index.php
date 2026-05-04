@@ -1,7 +1,7 @@
 <?php
 /**
  * @var list<array{id: int|string, name: string, username: string, type?: string|null}> $cashiers
- * @var array<int|string, array{start_no?: int|string, end_no?: int|string, next_no?: int|string}> $activeRanges
+ * @var array<int|string, array{id?: int|string, user_id?: int|string, start_no?: int|string, end_no?: int|string, next_no?: int|string, status?: string|null}> $activeRanges
  * @var string $query
  * @var \CodeIgniter\Pager\Pager|null $pager
  */
@@ -79,7 +79,18 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                         <td><?= esc(ucfirst($cashier['type'] ?? 'cashier')) ?></td>
                         <td>
                             <?php if ($hasActive): ?>
-                                <?= esc((string) $range['start_no']) ?> - <?= esc((string) $range['end_no']) ?>
+                                <div class="space-y-2">
+                                    <div><?= esc((string) $range['start_no']) ?> - <?= esc((string) $range['end_no']) ?></div>
+                                    <?php if ($canAssignReceipt): ?>
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <button class="btn-link" type="button" @click="openEditRange(<?= (int) $cashier['id'] ?>)">Edit range</button>
+                                            <form class="inline" method="post" action="<?= base_url('cashiers/ranges/' . $range['id'] . '/clear') ?>" onsubmit="return confirm('Clear this receipt range?');">
+                                                <?= csrf_field() ?>
+                                                <button class="btn-link" type="submit">Clear</button>
+                                            </form>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             <?php elseif ($canAssignReceipt): ?>
                                 <button class="btn btn-secondary" type="button" @click="openAssign(<?= (int) $cashier['id'] ?>)">Assign</button>
                             <?php else: ?>
@@ -165,11 +176,36 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             </form>
         </div>
     </div>
+
+    <div class="modal-backdrop" x-show="openEditRangeModal" x-cloak>
+        <div class="modal-panel max-w-md p-6">
+            <h2 class="text-lg font-semibold">Edit Receipt Range</h2>
+            <p class="mt-1 text-sm muted" x-text="cashierName"></p>
+            <form class="mt-4 space-y-4" method="post" :action="rangeAction">
+                <?= csrf_field() ?>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium" for="edit_start_no">From</label>
+                        <input class="input mt-1" id="edit_start_no" name="start_no" type="number" min="1" x-model="rangeForm.start_no" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium" for="edit_end_no">To</label>
+                        <input class="input mt-1" id="edit_end_no" name="end_no" type="number" min="1" x-model="rangeForm.end_no" required>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button class="btn btn-strong" type="submit">Update Range</button>
+                    <button class="btn btn-secondary" type="button" @click="closeEditRangeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
     function cashierManager() {
         const cashiers = <?= json_encode($cashiers, $jsonFlags) ?>;
+        const activeRanges = <?= json_encode($activeRanges, $jsonFlags) ?>;
         const oldForm = <?= json_encode($oldForm, $jsonFlags) ?>;
         const formMode = '<?= esc($formMode, 'js') ?>';
         const formId = <?= $formId ?>;
@@ -179,8 +215,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 
         return {
             cashiers,
+            activeRanges,
             openForm: false,
             openAssignModal: false,
+            openEditRangeModal: false,
             isEdit: false,
             formAction: '<?= base_url('cashiers') ?>',
             form: {
@@ -190,6 +228,11 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             },
             cashierId: null,
             cashierName: '',
+            rangeAction: '',
+            rangeForm: {
+                start_no: '',
+                end_no: '',
+            },
 
             init() {
                 if (formMode === 'edit' && formId > 0) {
@@ -263,7 +306,39 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 this.openAssignModal = false;
                 this.cashierId = null;
                 this.cashierName = '';
-            }
+            },
+            openEditRange(id) {
+                const cashier = this.cashiers.find((row) => Number(row.id) === Number(id));
+                const range = this.activeRanges[String(id)] || this.activeRanges[id];
+                const isCashier = cashier && cashier.type === 'cashier';
+                const isCurrentAdmin = cashier
+                    && cashier.type === 'admin'
+                    && Number(cashier.id) === Number(sessionUserId)
+                    && sessionUserType === 'admin';
+
+                if (!cashier || !range || (!isCashier && !isCurrentAdmin)) {
+                    return;
+                }
+
+                this.cashierId = id;
+                this.cashierName = cashier.name || '';
+                this.rangeAction = `<?= base_url('cashiers/ranges') ?>/${range.id}`;
+                this.rangeForm = {
+                    start_no: range.start_no || '',
+                    end_no: range.end_no || '',
+                };
+                this.openEditRangeModal = true;
+            },
+            closeEditRangeModal() {
+                this.openEditRangeModal = false;
+                this.cashierId = null;
+                this.cashierName = '';
+                this.rangeAction = '';
+                this.rangeForm = {
+                    start_no: '',
+                    end_no: '',
+                };
+            },
         };
     }
 </script>
