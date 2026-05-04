@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var list<array{id: int|string, name: string, username: string, type?: string|null}> $cashiers
  * @var array<int|string, array{id?: int|string, user_id?: int|string, start_no?: int|string, end_no?: int|string, next_no?: int|string, status?: string|null}> $activeRanges
@@ -83,7 +84,6 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                                     <div><?= esc((string) $range['start_no']) ?> - <?= esc((string) $range['end_no']) ?></div>
                                     <?php if ($canAssignReceipt): ?>
                                         <div class="flex flex-wrap items-center gap-3">
-                                            <button class="btn-link" type="button" @click="openEditRange(<?= (int) $cashier['id'] ?>)">Edit range</button>
                                             <form class="inline" method="post" action="<?= base_url('cashiers/ranges/' . $range['id'] . '/clear') ?>" onsubmit="return confirm('Clear this receipt range?');">
                                                 <?= csrf_field() ?>
                                                 <button class="btn-link" type="submit">Clear</button>
@@ -101,12 +101,19 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             <?= $hasActive ? esc((string) $range['next_no']) : '-' ?>
                         </td>
                         <td class="text-left">
-                            <?php if ($isCashier): ?>
-                                <button class="btn-link" type="button" @click="openEdit(<?= (int) $cashier['id'] ?>)">Edit</button>
-                                <form class="inline" method="post" action="<?= base_url('cashiers/' . $cashier['id'] . '/delete') ?>" onsubmit="return confirm('Delete this cashier?');">
-                                    <?= csrf_field() ?>
-                                    <button class="ml-3 btn-link" type="submit">Delete</button>
-                                </form>
+                            <?php if ($isCashier || ($canAssignReceipt && $hasActive)): ?>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <?php if ($canAssignReceipt && $hasActive): ?>
+                                        <button class="btn-link" type="button" @click="openEditRange(<?= (int) $cashier['id'] ?>)">Edit range</button>
+                                    <?php endif; ?>
+                                    <?php if ($isCashier): ?>
+                                        <button class="btn-link" type="button" @click="openEdit(<?= (int) $cashier['id'] ?>)">Edit</button>
+                                        <form class="inline" method="post" action="<?= base_url('cashiers/' . $cashier['id'] . '/delete') ?>" onsubmit="return confirm('Delete this cashier?');">
+                                            <?= csrf_field() ?>
+                                            <button class="btn-link" type="submit">Delete</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                             <?php else: ?>
                                 -
                             <?php endif; ?>
@@ -289,10 +296,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
             openAssign(id) {
                 const cashier = this.cashiers.find((row) => Number(row.id) === Number(id));
                 const isCashier = cashier && cashier.type === 'cashier';
-                const isCurrentAdmin = cashier
-                    && cashier.type === 'admin'
-                    && Number(cashier.id) === Number(sessionUserId)
-                    && sessionUserType === 'admin';
+                const isCurrentAdmin = cashier &&
+                    cashier.type === 'admin' &&
+                    Number(cashier.id) === Number(sessionUserId) &&
+                    sessionUserType === 'admin';
 
                 if (!cashier || (!isCashier && !isCurrentAdmin)) {
                     return;
@@ -311,10 +318,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                 const cashier = this.cashiers.find((row) => Number(row.id) === Number(id));
                 const range = this.activeRanges[String(id)] || this.activeRanges[id];
                 const isCashier = cashier && cashier.type === 'cashier';
-                const isCurrentAdmin = cashier
-                    && cashier.type === 'admin'
-                    && Number(cashier.id) === Number(sessionUserId)
-                    && sessionUserType === 'admin';
+                const isCurrentAdmin = cashier &&
+                    cashier.type === 'admin' &&
+                    Number(cashier.id) === Number(sessionUserId) &&
+                    sessionUserType === 'admin';
 
                 if (!cashier || !range || (!isCashier && !isCurrentAdmin)) {
                     return;
