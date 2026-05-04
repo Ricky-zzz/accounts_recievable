@@ -174,6 +174,22 @@
             overflow: hidden;
         }
 
+        .modal-split {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .modal-split > div {
+            min-width: 0;
+            overflow-x: auto;
+        }
+
+        @media (min-width: 1024px) {
+            .modal-split {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+        }
+
         .table th,
         .table td {
             padding: 0.75rem 1rem;

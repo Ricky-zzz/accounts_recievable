@@ -2,6 +2,21 @@
 
 This app currently uses server-rendered PHP views with JSON embedded into Alpine.js. That is fine while each page sends a small or moderate amount of data. If pages start loading slowly, browser memory grows, or modals feel delayed, refactor the heaviest JSON payloads into AJAX endpoints first.
 
+## Reusable Detail Endpoints Now Available
+
+The first reusable detail layer now lives in `TransactionDetails` + `TransactionDetailService`.
+
+Available routes:
+- `GET /ajax/deliveries/{id}` for DR details, items, collections, connected RR/pickup rows, and edit history.
+- `GET /ajax/payments/{id}` for PR details, DR allocations, and A/R other accounts.
+- `GET /ajax/purchase-orders/{id}` for RR/pickup details, items, CV allocations, DR delivery links, and edit history.
+- `GET /ajax/payables/{id}` for CV details, RR allocations, and payable other accounts.
+
+Already converted:
+- `ledger/index.php` no longer preloads delivery/payment detail maps. It fetches DR and PR modal details only when clicked.
+- `payments/index.php` and `payments/list.php` no longer preload PR allocation/other-account maps. They fetch PR details only when clicked.
+- `payables/index.php` and `payables/list.php` no longer preload CV allocation/other-account maps. They fetch CV details only when clicked.
+
 ## Highest Priority
 
 ### Delivery create/edit pricing data
@@ -32,21 +47,21 @@ Refactor when:
 - Opening the deliveries page becomes slow even before the user opens any modal.
 
 Suggested AJAX direction:
-- Load modal content only when clicked:
-  - `GET /deliveries/{deliveryId}/items`
-  - `GET /deliveries/{deliveryId}/allocations`
-  - `GET /deliveries/{deliveryId}/history`
+- Load modal content only when clicked through the shared endpoint:
+  - `GET /ajax/deliveries/{deliveryId}`
+- Keep the paginated DR rows server-rendered.
+- For edit modals, fetch the same endpoint before opening the form and map `items` into the edit rows.
 
 ## Medium Priority
 
 ### Ledger detail modals
 
 Current pattern:
-- `ledger/index.php` embeds delivery items, delivery allocations, payment allocations, payment other accounts, and payments by ID.
+- `ledger/index.php` was converted to fetch DR/PR details on click.
+- `ledger/print.php` remains server-rendered because print output needs all rows at render time.
 
 Refactor when:
-- Ledger pages cover long date ranges.
-- Users often load a ledger but only inspect a few rows.
+- Reuse the same lazy-detail pattern in payable ledger.
 
 Suggested AJAX direction:
 - Keep the ledger rows server-rendered and paginated.
@@ -55,14 +70,15 @@ Suggested AJAX direction:
 ### Payments and payables pages
 
 Current pattern:
-- `payments/index.php`, `payments/list.php`, `payables/index.php`, and `payables/list.php` preload allocation and other-account maps for modal interactions.
+- `payments/index.php` and `payments/list.php` were converted to `GET /ajax/payments/{paymentId}`.
+- `payables/index.php` and `payables/list.php` were converted to `GET /ajax/payables/{payableId}`.
 
 Refactor when:
 - Payment/payable lists are large.
 - Each payment has many allocations.
 
 Suggested AJAX direction:
-- Fetch allocation summaries by payment/payable ID when the modal opens.
+- Reuse the same pattern if separate payment/payable report pages need modal details.
 
 ### Purchase order pages
 

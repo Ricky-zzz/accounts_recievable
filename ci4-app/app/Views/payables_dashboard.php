@@ -31,7 +31,8 @@
         <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables/banks') ?>">Banks</a>
     <?php endif; ?>
     <?php if (can_access('purchase_orders.view')): ?>
-        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('purchase-orders') ?>">Purchase Orders</a>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('supplier-orders') ?>">Purchase Orders</a>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('purchase-orders') ?>">Pickup</a>
     <?php endif; ?>
     <?php if (can_access('payables.view')): ?>
         <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payables') ?>">Payments</a>
@@ -43,7 +44,8 @@
         <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/overdue') ?>">Overdue</a>
     <?php endif; ?>
     <?php if (can_access('payable_reports.voided.view')): ?>
-        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/voided') ?>">Voided</a>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/voided') ?>">Voided Pickups</a>
+        <a class="card block px-4 py-6 text-center font-semibold" href="<?= base_url('payable-reports/voided-pos') ?>">Voided POs</a>
     <?php endif; ?>
 </div>
 <?= $this->endSection() ?>

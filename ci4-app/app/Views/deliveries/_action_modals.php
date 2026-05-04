@@ -41,6 +41,64 @@ $products = $deliveryActionData['products'] ?? [];
                 </div>
             </div>
 
+            <input type="hidden" name="pickup_id" :value="editPickup.id">
+            <input type="hidden" name="pickup_product_id" :value="editPickup.product_id">
+
+            <div class="card p-4">
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="min-w-64 flex-1">
+                        <label class="block text-sm font-medium" for="edit_pickup_search">Connected RR</label>
+                        <input class="input mt-1" id="edit_pickup_search" x-model="editPickupQuery" @input.debounce.600ms="handleEditPickupQueryInput()" @keydown.enter.prevent="searchEditPickups()" placeholder="Search RR number, supplier, or product">
+                    </div>
+                    <button class="btn btn-secondary" type="button" @click="clearEditPickup()">Clear</button>
+                </div>
+
+                <div class="mt-3 text-sm muted" x-show="editPickupSearching || editPickupMessage" x-text="editPickupSearching ? 'Searching RRs...' : editPickupMessage"></div>
+
+                <div class="mt-3 overflow-x-auto rounded border border-gray-200" x-show="editPickupResults.length > 0" x-cloak>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>RR#</th>
+                                <th>Supplier</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Remaining</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="row in editPickupResults" :key="row.purchase_order_id + '-' + row.product_id">
+                                <tr class="hover:bg-gray-50" tabindex="0" @keydown.enter.prevent="selectEditPickup(row)">
+                                    <td class="font-semibold" x-text="row.rr_no"></td>
+                                    <td x-text="row.supplier_name"></td>
+                                    <td x-text="row.product_name"></td>
+                                    <td class="tabular-nums" x-text="formatAmount(row.qty)"></td>
+                                    <td class="tabular-nums" x-text="formatAmount(row.remaining_qty)"></td>
+                                    <td class="text-right">
+                                        <button class="btn btn-secondary" type="button" @click="selectEditPickup(row)">Choose</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3 overflow-x-auto rounded border border-gray-200" x-show="editPickup.id" x-cloak>
+                    <table class="table">
+                        <thead><tr><th>Supplier</th><th>Product</th><th>Quantity</th><th>Deliverable / Loss</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td x-text="editPickup.supplier_name"></td>
+                                <td x-text="editPickup.product_name"></td>
+                                <td class="tabular-nums" x-text="formatAmount(editPickupAvailableQty())"></td>
+                                <td class="tabular-nums" x-text="formatAmount(editPickupBalanceAfterDelivery())"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="card p-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold">Items</h3>

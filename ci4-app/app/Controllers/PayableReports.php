@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\PurchaseOrderHistoryModel;
 use App\Models\PurchaseOrderItemModel;
 use App\Models\SupplierModel;
+use App\Models\SupplierOrderItemModel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -60,6 +61,23 @@ class PayableReports extends BaseController
         [$fromVoidedDate, $toVoidedDate] = $this->resolveVoidedDateRange();
         $poNo = $this->resolvePoNoFilter();
         $html = view('payable_reports/voided/print', $this->buildVoidedReportData($fromVoidedDate, $toVoidedDate, $poNo, false));
+
+        return $this->renderPdf($html, 'voided-pickups-report.pdf', 'landscape');
+    }
+
+    public function voidedPos(): string
+    {
+        [$fromVoidedDate, $toVoidedDate] = $this->resolveVoidedDateRange();
+        $poNo = $this->resolvePoNoFilter();
+
+        return view('payable_reports/voided_pos/index', $this->buildVoidedPosReportData($fromVoidedDate, $toVoidedDate, $poNo, true));
+    }
+
+    public function voidedPosPrint()
+    {
+        [$fromVoidedDate, $toVoidedDate] = $this->resolveVoidedDateRange();
+        $poNo = $this->resolvePoNoFilter();
+        $html = view('payable_reports/voided_pos/print', $this->buildVoidedPosReportData($fromVoidedDate, $toVoidedDate, $poNo, false));
 
         return $this->renderPdf($html, 'voided-purchase-orders-report.pdf', 'landscape');
     }
@@ -275,6 +293,79 @@ class PayableReports extends BaseController
             'itemsByPurchaseOrder' => $itemsByPurchaseOrder,
             'allocationsByPurchaseOrder' => $allocationsByPurchaseOrder,
             'historiesByPurchaseOrder' => $historiesByPurchaseOrder,
+        ];
+    }
+
+    private function buildVoidedPosReportData(string $fromVoidedDate, string $toVoidedDate, string $poNo, bool $paginate): array
+    {
+        $db = db_connect();
+
+        $builder = $db->table('supplier_orders so')
+            ->select('so.id, so.date, so.po_no, so.void_reason, so.voided_at')
+            ->select('s.name as supplier_name')
+            ->select('COALESCE(SUM(soi.qty_ordered), 0) as qty_ordered_total')
+            ->select('COALESCE(SUM(soi.qty_picked_up), 0) as qty_picked_up_total')
+            ->select('COALESCE(SUM(soi.qty_balance), 0) as qty_balance_total')
+            ->join('suppliers s', 's.id = so.supplier_id', 'left')
+            ->join('supplier_order_items soi', 'soi.supplier_order_id = so.id', 'left')
+            ->where('so.voided_at IS NOT NULL', null, false);
+
+        if ($poNo === '' && $fromVoidedDate !== '') {
+            $builder->where('so.voided_at >=', $fromVoidedDate . ' 00:00:00');
+        }
+
+        if ($poNo === '' && $toVoidedDate !== '') {
+            $builder->where('so.voided_at <=', $toVoidedDate . ' 23:59:59');
+        }
+
+        if ($poNo !== '') {
+            $builder->like('so.po_no', $poNo);
+        }
+
+        $rows = $builder
+            ->groupBy('so.id')
+            ->orderBy('so.voided_at', 'desc')
+            ->orderBy('so.id', 'desc')
+            ->get()
+            ->getResultArray();
+
+        $totalOrdered = 0.0;
+        $totalPickedUp = 0.0;
+        $totalBalance = 0.0;
+        foreach ($rows as $row) {
+            $totalOrdered += (float) ($row['qty_ordered_total'] ?? 0);
+            $totalPickedUp += (float) ($row['qty_picked_up_total'] ?? 0);
+            $totalBalance += (float) ($row['qty_balance_total'] ?? 0);
+        }
+
+        $pagination = $this->paginateRows($rows, self::VOIDED_PER_PAGE, $paginate);
+        $pagedRows = $pagination['rows'];
+        $supplierOrderIds = array_filter(array_map('intval', array_column($pagedRows, 'id') ?? []));
+        $itemsBySupplierOrder = [];
+
+        if (! empty($supplierOrderIds)) {
+            $items = (new SupplierOrderItemModel())
+                ->select('supplier_order_items.*, products.product_name')
+                ->join('products', 'products.id = supplier_order_items.product_id', 'left')
+                ->whereIn('supplier_order_id', $supplierOrderIds)
+                ->orderBy('supplier_order_id', 'asc')
+                ->orderBy('id', 'asc')
+                ->findAll();
+
+            foreach ($items as $item) {
+                $supplierOrderId = (int) $item['supplier_order_id'];
+                $itemsBySupplierOrder[$supplierOrderId][] = $item;
+            }
+        }
+
+        return $pagination + [
+            'fromVoidedDate' => $fromVoidedDate,
+            'toVoidedDate' => $toVoidedDate,
+            'poNo' => $poNo,
+            'totalOrdered' => $totalOrdered,
+            'totalPickedUp' => $totalPickedUp,
+            'totalBalance' => $totalBalance,
+            'itemsBySupplierOrder' => $itemsBySupplierOrder,
         ];
     }
 

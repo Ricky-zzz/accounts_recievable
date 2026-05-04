@@ -62,7 +62,7 @@ if ($termValue === null) {
 }
 ?>
 
-<form class="<?= esc($formClass) ?>" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()">
+<form class="<?= esc($formClass) ?>" method="post" action="<?= esc($action) ?>" x-data="deliveryForm()" @submit="syncPickupFields()">
     <?= csrf_field() ?>
     <div class="grid gap-4 md:grid-cols-5">
         <?php if ($selectedClient): ?>
@@ -104,6 +104,64 @@ if ($termValue === null) {
         </div>
     </div>
 
+    <input type="hidden" name="pickup_id" x-model="pickup.id" x-ref="pickupId">
+    <input type="hidden" name="pickup_product_id" x-model="pickup.product_id" x-ref="pickupProductId">
+
+    <div class="card p-4">
+        <div class="flex flex-wrap items-end gap-3">
+            <div class="min-w-64 flex-1">
+                <label class="block text-sm font-medium" for="pickup_search">Connected RR</label>
+                <input class="input mt-1" id="pickup_search" x-model="pickupQuery" @input.debounce.600ms="handlePickupQueryInput()" @keydown.enter.prevent="searchPickups()" placeholder="Search RR number, supplier, or product">
+            </div>
+            <button class="btn btn-secondary" type="button" @click="clearPickup()">Clear</button>
+        </div>
+
+        <div class="mt-3 text-sm muted" x-show="pickupSearching || pickupMessage" x-text="pickupSearching ? 'Searching RRs...' : pickupMessage"></div>
+
+        <div class="mt-3 overflow-x-auto rounded border border-gray-200" x-show="pickupResults.length > 0" x-cloak>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>RR#</th>
+                        <th>Supplier</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Remaining</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in pickupResults" :key="row.purchase_order_id + '-' + row.product_id">
+                        <tr class="hover:bg-gray-50" tabindex="0" @keydown.enter.prevent="selectPickup(row)">
+                            <td class="font-semibold" x-text="row.rr_no"></td>
+                            <td x-text="row.supplier_name"></td>
+                            <td x-text="row.product_name"></td>
+                            <td class="tabular-nums" x-text="formatAmount(row.qty)"></td>
+                            <td class="tabular-nums" x-text="formatAmount(row.remaining_qty)"></td>
+                            <td class="text-right">
+                                <button class="btn btn-secondary" type="button" @click="selectPickup(row)">Choose</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3 overflow-x-auto rounded border border-gray-200" x-show="pickup.id" x-cloak>
+            <table class="table">
+                <thead><tr><th>Supplier</th><th>Product</th><th>Quantity</th><th>Deliverable / Loss</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td x-text="pickup.supplier_name"></td>
+                        <td x-text="pickup.product_name"></td>
+                        <td class="tabular-nums" x-text="formatAmount(pickup.remaining_qty)"></td>
+                        <td class="tabular-nums" x-text="formatAmount(pickupBalanceAfterDelivery())"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="card p-4">
         <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold">Items</h2>
@@ -111,14 +169,14 @@ if ($termValue === null) {
         </div>
 
         <div class="mt-4 space-y-4">
-            <template x-for="(item, index) in items" :key="index">
+            <template x-for="(item, index) in items" :key="item.product_id + '-' + index">
                 <div class="grid gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-medium" :for="'product_' + index">Product</label>
                         <select class="input mt-1" :id="'product_' + index" x-model="item.product_id" @change="selectProduct(index)" :name="'items[' + index + '][product_id]'" required>
                             <option value="">Select product</option>
                             <template x-for="product in products" :key="product.id">
-                                <option :value="product.id" x-text="product.product_name"></option>
+                                <option :value="String(product.id)" x-text="product.product_name"></option>
                             </template>
                         </select>
                     </div>
@@ -163,10 +221,24 @@ if ($termValue === null) {
             products: <?= $productsJson ?>,
             clientPriceMap: <?= $clientPriceMapJson ?? '[]' ?>,
             clients: <?= $clientsJson ?? '[]' ?>,
+            pickupSearchUrl: '<?= base_url('deliveries/pickups/search') ?>',
             selectedClientId: '<?= esc($selectedClientId, 'js') ?>',
             paymentTerm: '<?= esc((string) $termValue, 'js') ?>',
             deliveryDate: '<?= esc($dateValue, 'js') ?>',
             dueDate: '',
+            pickupQuery: '',
+            pickupSearching: false,
+            pickupSearchToken: 0,
+            pickupMessage: '',
+            pickupResults: [],
+            pickup: {
+                id: '',
+                product_id: '',
+                rr_no: '',
+                supplier_name: '',
+                product_name: '',
+                remaining_qty: 0,
+            },
             items: [{
                 product_id: '',
                 qty: 1,
@@ -219,8 +291,120 @@ if ($termValue === null) {
             removeItem(index) {
                 this.items.splice(index, 1);
             },
+            handlePickupQueryInput() {
+                if (this.pickup.id && String(this.pickupQuery || '').trim() !== String(this.pickup.rr_no || '').trim()) {
+                    this.clearPickup(false);
+                }
+                if (String(this.pickupQuery || '').trim() === '') {
+                    this.pickupResults = [];
+                    this.pickupMessage = '';
+                    return;
+                }
+                this.searchPickups();
+            },
+            async searchPickups() {
+                const query = String(this.pickupQuery || '').trim();
+                const queryKey = query.toLowerCase();
+                if (query === '') {
+                    this.pickupResults = [];
+                    this.pickupMessage = '';
+                    return;
+                }
+                const token = ++this.pickupSearchToken;
+                this.pickupSearching = true;
+                this.pickupMessage = '';
+                try {
+                    const response = await fetch(this.pickupSearchUrl + '?q=' + encodeURIComponent(query), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (token !== this.pickupSearchToken) {
+                        return;
+                    }
+                    this.pickupResults = Array.isArray(data.results) ? data.results : [];
+                    const exact = this.pickupResults.find((row) => {
+                        return String(row.rr_no || '').trim().toLowerCase() === queryKey;
+                    });
+                    if (exact) {
+                        this.selectPickup(exact);
+                        return;
+                    }
+                    if (this.pickupResults.length === 0) {
+                        this.pickupMessage = 'No open RR found.';
+                    }
+                } catch (error) {
+                    if (token !== this.pickupSearchToken) {
+                        return;
+                    }
+                    this.pickupResults = [];
+                    this.pickupMessage = 'Unable to search RRs right now.';
+                } finally {
+                    if (token === this.pickupSearchToken) {
+                        this.pickupSearching = false;
+                    }
+                }
+            },
+            selectPickup(row) {
+                const pickupId = row.purchase_order_id || row.id || '';
+                const productId = row.product_id || row.productId || '';
+                this.pickup = {
+                    id: pickupId,
+                    product_id: String(productId),
+                    rr_no: row.rr_no || '',
+                    supplier_name: row.supplier_name || '',
+                    product_name: row.product_name || '',
+                    remaining_qty: row.remaining_qty || 0,
+                };
+                this.pickupQuery = row.rr_no || '';
+                this.pickupResults = [];
+                this.pickupMessage = '';
+                this.items = [{
+                    product_id: String(productId),
+                    qty: row.remaining_qty || 0,
+                    unit_price: this.effectiveUnitPrice(String(productId), this.selectedClientId),
+                    line_total: '0.00'
+                }];
+                this.updateLine(0);
+                if (this.$refs.pickupId) {
+                    this.$refs.pickupId.value = pickupId;
+                }
+                if (this.$refs.pickupProductId) {
+                    this.$refs.pickupProductId.value = String(productId);
+                }
+            },
+            clearPickup(resetQuery = true) {
+                this.pickupSearchToken++;
+                this.pickup = { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0 };
+                this.pickupSearching = false;
+                this.pickupResults = [];
+                this.pickupMessage = '';
+                if (this.$refs.pickupId) {
+                    this.$refs.pickupId.value = '';
+                }
+                if (this.$refs.pickupProductId) {
+                    this.$refs.pickupProductId.value = '';
+                }
+                if (resetQuery) {
+                    this.pickupQuery = '';
+                }
+            },
+            pickupDeliveryQty() {
+                if (!this.pickup.id) {
+                    return 0;
+                }
+
+                return this.items
+                    .filter((item) => String(item.product_id) === String(this.pickup.product_id))
+                    .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            },
+            pickupBalanceAfterDelivery() {
+                return (parseFloat(this.pickup.remaining_qty) || 0) - this.pickupDeliveryQty();
+            },
             selectProduct(index) {
                 const item = this.items[index];
+                if (this.pickup.id && String(item.product_id) !== String(this.pickup.product_id)) {
+                    this.clearPickup(false);
+                }
                 item.unit_price = this.effectiveUnitPrice(item.product_id, this.selectedClientId);
                 this.updateLine(index);
             },
@@ -251,6 +435,20 @@ if ($termValue === null) {
                 return this.items
                     .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
                     .toFixed(2);
+            },
+            syncPickupFields() {
+                if (this.$refs.pickupId) {
+                    this.$refs.pickupId.value = this.pickup.id || '';
+                }
+                if (this.$refs.pickupProductId) {
+                    this.$refs.pickupProductId.value = this.pickup.product_id || '';
+                }
+            },
+            formatAmount(value) {
+                return (Math.round((parseFloat(value) || 0) * 100) / 100).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
             }
         };
     }

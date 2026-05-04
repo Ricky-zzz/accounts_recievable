@@ -5,8 +5,6 @@
  * @var string $toDate
  * @var string $prNo
  * @var list<array{id: int|string, client_id?: int|string|null, pr_no?: int|string|null, date?: string|null, amount_received?: int|float|string|null}> $payments
- * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayment
- * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
  * @var array<int|string, array<string, int|float|string|null>> $paymentsById
  * @var int|float|string $totalCollections
  */
@@ -15,10 +13,7 @@
 <?= $this->section('content') ?>
 <?php
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
-$allocationsJson = json_encode($allocationsByPayment ?? [], $jsonFlags);
-$paymentOtherJson = json_encode($otherAccountsByPayment ?? [], $jsonFlags);
 $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
-$paymentsJson = json_encode($payments ?? [], $jsonFlags);
 ?>
 
 <div x-data="paymentList()">
@@ -97,13 +92,9 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                         <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc((string) $payment['date']) ?></td>
                         <td>
-                            <?php if (! empty($allocationsByPayment[$payment['id']])): ?>
-                                <button class="btn-link" type="button" @click="openAllocations(<?= (int) $payment['id'] ?>)">
-                                    <?= esc((string) ($payment['pr_no'] ?? '')) ?>
-                                </button>
-                            <?php else: ?>
+                            <button class="btn-link" type="button" @click="openAllocations(<?= (int) $payment['id'] ?>, '<?= esc((string) ($payment['pr_no'] ?? ''), 'js') ?>')">
                                 <?= esc((string) ($payment['pr_no'] ?? '')) ?>
-                            <?php endif; ?>
+                            </button>
                         </td>
                         <td><?= esc(number_format((float) $payment['amount_received'], 2)) ?></td>
                     </tr>
@@ -124,6 +115,8 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
     <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
         <div class="modal-panel max-w-lg p-6" @click.stop>
             <h2 class="text-lg font-semibold">PR Summary for: <span x-text="selectedPrNumber()"></span></h2>
+            <div class="mt-3 text-sm muted" x-show="detailLoading">Loading details...</div>
+            <div class="mt-3 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
             <table class="table mt-4">
                 <thead>
                     <tr>
@@ -133,7 +126,12 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-if="selectedAllocations().length === 0">
+                    <template x-if="detailLoading">
+                        <tr>
+                            <td class="py-3" colspan="3">Loading...</td>
+                        </tr>
+                    </template>
+                    <template x-if="!detailLoading && selectedAllocations().length === 0">
                         <tr>
                             <td class="py-3" colspan="3">No allocations found.</td>
                         </tr>
@@ -173,7 +171,12 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-if="selectedOtherAccountsBreakdown().length === 0">
+                            <template x-if="detailLoading">
+                                <tr>
+                                    <td class="py-3" colspan="2">Loading...</td>
+                                </tr>
+                            </template>
+                            <template x-if="!detailLoading && selectedOtherAccountsBreakdown().length === 0">
                                 <tr>
                                     <td class="py-3" colspan="2">No other accounts found.</td>
                                 </tr>
@@ -210,32 +213,43 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
     function paymentList() {
         return {
             ...soaModalState(),
-            allocationsByPayment: <?= $allocationsJson ?>,
-            otherAccountsByPayment: <?= $paymentOtherJson ?>,
             paymentsById: <?= $paymentsByIdJson ?>,
-            payments: <?= $paymentsJson ?>,
+            detailUrl: '<?= base_url('ajax/payments') ?>',
+            detailsByPayment: {},
             allocOpen: false,
             selectedPaymentId: null,
-            openAllocations(id) {
+            selectedPrLabel: '',
+            detailLoading: false,
+            detailError: '',
+            async openAllocations(id, prNo = '') {
                 this.selectedPaymentId = id;
+                this.selectedPrLabel = prNo;
                 this.allocOpen = true;
+                this.detailError = '';
+                await this.loadPaymentDetails(id);
             },
             closeAllocations() {
                 this.allocOpen = false;
                 this.selectedPaymentId = null;
             },
+            selectedPaymentDetail() {
+                return this.detailsByPayment[this.selectedPaymentId] || null;
+            },
             selectedAllocations() {
-                return this.allocationsByPayment[this.selectedPaymentId] || [];
+                const detail = this.selectedPaymentDetail();
+                return detail ? (detail.allocations || []) : [];
             },
             selectedPayment() {
-                return this.paymentsById[this.selectedPaymentId] || null;
+                const detail = this.selectedPaymentDetail();
+                return detail ? detail.payment : (this.paymentsById[this.selectedPaymentId] || null);
             },
             selectedAllocatedTotal() {
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
             },
             selectedOtherAccounts() {
-                return this.otherAccountsByPayment[this.selectedPaymentId] || [];
+                const detail = this.selectedPaymentDetail();
+                return detail ? (detail.other_accounts || []) : [];
             },
             selectedOtherAccountsBreakdown() {
                 return this.selectedOtherAccounts().filter((item) => (parseFloat(item.dr) || 0) > 0 && (item.account_title || '').trim() !== '');
@@ -249,9 +263,31 @@ $paymentsJson = json_encode($payments ?? [], $jsonFlags);
                     .toFixed(2);
             },
             selectedPrNumber() {
-                const payment = this.paymentsById[String(this.selectedPaymentId)];
-                return payment ? payment.pr_no : '';
-            }
+                const payment = this.selectedPayment();
+                return payment ? payment.pr_no : this.selectedPrLabel;
+            },
+            async loadPaymentDetails(id) {
+                if (!id || this.detailsByPayment[id]) {
+                    return;
+                }
+
+                this.detailLoading = true;
+                this.detailError = '';
+                try {
+                    const response = await fetch(this.detailUrl + '/' + id, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Unable to load PR details.');
+                    }
+                    this.detailsByPayment[id] = data;
+                } catch (error) {
+                    this.detailError = error.message || 'Unable to load PR details.';
+                } finally {
+                    this.detailLoading = false;
+                }
+            },
         };
     }
 </script>

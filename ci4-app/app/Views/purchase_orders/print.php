@@ -14,7 +14,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Purchase Orders Report</title>
+    <title>RR / Pickups Report</title>
     <style>
         @page {
             margin: 24px;
@@ -99,13 +99,13 @@
         <?php endif; ?>
 
         <div class="company-title">SRC ENTERPRISES INC</div>
-        <div class="report-title">Purchase Orders Report</div>
+        <div class="report-title">RR / Pickups Report</div>
         <?php if ($supplier): ?>
             <div class="meta">Supplier: <?= esc((string) ($supplier['name'] ?? '')) ?></div>
         <?php endif; ?>
         <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
         <?php if (($poNo ?? '') !== ''): ?>
-            <div class="meta">PO filter: <?= esc((string) $poNo) ?></div>
+            <div class="meta">RR filter: <?= esc((string) $poNo) ?></div>
         <?php endif; ?>
     </div>
 
@@ -115,7 +115,7 @@
                 <th>#</th>
                 <th>Date</th>
                 <th>Supplier</th>
-                <th>PO #</th>
+                <th>RR #</th>
                 <th>Due Date</th>
                 <th>Term</th>
                 <th class="text-right">Total Amount</th>
@@ -125,7 +125,7 @@
         <tbody>
             <?php if (empty($purchaseOrders)): ?>
                 <tr>
-                    <td class="text-center" colspan="8">No purchase orders found for the selected filters.</td>
+                    <td class="text-center" colspan="8">No pickups found for the selected filters.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($purchaseOrders as $index => $order): ?>

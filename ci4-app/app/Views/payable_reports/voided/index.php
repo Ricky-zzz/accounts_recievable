@@ -33,8 +33,8 @@ $filterQuery = [
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h1 class="text-xl font-semibold">Voided Purchase Orders</h1>
-                <p class="mt-1 text-sm muted">Latest voided purchase orders with reasons and balances.</p>
+                <h1 class="text-xl font-semibold">Voided Pickups</h1>
+                <p class="mt-1 text-sm muted">Latest voided RR / pickups with reasons and balances.</p>
             </div>
             <a class="btn" href="<?= base_url('payable-reports/voided/print?' . http_build_query($filterQuery)) ?>" target="_blank">Print</a>
         </div>
@@ -42,7 +42,7 @@ $filterQuery = [
         <form method="get" action="<?= base_url('payable-reports/voided') ?>" class="filter-card rounded border border-gray-200 p-4" x-data>
             <div class="grid gap-4 md:grid-cols-5">
             <div>
-                <label class="block text-sm font-medium" for="po_no">PO Number</label>
+                <label class="block text-sm font-medium" for="po_no">RR Number</label>
                 <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
             </div>
             <div>
@@ -63,7 +63,7 @@ $filterQuery = [
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>PO #</th>
+                    <th>RR #</th>
                     <th>Date</th>
                     <th>Due Date</th>
                     <th>Voided At</th>
@@ -76,7 +76,7 @@ $filterQuery = [
             </thead>
             <tbody>
                 <?php if (empty($rows)): ?>
-                    <tr><td colspan="10">No voided purchase orders found.</td></tr>
+                    <tr><td colspan="10">No voided pickups found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($rows as $index => $row): ?>
                         <?php $rowId = (int) ($row['id'] ?? 0); ?>
@@ -132,13 +132,13 @@ $filterQuery = [
     </div>
 
     <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
-        <div class="modal-panel max-w-4xl p-6" @click.stop>
+        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
             <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">Details for PO#: <span x-text="selectedPoNumber()"></span></h2>
+                <h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2>
             </div>
-            <div class="grid grid-cols-2 gap-6">
+            <div class="modal-split">
                 <div>
-                    <h3 class="mb-3 font-semibold">Purchase Items</h3>
+                    <h3 class="mb-3 font-semibold">Pickup Items</h3>
                     <table class="table">
                         <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
                         <tbody>
@@ -149,9 +149,9 @@ $filterQuery = [
                     <div class="mt-2 text-sm font-semibold" x-show="selectedItems().length > 0">Total: <span x-text="itemsTotal()"></span></div>
                 </div>
                 <div>
-                    <h3 class="mb-3 font-semibold">PO Allocations</h3>
+                    <h3 class="mb-3 font-semibold">CV Allocations</h3>
                     <table class="table">
-                        <thead><tr><th>PR #</th><th>Date</th><th>Amount</th></tr></thead>
+                        <thead><tr><th>CV #</th><th>Date</th><th>Amount</th></tr></thead>
                         <tbody>
                             <template x-if="selectedAllocations().length === 0"><tr><td class="py-3 text-center" colspan="3">No allocations found.</td></tr></template>
                             <template x-for="(alloc, index) in selectedAllocations()" :key="index"><tr><td x-text="alloc.pr_no"></td><td x-text="alloc.date"></td><td x-text="Number(alloc.amount).toFixed(2)"></td></tr></template>
@@ -169,8 +169,8 @@ $filterQuery = [
             <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <h2 class="text-lg font-semibold">Purchase Order History</h2>
-                        <p class="mt-1 text-sm muted" x-text="selectedHistoryOrder() ? 'PO# ' + (selectedHistoryOrder().po_no || '-') + ' | Current total ' + formatAmount(selectedHistoryOrder().total_amount || 0) : ''"></p>
+                        <h2 class="text-lg font-semibold">Pickup History</h2>
+                        <p class="mt-1 text-sm muted" x-text="selectedHistoryOrder() ? 'RR# ' + (selectedHistoryOrder().po_no || '-') + ' | Current total ' + formatAmount(selectedHistoryOrder().total_amount || 0) : ''"></p>
                     </div>
                     <button class="btn btn-secondary" type="button" @click="closeHistory()">Close</button>
                 </div>
@@ -178,7 +178,7 @@ $filterQuery = [
 
             <div class="mt-5 space-y-4">
                 <template x-if="selectedHistories().length === 0">
-                    <div class="card p-4 text-sm">No history recorded for this purchase order yet.</div>
+                    <div class="card p-4 text-sm">No history recorded for this pickup yet.</div>
                 </template>
                 <template x-for="history in selectedHistories()" :key="history.id">
                     <div class="card p-4">
@@ -195,7 +195,7 @@ $filterQuery = [
                         <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">Before</p>
-                                <p class="mt-2">PO#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
                                 <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'" ></span></p>
                                 <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)" ></span></p>
                                 <div class="mt-3">
@@ -229,7 +229,7 @@ $filterQuery = [
                             </div>
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">After</p>
-                                <p class="mt-2">PO#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
                                 <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'" ></span></p>
                                 <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)" ></span></p>
                                 <div class="mt-3">

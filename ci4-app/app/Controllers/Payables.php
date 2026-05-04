@@ -25,8 +25,6 @@ class Payables extends BaseController
             'toDate' => $toDate,
             'prNo' => $prNo,
             'payables' => $result['payables'],
-            'allocationsByPayable' => $result['allocationsByPayable'],
-            'otherAccountsByPayable' => $result['otherAccountsByPayable'],
             'payablesById' => $result['payablesById'],
             'totalPayments' => $result['totalPayments'],
         ]);
@@ -49,8 +47,6 @@ class Payables extends BaseController
             'toDate' => $toDate,
             'prNo' => $prNo,
             'payables' => $result['payables'],
-            'allocationsByPayable' => $result['allocationsByPayable'],
-            'otherAccountsByPayable' => $result['otherAccountsByPayable'],
             'payablesById' => $result['payablesById'],
             'totalPayments' => $result['totalPayments'],
         ]);
@@ -284,43 +280,12 @@ SQL;
             ->get()
             ->getResultArray();
 
-        $payableIds = array_filter(array_map('intval', array_column($payables, 'id')));
-        $allocationsByPayable = [];
-        $otherAccountsByPayable = [];
         $payablesById = [];
 
         foreach ($payables as $payable) {
             $payableId = (int) ($payable['id'] ?? 0);
             if ($payableId > 0) {
                 $payablesById[$payableId] = $payable;
-            }
-        }
-
-        if (! empty($payableIds)) {
-            $allocations = $db->table('payable_allocations pa')
-                ->select('pa.payable_id, pa.amount, po.po_no, po.date')
-                ->join('purchase_orders po', 'po.id = pa.purchase_order_id', 'left')
-                ->whereIn('pa.payable_id', $payableIds)
-                ->orderBy('po.date', 'asc')
-                ->get()
-                ->getResultArray();
-
-            foreach ($allocations as $allocation) {
-                $allocationsByPayable[(int) $allocation['payable_id']][] = $allocation;
-            }
-
-            $otherRows = $db->table('payable_ledger pl')
-                ->select('pl.payable_id, pl.account_title, pl.other_accounts, pl.entry_date, pl.pr_no')
-                ->whereIn('pl.payable_id', $payableIds)
-                ->where('pl.account_title IS NOT NULL', null, false)
-                ->where('pl.other_accounts >', 0)
-                ->orderBy('pl.entry_date', 'asc')
-                ->orderBy('pl.id', 'asc')
-                ->get()
-                ->getResultArray();
-
-            foreach ($otherRows as $row) {
-                $otherAccountsByPayable[(int) $row['payable_id']][] = $row;
             }
         }
 
@@ -331,8 +296,6 @@ SQL;
 
         return [
             'payables' => $payables,
-            'allocationsByPayable' => $allocationsByPayable,
-            'otherAccountsByPayable' => $otherAccountsByPayable,
             'payablesById' => $payablesById,
             'totalPayments' => $totalPayments,
         ];

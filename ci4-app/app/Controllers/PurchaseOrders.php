@@ -9,12 +9,15 @@ use App\Models\PurchaseOrderHistoryModel;
 use App\Models\PurchaseOrderItemModel;
 use App\Models\PurchaseOrderModel;
 use App\Models\SupplierModel;
+use App\Models\SupplierOrderItemModel;
+use App\Models\SupplierOrderModel;
 use App\Models\UserModel;
 use App\Services\PayablePostingService;
 use App\Services\PurchaseOrderHistoryService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use RuntimeException;
 
 class PurchaseOrders extends BaseController
 {
@@ -102,7 +105,7 @@ class PurchaseOrders extends BaseController
 
         return $this->response
             ->setContentType('application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="purchase-orders-report.pdf"')
+            ->setHeader('Content-Disposition', 'inline; filename="rr-pickups-report.pdf"')
             ->setBody($dompdf->output());
     }
 
@@ -117,7 +120,7 @@ class PurchaseOrders extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return redirect()->back()->withInput()->with('error', 'Please check the purchase order form and try again.');
+            return redirect()->back()->withInput()->with('error', 'Please check the RR form and try again.');
         }
 
         $supplier = (new SupplierModel())->find($supplierId);
@@ -131,7 +134,7 @@ class PurchaseOrders extends BaseController
         $items = $this->request->getPost('items');
 
         if ((new PurchaseOrderModel())->where('supplier_id', $supplierId)->where('po_no', $poNo)->first()) {
-            return redirect()->back()->withInput()->with('error', 'PO number already exists for this supplier.');
+            return redirect()->back()->withInput()->with('error', 'RR number already exists for this supplier.');
         }
 
         if (! is_array($items) || count($items) === 0) {
@@ -143,6 +146,13 @@ class PurchaseOrders extends BaseController
             return redirect()->back()->withInput()->with('error', 'Add at least one valid item with quantity.');
         }
 
+        try {
+            $cleanItems = $this->autoAllocateSupplierOrders($supplierId, $cleanItems);
+        } catch (RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $supplierOrderId = $this->resolveHeaderSupplierOrderId($cleanItems);
         $total = array_reduce($cleanItems, static fn (float $sum, array $item): float => $sum + (float) $item['line_total'], 0.0);
         $previousBalance = $this->latestLedgerBalance($supplierId);
         $creditLimit = $supplier['credit_limit'] ?? null;
@@ -163,6 +173,7 @@ class PurchaseOrders extends BaseController
 
         $purchaseOrderId = (new PurchaseOrderModel())->insert([
             'supplier_id' => $supplierId,
+            'supplier_order_id' => $supplierOrderId,
             'po_no' => $poNo,
             'date' => $date,
             'payment_term' => $effectivePaymentTerm,
@@ -174,35 +185,20 @@ class PurchaseOrders extends BaseController
         foreach ($cleanItems as $index => $item) {
             $cleanItems[$index]['purchase_order_id'] = $purchaseOrderId;
         }
-        (new PurchaseOrderItemModel())->insertBatch($cleanItems);
+        $this->deductSupplierOrderBalances($cleanItems);
+        (new PurchaseOrderItemModel())->insertBatch($this->purchaseOrderItemsForInsert($cleanItems));
 
-        $firstItem = $cleanItems[0] ?? null;
-        (new PayableLedgerModel())->insert([
-            'supplier_id' => $supplierId,
-            'entry_date' => $date,
-            'po_no' => $poNo,
-            'pr_no' => null,
-            'qty' => $firstItem['qty'] ?? null,
-            'price' => $firstItem['unit_price'] ?? null,
-            'payables' => $total,
-            'payment' => 0,
-            'account_title' => null,
-            'other_accounts' => 0,
-            'balance' => $previousBalance + $total,
-            'purchase_order_id' => $purchaseOrderId,
-            'payable_id' => null,
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        $this->insertPickupLedgerRows($supplierId, $date, $poNo, $purchaseOrderId, $cleanItems, $previousBalance);
 
         $db->transComplete();
 
         if (! $db->transStatus()) {
-            return redirect()->back()->withInput()->with('error', 'Failed to save purchase order.');
+            return redirect()->back()->withInput()->with('error', 'Failed to save RR.');
         }
 
         $query = http_build_query(['po_no' => $poNo, 'from_date' => $date, 'to_date' => $date]);
 
-        return redirect()->to('suppliers/' . $supplierId . '/purchase-orders?' . $query)->with('success', 'Purchase order saved.');
+        return redirect()->to('suppliers/' . $supplierId . '/purchase-orders?' . $query)->with('success', 'RR saved.');
     }
 
     public function update(int $purchaseOrderId)
@@ -213,11 +209,11 @@ class PurchaseOrders extends BaseController
         }
 
         if (! empty($purchaseOrder['voided_at']) || ($purchaseOrder['status'] ?? '') === 'voided') {
-            return redirect()->back()->withInput()->with('error', 'Voided purchase orders cannot be edited.');
+            return redirect()->back()->withInput()->with('error', 'Voided RRs cannot be edited.');
         }
 
         if ((float) ($purchaseOrder['allocated_amount'] ?? 0) > 0) {
-            return redirect()->back()->withInput()->with('error', 'Purchase orders with payments cannot be edited.');
+            return redirect()->back()->withInput()->with('error', 'RRs with payments cannot be edited.');
         }
 
         $rules = [
@@ -227,7 +223,7 @@ class PurchaseOrders extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return redirect()->back()->withInput()->with('error', 'Please check the purchase order form and try again.');
+            return redirect()->back()->withInput()->with('error', 'Please check the RR form and try again.');
         }
 
         $supplierId = (int) $purchaseOrder['supplier_id'];
@@ -243,7 +239,7 @@ class PurchaseOrders extends BaseController
             ->first();
 
         if ($existing) {
-            return redirect()->back()->withInput()->with('error', 'PO number already exists for this supplier.');
+            return redirect()->back()->withInput()->with('error', 'RR number already exists for this supplier.');
         }
 
         $cleanItems = is_array($items) ? $this->cleanItems($items) : [];
@@ -251,15 +247,22 @@ class PurchaseOrders extends BaseController
             return redirect()->back()->withInput()->with('error', 'Add at least one valid item with quantity.');
         }
 
+        $oldItems = $this->fetchPurchaseOrderItems($purchaseOrderId);
+        $restoredQuantities = $this->supplierOrderQuantitiesByItem($oldItems);
+        try {
+            $cleanItems = $this->autoAllocateSupplierOrders($supplierId, $cleanItems, $restoredQuantities);
+        } catch (RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $supplierOrderId = $this->resolveHeaderSupplierOrderId($cleanItems);
         $total = array_reduce($cleanItems, static fn (float $sum, array $item): float => $sum + (float) $item['line_total'], 0.0);
         $effectivePaymentTerm = $postedPaymentTerm === '' ? (int) ($purchaseOrder['payment_term'] ?? 0) : (int) $postedPaymentTerm;
         $effectivePaymentTerm = max(0, $effectivePaymentTerm);
         $dueDate = $this->calculateDueDate($date, $effectivePaymentTerm);
-        $oldItems = $this->fetchPurchaseOrderItems($purchaseOrderId);
-        $oldTotal = (float) ($purchaseOrder['total_amount'] ?? 0);
-
         $newPurchaseOrder = [
             'supplier_id' => $supplierId,
+            'supplier_order_id' => $supplierOrderId,
             'po_no' => $poNo,
             'date' => $date,
             'payment_term' => $effectivePaymentTerm,
@@ -273,16 +276,15 @@ class PurchaseOrders extends BaseController
 
         (new PurchaseOrderModel())->update($purchaseOrderId, $newPurchaseOrder);
         $itemModel = new PurchaseOrderItemModel();
+        $this->restoreSupplierOrderBalances($oldItems);
         $itemModel->where('purchase_order_id', $purchaseOrderId)->delete();
         foreach ($cleanItems as $index => $item) {
             $cleanItems[$index]['purchase_order_id'] = $purchaseOrderId;
         }
-        $itemModel->insertBatch($cleanItems);
-
-        $difference = round($total - $oldTotal, 2);
-        if (abs($difference) > 0.005) {
-            $this->insertAdjustmentLedgerRow($supplierId, $purchaseOrderId, $poNo, $difference);
-        }
+        $this->deductSupplierOrderBalances($cleanItems);
+        $itemModel->insertBatch($this->purchaseOrderItemsForInsert($cleanItems));
+        $this->replacePickupLedgerRows($supplierId, $date, $poNo, $purchaseOrderId, $cleanItems);
+        $this->recalculateSupplierLedgerBalances($supplierId);
 
         $freshPurchaseOrder = $this->fetchPurchaseOrderWithBalance($purchaseOrderId) ?? array_merge($purchaseOrder, $newPurchaseOrder);
         $freshItems = $this->fetchPurchaseOrderItems($purchaseOrderId);
@@ -300,10 +302,10 @@ class PurchaseOrders extends BaseController
         $db->transComplete();
 
         if (! $db->transStatus()) {
-            return redirect()->back()->withInput()->with('error', 'Failed to update purchase order.');
+            return redirect()->back()->withInput()->with('error', 'Failed to update RR.');
         }
 
-        return redirect()->back()->with('success', 'Purchase order updated.');
+        return redirect()->back()->with('success', 'RR updated.');
     }
 
     public function void(int $purchaseOrderId)
@@ -319,11 +321,11 @@ class PurchaseOrders extends BaseController
         }
 
         if (! empty($purchaseOrder['voided_at']) || ($purchaseOrder['status'] ?? '') === 'voided') {
-            return redirect()->back()->with('error', 'Purchase order is already voided.');
+            return redirect()->back()->with('error', 'RR is already voided.');
         }
 
         if ((float) ($purchaseOrder['allocated_amount'] ?? 0) > 0) {
-            return redirect()->back()->with('error', 'Purchase orders with partial or full payments cannot be voided.');
+            return redirect()->back()->with('error', 'RRs with partial or full payments cannot be voided.');
         }
 
         $oldItems = $this->fetchPurchaseOrderItems($purchaseOrderId);
@@ -338,7 +340,8 @@ class PurchaseOrders extends BaseController
             'voided_at' => $voidedAt,
         ]);
 
-        $this->insertVoidLedgerRow($purchaseOrder, $voidedAt);
+        $this->restoreSupplierOrderBalances($oldItems);
+        $this->insertVoidLedgerRow($purchaseOrder, $oldItems, $voidedAt);
         $newPurchaseOrder = $this->fetchPurchaseOrderWithBalance($purchaseOrderId) ?? array_merge($purchaseOrder, [
             'status' => 'voided',
             'void_reason' => $reason,
@@ -353,16 +356,16 @@ class PurchaseOrders extends BaseController
             $oldItems,
             $newPurchaseOrder,
             $oldItems,
-            'Voided purchase order. Reason: ' . $reason
+            'Voided RR. Reason: ' . $reason
         );
 
         $db->transComplete();
 
         if (! $db->transStatus()) {
-            return redirect()->back()->with('error', 'Failed to void purchase order.');
+            return redirect()->back()->with('error', 'Failed to void RR.');
         }
 
-        return redirect()->back()->with('success', 'Purchase order voided.');
+        return redirect()->back()->with('success', 'RR voided.');
     }
 
     private function cleanItems(array $items): array
@@ -376,10 +379,12 @@ class PurchaseOrders extends BaseController
                 continue;
             }
             $cleanItems[] = [
+                'supplier_order_item_id' => null,
                 'product_id' => $productId,
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
                 'line_total' => $qty * $unitPrice,
+                'po_qty_balance_after' => null,
             ];
         }
 
@@ -408,17 +413,22 @@ class PurchaseOrders extends BaseController
     {
         return (new PurchaseOrderItemModel())
             ->select('purchase_order_items.*, products.product_name')
+            ->select('supplier_orders.id as supplier_order_id, supplier_orders.po_no as supplier_order_po_no')
+            ->select('supplier_order_items.qty_balance as current_po_qty_balance')
             ->join('products', 'products.id = purchase_order_items.product_id', 'left')
+            ->join('supplier_order_items', 'supplier_order_items.id = purchase_order_items.supplier_order_item_id', 'left')
+            ->join('supplier_orders', 'supplier_orders.id = supplier_order_items.supplier_order_id', 'left')
             ->where('purchase_order_id', $purchaseOrderId)
             ->orderBy('purchase_order_items.id', 'asc')
             ->findAll();
     }
 
-    private function insertVoidLedgerRow(array $purchaseOrder, string $voidedAt): void
+    private function insertVoidLedgerRow(array $purchaseOrder, array $items, string $voidedAt): void
     {
         $supplierId = (int) $purchaseOrder['supplier_id'];
         $amount = (float) $purchaseOrder['total_amount'];
         $previousBalance = $this->latestLedgerBalance($supplierId);
+        $sourceSnapshot = $this->firstLedgerSourceSnapshot($items);
 
         (new PayableLedgerModel())->insert([
             'supplier_id' => $supplierId,
@@ -432,33 +442,12 @@ class PurchaseOrders extends BaseController
             'account_title' => 'Voided',
             'other_accounts' => $amount,
             'balance' => $previousBalance - $amount,
+            'supplier_order_id' => $sourceSnapshot['supplier_order_id'],
+            'supplier_order_item_id' => $sourceSnapshot['supplier_order_item_id'],
+            'po_balance' => $sourceSnapshot['po_balance'],
             'purchase_order_id' => (int) $purchaseOrder['id'],
             'payable_id' => null,
             'created_at' => $voidedAt,
-        ]);
-    }
-
-    private function insertAdjustmentLedgerRow(int $supplierId, int $purchaseOrderId, string $poNo, float $difference): void
-    {
-        $previousBalance = $this->latestLedgerBalance($supplierId);
-        $payables = $difference > 0 ? $difference : 0;
-        $otherAccounts = $difference < 0 ? abs($difference) : 0;
-
-        (new PayableLedgerModel())->insert([
-            'supplier_id' => $supplierId,
-            'entry_date' => date('Y-m-d'),
-            'po_no' => $poNo,
-            'pr_no' => null,
-            'qty' => null,
-            'price' => null,
-            'payables' => $payables,
-            'payment' => 0,
-            'account_title' => 'Purchase Order Adjustment',
-            'other_accounts' => $otherAccounts,
-            'balance' => $previousBalance + $payables - $otherAccounts,
-            'purchase_order_id' => $purchaseOrderId,
-            'payable_id' => null,
-            'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
 
@@ -474,10 +463,288 @@ class PurchaseOrders extends BaseController
         return (float) ($lastLedger['balance'] ?? 0);
     }
 
+    private function autoAllocateSupplierOrders(int $supplierId, array $items, array $restoredQuantities = []): array
+    {
+        $productIds = array_values(array_unique(array_filter(array_map(
+            static fn (array $item): int => (int) ($item['product_id'] ?? 0),
+            $items
+        ))));
+
+        if (empty($productIds)) {
+            return [];
+        }
+
+        $productNames = [];
+        foreach ((new ProductModel())->whereIn('id', $productIds)->findAll() as $product) {
+            $productNames[(int) $product['id']] = (string) ($product['product_name'] ?? ('Product #' . $product['id']));
+        }
+
+        $sources = db_connect()->table('supplier_order_items soi')
+            ->select('soi.id, soi.supplier_order_id, soi.product_id, soi.qty_balance')
+            ->select('so.po_no, so.date')
+            ->join('supplier_orders so', 'so.id = soi.supplier_order_id', 'left')
+            ->where('so.supplier_id', $supplierId)
+            ->where('so.status', 'active')
+            ->whereIn('soi.product_id', $productIds)
+            ->orderBy('so.date', 'asc')
+            ->orderBy('so.id', 'asc')
+            ->orderBy('soi.id', 'asc')
+            ->get()
+            ->getResultArray();
+
+        $sourcesByProduct = [];
+        foreach ($sources as $source) {
+            $sourceItemId = (int) ($source['id'] ?? 0);
+            $availableQty = (float) ($source['qty_balance'] ?? 0) + (float) ($restoredQuantities[$sourceItemId] ?? 0);
+            if ($sourceItemId <= 0 || $availableQty <= 0.005) {
+                continue;
+            }
+
+            $source['available_qty'] = $availableQty;
+            $sourcesByProduct[(int) ($source['product_id'] ?? 0)][] = $source;
+        }
+
+        $allocatedItems = [];
+
+        foreach ($items as $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $remainingQty = (float) ($item['qty'] ?? 0);
+            $unitPrice = (float) ($item['unit_price'] ?? 0);
+            $productSources = $sourcesByProduct[$productId] ?? [];
+
+            foreach ($productSources as $sourceIndex => $source) {
+                if ($remainingQty <= 0.005) {
+                    break;
+                }
+
+                $availableQty = (float) ($source['available_qty'] ?? 0);
+                if ($availableQty <= 0.005) {
+                    continue;
+                }
+
+                $allocatedQty = min($remainingQty, $availableQty);
+                $allocatedItems[] = [
+                    'supplier_order_item_id' => (int) $source['id'],
+                    'supplier_order_id' => (int) $source['supplier_order_id'],
+                    'product_id' => $productId,
+                    'qty' => $allocatedQty,
+                    'unit_price' => $unitPrice,
+                    'line_total' => $allocatedQty * $unitPrice,
+                    'po_qty_balance_after' => null,
+                ];
+
+                $remainingQty -= $allocatedQty;
+                $sourcesByProduct[$productId][$sourceIndex]['available_qty'] = $availableQty - $allocatedQty;
+            }
+
+            if ($remainingQty > 0.005) {
+                $productName = $productNames[$productId] ?? ('Product #' . $productId);
+                throw new RuntimeException(
+                    'Pickup quantity exceeds open Supplier PO balance for ' . $productName . '. Create a new Supplier PO first.'
+                );
+            }
+        }
+
+        return $allocatedItems;
+    }
+
+    private function insertPickupLedgerRows(
+        int $supplierId,
+        string $date,
+        string $poNo,
+        int $purchaseOrderId,
+        array $items,
+        float $startingBalance
+    ): float {
+        $ledgerModel = new PayableLedgerModel();
+        $runningBalance = $startingBalance;
+        $createdAt = date('Y-m-d H:i:s');
+
+        foreach ($items as $item) {
+            $lineTotal = (float) ($item['line_total'] ?? 0);
+            $runningBalance += $lineTotal;
+
+            $ledgerModel->insert([
+                'supplier_id' => $supplierId,
+                'entry_date' => $date,
+                'po_no' => $poNo,
+                'pr_no' => null,
+                'qty' => $item['qty'] ?? null,
+                'price' => $item['unit_price'] ?? null,
+                'payables' => $lineTotal,
+                'payment' => 0,
+                'account_title' => null,
+                'other_accounts' => 0,
+                'balance' => $runningBalance,
+                'supplier_order_id' => $item['supplier_order_id'] ?? null,
+                'supplier_order_item_id' => $item['supplier_order_item_id'] ?? null,
+                'po_balance' => $item['po_qty_balance_after'] ?? null,
+                'purchase_order_id' => $purchaseOrderId,
+                'payable_id' => null,
+                'created_at' => $createdAt,
+            ]);
+        }
+
+        return $runningBalance;
+    }
+
+    private function replacePickupLedgerRows(int $supplierId, string $date, string $poNo, int $purchaseOrderId, array $items): void
+    {
+        (new PayableLedgerModel())
+            ->where('purchase_order_id', $purchaseOrderId)
+            ->where('payable_id', null)
+            ->where('account_title', null)
+            ->delete();
+
+        $this->insertPickupLedgerRows($supplierId, $date, $poNo, $purchaseOrderId, $items, 0.0);
+    }
+
+    private function recalculateSupplierLedgerBalances(int $supplierId): void
+    {
+        $ledgerModel = new PayableLedgerModel();
+        $rows = $ledgerModel
+            ->where('supplier_id', $supplierId)
+            ->orderBy('entry_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->findAll();
+
+        $balance = 0.0;
+        foreach ($rows as $row) {
+            $balance += (float) ($row['payables'] ?? 0);
+            $balance -= (float) ($row['payment'] ?? 0);
+            $balance -= (float) ($row['other_accounts'] ?? 0);
+
+            if (abs((float) ($row['balance'] ?? 0) - $balance) > 0.005) {
+                (new PayableLedgerModel())->update((int) $row['id'], ['balance' => $balance]);
+            }
+        }
+    }
+
+    private function resolveHeaderSupplierOrderId(array $items): ?int
+    {
+        $supplierOrderIds = [];
+        foreach ($items as $item) {
+            $supplierOrderId = (int) ($item['supplier_order_id'] ?? 0);
+            if ($supplierOrderId > 0) {
+                $supplierOrderIds[$supplierOrderId] = true;
+            }
+        }
+
+        return count($supplierOrderIds) === 1 ? (int) array_key_first($supplierOrderIds) : null;
+    }
+
+    private function deductSupplierOrderBalances(array &$items): void
+    {
+        $model = new SupplierOrderItemModel();
+
+        foreach ($items as $index => $item) {
+            $sourceItemId = (int) ($item['supplier_order_item_id'] ?? 0);
+            if ($sourceItemId <= 0) {
+                continue;
+            }
+
+            $source = $model->find($sourceItemId);
+            if (! $source) {
+                continue;
+            }
+
+            $qty = (float) ($item['qty'] ?? 0);
+            $newPicked = (float) ($source['qty_picked_up'] ?? 0) + $qty;
+            $newBalance = max(0.0, (float) ($source['qty_balance'] ?? 0) - $qty);
+
+            $model->update($sourceItemId, [
+                'qty_picked_up' => $newPicked,
+                'qty_balance' => $newBalance,
+            ]);
+
+            $items[$index]['supplier_order_id'] = (int) ($source['supplier_order_id'] ?? 0) ?: null;
+            $items[$index]['po_qty_balance_after'] = $newBalance;
+        }
+    }
+
+    private function restoreSupplierOrderBalances(array $items): void
+    {
+        $quantities = $this->supplierOrderQuantitiesByItem($items);
+        if (empty($quantities)) {
+            return;
+        }
+
+        $model = new SupplierOrderItemModel();
+        foreach ($quantities as $sourceItemId => $qty) {
+            $source = $model->find((int) $sourceItemId);
+            if (! $source) {
+                continue;
+            }
+
+            $model->update((int) $sourceItemId, [
+                'qty_picked_up' => max(0.0, (float) ($source['qty_picked_up'] ?? 0) - (float) $qty),
+                'qty_balance' => (float) ($source['qty_balance'] ?? 0) + (float) $qty,
+            ]);
+        }
+    }
+
+    private function purchaseOrderItemsForInsert(array $items): array
+    {
+        $allowed = array_flip([
+            'purchase_order_id',
+            'supplier_order_item_id',
+            'product_id',
+            'qty',
+            'unit_price',
+            'line_total',
+            'po_qty_balance_after',
+        ]);
+
+        return array_map(
+            static fn (array $item): array => array_intersect_key($item, $allowed),
+            $items
+        );
+    }
+
+    private function supplierOrderQuantitiesByItem(array $items): array
+    {
+        $quantities = [];
+        foreach ($items as $item) {
+            $sourceItemId = (int) ($item['supplier_order_item_id'] ?? 0);
+            if ($sourceItemId <= 0) {
+                continue;
+            }
+
+            $quantities[$sourceItemId] = (float) ($quantities[$sourceItemId] ?? 0) + (float) ($item['qty'] ?? 0);
+        }
+
+        return $quantities;
+    }
+
+    private function firstLedgerSourceSnapshot(array $items): array
+    {
+        foreach ($items as $item) {
+            $sourceItemId = (int) ($item['supplier_order_item_id'] ?? 0);
+            if ($sourceItemId <= 0) {
+                continue;
+            }
+
+            $source = (new SupplierOrderItemModel())->find($sourceItemId);
+            $supplierOrderId = (int) ($item['supplier_order_id'] ?? $source['supplier_order_id'] ?? 0);
+
+            return [
+                'supplier_order_id' => $supplierOrderId > 0 ? $supplierOrderId : null,
+                'supplier_order_item_id' => $sourceItemId,
+                'po_balance' => $source['qty_balance'] ?? ($item['po_qty_balance_after'] ?? null),
+            ];
+        }
+
+        return [
+            'supplier_order_id' => null,
+            'supplier_order_item_id' => null,
+            'po_balance' => null,
+        ];
+    }
+
     private function buildChangeSummary(array $oldPurchaseOrder, array $newPurchaseOrder, array $oldItems, array $newItems): string
     {
         $changes = [];
-        foreach (['po_no' => 'PO#', 'date' => 'Date', 'due_date' => 'Due date', 'payment_term' => 'Term'] as $field => $label) {
+        foreach (['po_no' => 'RR#', 'date' => 'Date', 'due_date' => 'Due date', 'payment_term' => 'Term'] as $field => $label) {
             if ((string) ($oldPurchaseOrder[$field] ?? '') !== (string) ($newPurchaseOrder[$field] ?? '')) {
                 $changes[] = $label . ' changed from ' . ($oldPurchaseOrder[$field] ?? '-') . ' to ' . ($newPurchaseOrder[$field] ?? '-');
             }
@@ -493,7 +760,7 @@ class PurchaseOrders extends BaseController
             $changes[] = 'Item count changed from ' . count($oldItems) . ' to ' . count($newItems);
         }
 
-        return empty($changes) ? 'Purchase order details updated.' : implode('; ', $changes) . '.';
+        return empty($changes) ? 'RR details updated.' : implode('; ', $changes) . '.';
     }
 
     private function buildFormData(?int $supplierId): array
@@ -621,7 +888,11 @@ class PurchaseOrders extends BaseController
         if (! empty($purchaseOrderIds)) {
             $items = (new PurchaseOrderItemModel())
                 ->select('purchase_order_items.*, products.product_name')
+                ->select('supplier_orders.id as supplier_order_id, supplier_orders.po_no as supplier_order_po_no')
+                ->select('supplier_order_items.qty_balance as current_po_qty_balance')
                 ->join('products', 'products.id = purchase_order_items.product_id', 'left')
+                ->join('supplier_order_items', 'supplier_order_items.id = purchase_order_items.supplier_order_item_id', 'left')
+                ->join('supplier_orders', 'supplier_orders.id = supplier_order_items.supplier_order_id', 'left')
                 ->whereIn('purchase_order_id', $purchaseOrderIds)
                 ->orderBy('purchase_order_id', 'asc')
                 ->orderBy('id', 'asc')

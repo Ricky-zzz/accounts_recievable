@@ -24,8 +24,6 @@ class Payments extends BaseController
             'toDate' => $toDate,
             'prNo' => $prNo,
             'payments' => $result['payments'],
-            'allocationsByPayment' => $result['allocationsByPayment'],
-            'otherAccountsByPayment' => $result['otherAccountsByPayment'],
             'paymentsById' => $result['paymentsById'],
             'totalCollections' => $result['totalCollections'],
         ]);
@@ -79,8 +77,6 @@ class Payments extends BaseController
             'toDate' => $toDate,
             'prNo' => $prNo,
             'payments' => $result['payments'],
-            'allocationsByPayment' => $result['allocationsByPayment'],
-            'otherAccountsByPayment' => $result['otherAccountsByPayment'],
             'paymentsById' => $result['paymentsById'],
             'totalCollections' => $result['totalCollections'],
         ]);
@@ -321,49 +317,12 @@ SQL;
             ->get()
             ->getResultArray();
 
-        $paymentIds = array_filter(array_map('intval', array_column($payments, 'id')));
-        $allocationsByPayment = [];
-        $otherAccountsByPayment = [];
         $paymentsById = [];
 
         foreach ($payments as $payment) {
             $paymentId = (int) ($payment['id'] ?? 0);
             if ($paymentId > 0) {
                 $paymentsById[$paymentId] = $payment;
-            }
-        }
-
-        if (! empty($paymentIds)) {
-            $allocations = $db->table('payment_allocations pa')
-                ->select('pa.payment_id, pa.amount, d.dr_no, d.date')
-                ->join('deliveries d', 'd.id = pa.delivery_id', 'left')
-                ->whereIn('pa.payment_id', $paymentIds)
-                ->orderBy('d.date', 'asc')
-                ->get()
-                ->getResultArray();
-
-            foreach ($allocations as $allocation) {
-                $paymentId = (int) $allocation['payment_id'];
-                $allocationsByPayment[$paymentId][] = $allocation;
-            }
-
-            $otherAccountRows = $db->table('boa b')
-                ->select('b.payment_id, b.account_title, b.dr, b.ar_others, b.description, b.date, b.reference')
-                ->whereIn('b.payment_id', $paymentIds)
-                ->groupStart()
-                    ->where('b.account_title IS NOT NULL', null, false)
-                    ->orWhere('b.ar_others >', 0)
-                ->groupEnd()
-                ->orderBy('b.date', 'asc')
-                ->orderBy('b.id', 'asc')
-                ->get()
-                ->getResultArray();
-
-            foreach ($otherAccountRows as $row) {
-                $paymentId = (int) ($row['payment_id'] ?? 0);
-                if ($paymentId > 0) {
-                    $otherAccountsByPayment[$paymentId][] = $row;
-                }
             }
         }
 
@@ -374,8 +333,6 @@ SQL;
 
         return [
             'payments' => $payments,
-            'allocationsByPayment' => $allocationsByPayment,
-            'otherAccountsByPayment' => $otherAccountsByPayment,
             'paymentsById' => $paymentsById,
             'totalCollections' => $totalCollections,
         ];

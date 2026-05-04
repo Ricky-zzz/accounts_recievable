@@ -1,6 +1,6 @@
 <?php
 /**
- * @var array{id: int|string, name: string} $supplier
+ * @var array{id: int|string, name: string, payment_term?: int|string|null} $supplier
  * @var array{id?: int|string, name?: string|null}|null $assignedUser
  * @var int|null $activeReceipt
  * @var int|null $rangeEnd
@@ -12,7 +12,8 @@
 <?= $this->extend('payables_layout') ?>
 <?= $this->section('content') ?>
 <?php
-$ordersJson = json_encode($unpaidPurchaseOrders ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
+$jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
+$ordersJson = json_encode($unpaidPurchaseOrders ?? [], $jsonFlags);
 $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assignedUser['username'] ?? '-') . ')'));
 ?>
 
@@ -20,9 +21,15 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold">Pay Supplier: <?= esc((string) $supplier['name']) ?></h1>
-            <p class="mt-1 text-sm muted">Allocate payment to unpaid purchase orders.</p>
+            <p class="mt-1 text-sm muted">Allocate payment to unpaid RRs.</p>
         </div>
-        <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Back</a>
+        <div class="flex flex-wrap items-center gap-2">
+            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . $supplier['id'] . '/supplier-orders') ?>">PO</a>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . $supplier['id'] . '/purchase-orders') ?>">Pickup</a>
+            <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Payments</a>
+            <button class="btn btn-secondary" type="button" @click='openSupplierStatementModal(<?= (int) $supplier['id'] ?>, <?= json_encode((string) ($supplier['name'] ?? ''), $jsonFlags) ?>, <?= json_encode((string) ($supplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
+            <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Back</a>
+        </div>
     </div>
 
     <?php if (! $activeReceipt): ?>
@@ -36,7 +43,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
         <div class="card p-4">
             <div class="grid gap-4 md:grid-cols-3">
                 <div><label class="block text-sm font-medium">Cashier</label><input class="input mt-1" type="text" value="<?= esc($cashierLabel) ?>" readonly></div>
-                <div><label class="block text-sm font-medium">Active PR</label><input class="input mt-1" type="text" value="<?= $activeReceipt ? esc((string) $activeReceipt) : 'Not assigned' ?>" readonly><?php if ($activeReceipt && $rangeEnd): ?><p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p><?php endif; ?></div>
+                <div><label class="block text-sm font-medium">Active CV</label><input class="input mt-1" type="text" value="<?= $activeReceipt ? esc((string) $activeReceipt) : 'Not assigned' ?>" readonly><?php if ($activeReceipt && $rangeEnd): ?><p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p><?php endif; ?></div>
                 <div><label class="block text-sm font-medium" for="date">Date</label><input class="input mt-1" id="date" name="date" type="date" value="<?= esc(old('date') ?: date('Y-m-d')) ?>" required></div>
             </div>
             <div class="mt-4 grid gap-4 md:grid-cols-3">
@@ -51,11 +58,11 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
         <div class="overflow-x-auto pb-2">
             <div class="flex min-w-[1040px] gap-6">
                 <div class="card w-[440px] shrink-0 p-4">
-                    <div class="flex items-center justify-between"><h2 class="text-sm font-semibold">Unpaid Purchase Orders</h2><span class="text-xs muted" x-text="visibleOrders.length + ' items'"></span></div>
+                    <div class="flex items-center justify-between"><h2 class="text-sm font-semibold">Unpaid RRs</h2><span class="text-xs muted" x-text="visibleOrders.length + ' items'"></span></div>
                     <table class="table mt-4">
-                        <thead><tr><th>PO#</th><th>Date</th><th>Due Date</th><th>Balance</th><th class="text-right">Pay</th></tr></thead>
+                        <thead><tr><th>RR#</th><th>Date</th><th>Due Date</th><th>Balance</th><th class="text-right">Pay</th></tr></thead>
                         <tbody>
-                            <template x-if="visibleOrders.length === 0"><tr><td colspan="5">No unpaid purchase orders.</td></tr></template>
+                            <template x-if="visibleOrders.length === 0"><tr><td colspan="5">No unpaid RRs.</td></tr></template>
                             <template x-for="order in visibleOrders" :key="order.purchase_order_id"><tr><td x-text="order.po_no"></td><td x-text="order.date"></td><td x-text="order.due_date || '-'"></td><td x-text="formatAmount(order.working_balance)"></td><td class="text-right"><button class="btn btn-secondary btn-strong" type="button" @click="openPayModal(order)" :disabled="Number(order.working_balance) <= 0">Pay</button></td></tr></template>
                         </tbody>
                     </table>
@@ -66,7 +73,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
                 <div class="card w-[360px] shrink-0 p-4">
                     <h2 class="text-sm font-semibold">Allocations</h2>
                     <table class="table mt-4">
-                        <thead><tr><th>PO#</th><th>Amount</th><th class="text-right">x</th></tr></thead>
+                        <thead><tr><th>RR#</th><th>Amount</th><th class="text-right">x</th></tr></thead>
                         <tbody>
                             <template x-if="allocations.length === 0"><tr><td colspan="3">No allocations yet.</td></tr></template>
                             <template x-for="(allocation, index) in allocations" :key="allocation.purchase_order_id + '-' + index"><tr><td x-text="allocation.po_no"></td><td x-text="formatAmount(allocation.amount)"></td><td><button class="btn-link" type="button" @click="removeAllocation(index)">x</button><input type="hidden" :name="'allocations[' + index + '][purchase_order_id]'" :value="allocation.purchase_order_id"><input type="hidden" :name="'allocations[' + index + '][amount]'" :value="allocation.amount"></td></tr></template>
@@ -105,7 +112,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
     <div class="modal-backdrop" x-show="modalOpen" x-cloak>
         <div class="modal-panel max-w-md p-6">
             <h2 class="text-lg font-semibold">Allocate Payable</h2>
-            <p class="mt-1 text-sm muted" x-text="modalOrder ? 'PO# ' + modalOrder.po_no : ''"></p>
+            <p class="mt-1 text-sm muted" x-text="modalOrder ? 'RR# ' + modalOrder.po_no : ''"></p>
             <div class="mt-4 space-y-3">
                 <div class="flex justify-between text-sm"><span>Date</span><span x-text="modalOrder ? modalOrder.date : ''"></span></div>
                 <div class="flex justify-between text-sm"><span>Balance</span><span x-text="modalOrder ? formatAmount(modalOrder.working_balance) : ''"></span></div>
@@ -114,11 +121,13 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
             <div class="mt-4 flex gap-3"><button class="btn btn-strong" type="button" @click="confirmAllocation()">OK</button><button class="btn btn-secondary" type="button" @click="closePayModal()">Cancel</button></div>
         </div>
     </div>
+    <?= view('suppliers/_statement_modal') ?>
 </div>
 
 <script>
     function payableForm() {
         return {
+            ...supplierStatementModalState(),
             orders: [],
             allocations: [],
             method: '<?= esc(old('method') ?: 'cash') ?>',
@@ -149,7 +158,7 @@ $cashierLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assigned
             confirmAllocation() {
                 const amount = parseFloat(this.modalAmount) || 0;
                 if (!this.modalOrder || amount <= 0) return;
-                if (amount > this.modalOrder.working_balance) { alert('Amount exceeds purchase order balance.'); return; }
+                if (amount > this.modalOrder.working_balance) { alert('Amount exceeds RR balance.'); return; }
                 this.modalOrder.working_balance = this.normalizeAmount(this.modalOrder.working_balance - amount);
                 this.allocations.push({ purchase_order_id: this.modalOrder.purchase_order_id, po_no: this.modalOrder.po_no, amount: amount, balance_after: this.modalOrder.working_balance });
                 this.closePayModal();

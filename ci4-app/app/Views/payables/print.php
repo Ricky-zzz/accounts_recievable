@@ -117,7 +117,7 @@
                 <?php if ($showSupplierColumn): ?>
                     <th>Supplier</th>
                 <?php endif; ?>
-                <th>PR #</th>
+                <th>CV #</th>
                 <th class="text-right">Amount Paid</th>
                 <th class="text-right">Allocated</th>
             </tr>

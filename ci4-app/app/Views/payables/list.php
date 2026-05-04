@@ -5,8 +5,6 @@
  * @var string $toDate
  * @var string $prNo
  * @var list<array<string, int|float|string|null>> $payables
- * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayable
- * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayable
  * @var array<int|string, array<string, int|float|string|null>> $payablesById
  * @var int|float|string $totalPayments
  */
@@ -16,8 +14,6 @@
 <?php
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 $payablesJson = json_encode($payablesById ?? [], $jsonFlags);
-$allocationsJson = json_encode($allocationsByPayable ?? [], $jsonFlags);
-$otherJson = json_encode($otherAccountsByPayable ?? [], $jsonFlags);
 $listUrl = base_url('payables/supplier/' . ($supplier['id'] ?? 0));
 $printUrl = base_url('payables/supplier/' . ($supplier['id'] ?? 0) . '/print');
 $printQuery = http_build_query([
@@ -35,9 +31,10 @@ $printQuery = http_build_query([
             </h1>
             <p class="mt-1 text-sm muted">Filter payments by PR number and date range.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <a class="btn btn-strong" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0) . '/create') ?>">Pay Supplier</a>
-            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/purchase-orders') ?>">Orders</a>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/supplier-orders') ?>">PO</a>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/purchase-orders') ?>">Pickup</a>
             <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . ($supplier['id'] ?? 0)) ?>">Ledger</a>
             <button class="btn btn-secondary" type="button" @click='openSupplierStatementModal(<?= (int) ($supplier['id'] ?? 0) ?>, <?= json_encode((string) ($supplier['name'] ?? ''), $jsonFlags) ?>, <?= json_encode((string) ($supplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
             <a class="btn btn-secondary" target="_blank" href="<?= esc($printUrl . '?' . $printQuery) ?>">Print</a>
@@ -48,7 +45,7 @@ $printQuery = http_build_query([
     <form class="filter-card rounded border border-gray-200 p-4" method="get" action="<?= esc($listUrl) ?>" x-data>
         <div class="grid gap-4 md:grid-cols-4">
         <div>
-            <label class="block text-sm font-medium" for="pr_no">PR Number</label>
+            <label class="block text-sm font-medium" for="pr_no">CV Number</label>
             <input class="input mt-1" id="pr_no" name="pr_no" value="<?= esc($prNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
         <div>
@@ -69,7 +66,7 @@ $printQuery = http_build_query([
         <thead>
             <tr>
                 <th>Date</th>
-                <th>PR #</th>
+                <th>CV #</th>
                 <th class="text-right" style="text-align: right;">Amount Paid</th>
             </tr>
         </thead>
@@ -102,9 +99,11 @@ $printQuery = http_build_query([
     <div class="modal-backdrop" x-show="modalOpen" x-cloak @click.self="closePayable()">
         <div class="modal-panel max-w-3xl p-6" @click.stop>
             <div class="flex items-start justify-between gap-4">
-                <h2 class="text-lg font-semibold">PR Details <span x-text="selectedPayable() ? selectedPayable().pr_no : ''"></span></h2>
+                <h2 class="text-lg font-semibold">CV Details <span x-text="selectedPayable() ? selectedPayable().pr_no : ''"></span></h2>
                 <button class="btn btn-secondary" type="button" @click="closePayable()">Close</button>
             </div>
+            <div class="mt-4 text-sm muted" x-show="detailLoading">Loading details...</div>
+            <div class="mt-4 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
             <div class="mt-4 grid gap-4 text-sm sm:grid-cols-3">
                 <div class="card p-3"><p class="muted">Amount Paid</p><p class="font-semibold" x-text="selectedPayable() ? Number(selectedPayable().amount_received || 0).toFixed(2) : '0.00'"></p></div>
                 <div class="card p-3"><p class="muted">Allocated to POs</p><p class="font-semibold" x-text="allocatedTotal().toFixed(2)"></p></div>
@@ -114,9 +113,10 @@ $printQuery = http_build_query([
                 <div>
                     <h3 class="text-sm font-semibold">PO Allocations</h3>
                     <table class="table mt-3">
-                        <thead><tr><th>PO #</th><th>Date</th><th>Amount</th></tr></thead>
+                        <thead><tr><th>RR #</th><th>Date</th><th>Amount</th></tr></thead>
                         <tbody>
-                            <template x-if="selectedAllocations().length === 0"><tr><td colspan="3">No allocations found.</td></tr></template>
+                            <template x-if="detailLoading"><tr><td colspan="3">Loading...</td></tr></template>
+                            <template x-if="!detailLoading && selectedAllocations().length === 0"><tr><td colspan="3">No allocations found.</td></tr></template>
                             <template x-for="(allocation, index) in selectedAllocations()" :key="index"><tr><td x-text="allocation.po_no"></td><td x-text="allocation.date"></td><td x-text="Number(allocation.amount).toFixed(2)"></td></tr></template>
                         </tbody>
                     </table>
@@ -126,7 +126,8 @@ $printQuery = http_build_query([
                     <table class="table mt-3">
                         <thead><tr><th>Account Title</th><th>Amount</th></tr></thead>
                         <tbody>
-                            <template x-if="selectedOtherAccounts().length === 0"><tr><td colspan="2">No other accounts found.</td></tr></template>
+                            <template x-if="detailLoading"><tr><td colspan="2">Loading...</td></tr></template>
+                            <template x-if="!detailLoading && selectedOtherAccounts().length === 0"><tr><td colspan="2">No other accounts found.</td></tr></template>
                             <template x-for="(item, index) in selectedOtherAccounts()" :key="index"><tr><td x-text="item.account_title"></td><td x-text="Number(item.other_accounts || 0).toFixed(2)"></td></tr></template>
                         </tbody>
                     </table>
@@ -143,17 +144,56 @@ $printQuery = http_build_query([
         return {
             ...supplierStatementModalState(),
             payablesById: <?= $payablesJson ?>,
-            allocationsByPayable: <?= $allocationsJson ?>,
-            otherAccountsByPayable: <?= $otherJson ?>,
+            detailUrl: '<?= base_url('ajax/payables') ?>',
+            detailsByPayable: {},
             modalOpen: false,
             selectedPayableId: null,
-            openPayable(id) { this.selectedPayableId = id; this.modalOpen = true; },
+            detailLoading: false,
+            detailError: '',
+            async openPayable(id) {
+                this.selectedPayableId = id;
+                this.modalOpen = true;
+                this.detailError = '';
+                await this.loadPayableDetails(id);
+            },
             closePayable() { this.modalOpen = false; this.selectedPayableId = null; },
-            selectedPayable() { return this.payablesById[this.selectedPayableId] || null; },
-            selectedAllocations() { return this.allocationsByPayable[this.selectedPayableId] || []; },
-            selectedOtherAccounts() { return this.otherAccountsByPayable[this.selectedPayableId] || []; },
+            selectedPayableDetail() { return this.detailsByPayable[this.selectedPayableId] || null; },
+            selectedPayable() {
+                const detail = this.selectedPayableDetail();
+                return detail ? detail.payable : (this.payablesById[this.selectedPayableId] || null);
+            },
+            selectedAllocations() {
+                const detail = this.selectedPayableDetail();
+                return detail ? (detail.allocations || []) : [];
+            },
+            selectedOtherAccounts() {
+                const detail = this.selectedPayableDetail();
+                return detail ? (detail.other_accounts || []) : [];
+            },
             allocatedTotal() { return this.selectedAllocations().reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0); },
             otherAccountsTotal() { return this.selectedOtherAccounts().reduce((sum, item) => sum + (parseFloat(item.other_accounts) || 0), 0); },
+            async loadPayableDetails(id) {
+                if (!id || this.detailsByPayable[id]) {
+                    return;
+                }
+
+                this.detailLoading = true;
+                this.detailError = '';
+                try {
+                    const response = await fetch(this.detailUrl + '/' + id, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Unable to load CV details.');
+                    }
+                    this.detailsByPayable[id] = data;
+                } catch (error) {
+                    this.detailError = error.message || 'Unable to load CV details.';
+                } finally {
+                    this.detailLoading = false;
+                }
+            },
         };
     }
 </script>

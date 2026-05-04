@@ -45,12 +45,13 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold">
-                Purchase Orders for <?= esc((string) ($supplier['name'] ?? '')) ?>
+                RR / Pickups for <?= esc((string) ($supplier['name'] ?? '')) ?>
             </h1>
-            <p class="mt-1 text-sm muted">Filter purchase orders by date range or PO number.</p>
+            <p class="mt-1 text-sm muted">Filter pickups by date range or RR number.</p>
         </div>
-        <div class="flex items-center gap-2">
-            <button class="btn btn-strong" type="button" @click="openOrderForm()">New Order</button>
+        <div class="flex flex-wrap items-center gap-2">
+            <button class="btn btn-strong" type="button" @click="openOrderForm()">New Pickup</button>
+            <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/supplier-orders') ?>">PO</a>
             <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . ($supplier['id'] ?? 0)) ?>">Ledger</a>
             <a class="btn btn-secondary" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0)) ?>">Payments</a>
             <button class="btn btn-secondary" type="button" @click='openSupplierStatementModal(<?= (int) ($supplier['id'] ?? 0) ?>, <?= json_encode((string) ($supplier['name'] ?? ''), $jsonFlags) ?>, <?= json_encode((string) ($supplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
@@ -62,7 +63,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
     <form method="get" action="<?= esc($listUrl) ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
         <div class="grid gap-4 md:grid-cols-4">
         <div>
-            <label class="block text-sm font-medium" for="po_no">PO Number</label>
+            <label class="block text-sm font-medium" for="po_no">RR Number</label>
             <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
         </div>
         <div>
@@ -84,7 +85,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
             <tr>
                 <th>#</th>
                 <th>Date</th>
-                <th>PO #</th>
+                <th>RR #</th>
                 <th>Due Date</th>
                 <th>Term</th>
                 <th class="text-right" style="text-align: right;">Total Amount</th>
@@ -95,7 +96,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
         </thead>
         <tbody>
             <?php if (empty($purchaseOrders)): ?>
-                <tr><td class="py-3" colspan="9">No purchase orders found for the selected filters.</td></tr>
+                <tr><td class="py-3" colspan="9">No pickups found for the selected filters.</td></tr>
             <?php else: ?>
                 <?php foreach ($purchaseOrders as $index => $order): ?>
                     <tr>
@@ -136,8 +137,8 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
         <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
             <div class="mb-5 flex items-start justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-semibold">New Purchase Order</h2>
-                    <p class="mt-1 text-sm muted">Add a purchase order for a supplier.</p>
+                    <h2 class="text-lg font-semibold">New RR / Pickup</h2>
+                    <p class="mt-1 text-sm muted">Add a pickup receipt for a supplier.</p>
                 </div>
                 <button class="btn btn-secondary" type="button" @click="orderFormOpen = false">Close</button>
             </div>
@@ -160,7 +161,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                         <?php endif; ?>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium" for="po_no_input">PO Number</label>
+                        <label class="block text-sm font-medium" for="po_no_input">RR Number</label>
                         <input class="input mt-1" id="po_no_input" name="po_no" x-model="newOrder.po_no" required>
                     </div>
                     <div>
@@ -207,7 +208,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                     </div>
                 </div>
                 <div class="flex gap-3">
-                    <button class="btn btn-strong" type="submit">Save Purchase Order</button>
+                    <button class="btn btn-strong" type="submit">Save RR / Pickup</button>
                     <button class="btn btn-secondary" type="button" @click="orderFormOpen = false">Cancel</button>
                 </div>
             </form>
@@ -215,23 +216,23 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
     </div>
 
     <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
-        <div class="modal-panel max-w-4xl p-6" @click.stop>
-            <div class="mb-4 border-b pb-4"><h2 class="text-lg font-semibold">Details for PO#: <span x-text="selectedPoNumber()"></span></h2></div>
-            <div class="grid grid-cols-2 gap-6">
+        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
+            <div class="mb-4 border-b pb-4"><h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2></div>
+            <div class="modal-split">
                 <div>
                     <h3 class="mb-3 font-semibold">Purchase Items</h3>
                     <table class="table">
-                        <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                        <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th>Source PO</th><th>PO Balance</th></tr></thead>
                         <tbody>
-                            <template x-if="selectedItems().length === 0"><tr><td class="py-3 text-center" colspan="4">No items found.</td></tr></template>
-                            <template x-for="item in selectedItems()" :key="item.id"><tr><td x-text="item.product_name"></td><td x-text="item.qty"></td><td x-text="Number(item.unit_price).toFixed(2)"></td><td x-text="Number(item.line_total).toFixed(2)"></td></tr></template>
+                            <template x-if="selectedItems().length === 0"><tr><td class="py-3 text-center" colspan="6">No items found.</td></tr></template>
+                            <template x-for="item in selectedItems()" :key="item.id"><tr><td x-text="item.product_name"></td><td x-text="item.qty"></td><td x-text="Number(item.unit_price).toFixed(2)"></td><td x-text="Number(item.line_total).toFixed(2)"></td><td x-text="item.supplier_order_po_no || ''"></td><td x-text="item.po_qty_balance_after !== null && item.po_qty_balance_after !== undefined ? Number(item.po_qty_balance_after).toFixed(2) : ''"></td></tr></template>
                         </tbody>
                     </table>
                 </div>
                 <div>
                     <h3 class="mb-3 font-semibold">PO Allocations</h3>
                     <table class="table">
-                        <thead><tr><th>PR #</th><th>Date</th><th>Amount</th></tr></thead>
+                        <thead><tr><th>CV #</th><th>Date</th><th>Amount</th></tr></thead>
                         <tbody>
                             <template x-if="selectedAllocations().length === 0"><tr><td class="py-3 text-center" colspan="3">No allocations found.</td></tr></template>
                             <template x-for="(alloc, index) in selectedAllocations()" :key="index"><tr><td x-text="alloc.pr_no"></td><td x-text="alloc.date"></td><td x-text="Number(alloc.amount).toFixed(2)"></td></tr></template>
@@ -246,7 +247,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
     <div class="modal-backdrop" x-show="quickPayOpen" x-cloak @click.self="closeQuickPay()">
         <div class="modal-panel max-h-[92vh] max-w-4xl overflow-y-auto p-6" @click.stop>
             <div class="mb-5 flex items-start justify-between gap-4">
-                <div><h2 class="text-lg font-semibold">Pay Supplier</h2><p class="mt-1 text-sm muted" x-text="selectedQuickPayOrder() ? 'PO# ' + selectedQuickPayOrder().po_no : ''"></p></div>
+                <div><h2 class="text-lg font-semibold">Pay Supplier</h2><p class="mt-1 text-sm muted" x-text="selectedQuickPayOrder() ? 'RR# ' + selectedQuickPayOrder().po_no : ''"></p></div>
                 <button class="btn btn-secondary" type="button" @click="closeQuickPay()">Close</button>
             </div>
             <?php if (! $activeReceipt): ?>
@@ -259,7 +260,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                 <div class="card p-4">
                     <div class="grid gap-4 md:grid-cols-3">
                         <div><label class="block text-sm font-medium">Cashier</label><input class="input mt-1" value="<?= esc($collectorLabel) ?>" readonly></div>
-                        <div><label class="block text-sm font-medium">Active PR</label><input class="input mt-1" value="<?= $activeReceipt ? esc((string) $activeReceipt) : 'Not assigned' ?>" readonly><?php if ($activeReceipt && $rangeEnd): ?><p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p><?php endif; ?></div>
+                        <div><label class="block text-sm font-medium">Active CV</label><input class="input mt-1" value="<?= $activeReceipt ? esc((string) $activeReceipt) : 'Not assigned' ?>" readonly><?php if ($activeReceipt && $rangeEnd): ?><p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p><?php endif; ?></div>
                         <div><label class="block text-sm font-medium" for="quick_date">Date</label><input class="input mt-1" id="quick_date" name="date" type="date" x-model="quickPay.date" required></div>
                     </div>
                     <div class="mt-4 grid gap-4 md:grid-cols-3">
@@ -271,7 +272,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                     </div>
                 </div>
                 <div class="grid gap-5 lg:grid-cols-2">
-                    <div class="card p-4"><h3 class="text-sm font-semibold">Selected PO</h3><div class="mt-4 space-y-3 text-sm" x-show="selectedQuickPayOrder()"><div class="flex justify-between"><span class="muted">PO#</span><span x-text="selectedQuickPayOrder() ? selectedQuickPayOrder().po_no : ''"></span></div><div class="flex justify-between"><span class="muted">Balance</span><span class="font-semibold" x-text="formatAmount(selectedQuickPayOrder() ? selectedQuickPayOrder().balance : 0)"></span></div><div><label class="block text-sm font-medium" for="quick_allocation_amount">Amount to Allocate</label><input class="input mt-1" id="quick_allocation_amount" name="allocation_amount" type="number" step="0.01" min="0" x-model="quickPay.allocationAmount" required></div></div></div>
+                    <div class="card p-4"><h3 class="text-sm font-semibold">Selected RR</h3><div class="mt-4 space-y-3 text-sm" x-show="selectedQuickPayOrder()"><div class="flex justify-between"><span class="muted">RR#</span><span x-text="selectedQuickPayOrder() ? selectedQuickPayOrder().po_no : ''"></span></div><div class="flex justify-between"><span class="muted">Balance</span><span class="font-semibold" x-text="formatAmount(selectedQuickPayOrder() ? selectedQuickPayOrder().balance : 0)"></span></div><div><label class="block text-sm font-medium" for="quick_allocation_amount">Amount to Allocate</label><input class="input mt-1" id="quick_allocation_amount" name="allocation_amount" type="number" step="0.01" min="0" x-model="quickPay.allocationAmount" required></div></div></div>
                     <div class="card p-4"><h3 class="text-sm font-semibold">Other Accounts</h3><div class="mt-4 grid gap-4"><div><label class="block text-sm font-medium">Discount</label><input class="input mt-1" name="sales_discount" type="number" step="0.01" min="0" x-model="quickPay.salesDiscount"></div><div><label class="block text-sm font-medium">Charges</label><input class="input mt-1" name="delivery_charges" type="number" step="0.01" min="0" x-model="quickPay.deliveryCharges"></div><div><label class="block text-sm font-medium">Taxes</label><input class="input mt-1" name="taxes" type="number" step="0.01" min="0" x-model="quickPay.taxes"></div><div><label class="block text-sm font-medium">Commissions</label><input class="input mt-1" name="commissions" type="number" step="0.01" min="0" x-model="quickPay.commissions"></div></div></div>
                     <?php /* A/P Other is hidden until the payable-side accounting treatment is confirmed. */ ?>
                 </div>
@@ -290,12 +291,12 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
 
     <div class="modal-backdrop" x-show="editOpen" x-cloak @click.self="closeEdit()">
         <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold">Edit Purchase Order</h2><p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'PO# ' + selectedActionOrder().po_no : ''"></p></div><button class="btn btn-secondary" type="button" @click="closeEdit()">Close</button></div>
+            <div class="mb-5 flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold">Edit RR / Pickup</h2><p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'RR# ' + selectedActionOrder().po_no : ''"></p></div><button class="btn btn-secondary" type="button" @click="closeEdit()">Close</button></div>
             <form method="post" :action="selectedActionOrder() ? '<?= base_url('purchase-orders') ?>/' + selectedActionOrder().id : '#'" class="space-y-6">
                 <?= csrf_field() ?>
                 <div class="grid gap-4 md:grid-cols-5">
                     <div><label class="block text-sm font-medium">Supplier</label><div class="mt-1 rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm" x-text="selectedActionOrder() ? selectedActionOrder().supplier_name : ''"></div></div>
-                    <div><label class="block text-sm font-medium">PO Number</label><input class="input mt-1" name="po_no" x-model="editOrder.po_no" required></div>
+                    <div><label class="block text-sm font-medium">RR Number</label><input class="input mt-1" name="po_no" x-model="editOrder.po_no" required></div>
                     <div><label class="block text-sm font-medium">Date</label><input class="input mt-1" name="date" type="date" x-model="editOrder.date" @input="recomputeDueDate(editOrder)" required></div>
                     <div><label class="block text-sm font-medium">Payment Term (days)</label><input class="input mt-1" name="payment_term" type="number" step="1" min="0" x-model="editOrder.payment_term" @input="recomputeDueDate(editOrder)"></div>
                     <div><label class="block text-sm font-medium">Due Date</label><input class="input mt-1" type="date" x-model="editOrder.due_date" readonly></div>
@@ -322,13 +323,13 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
 
     <div class="modal-backdrop" x-show="voidOpen" x-cloak @click.self="closeVoid()">
         <div class="modal-panel max-w-xl p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold">Void Purchase Order</h2><p class="mt-1 text-sm muted">Voiding cannot be undone.</p></div><button class="btn btn-secondary" type="button" @click="closeVoid()">Close</button></div>
+            <div class="mb-5 flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold">Void RR / Pickup</h2><p class="mt-1 text-sm muted">Voiding cannot be undone.</p></div><button class="btn btn-secondary" type="button" @click="closeVoid()">Close</button></div>
             <form method="post" :action="selectedActionOrder() ? '<?= base_url('purchase-orders') ?>/' + selectedActionOrder().id + '/void' : '#'" class="space-y-4">
                 <?= csrf_field() ?>
-                <div class="card p-4 text-sm"><div class="flex justify-between"><span>PO#</span><span x-text="selectedActionOrder() ? selectedActionOrder().po_no : ''"></span></div><div class="mt-2 flex justify-between"><span>Total</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().total_amount : 0)"></span></div><div class="mt-2 flex justify-between"><span>Current Balance</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().balance : 0)"></span></div></div>
-                <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">This will mark the purchase order as voided and insert a reversing payable ledger row.</div>
+                <div class="card p-4 text-sm"><div class="flex justify-between"><span>RR#</span><span x-text="selectedActionOrder() ? selectedActionOrder().po_no : ''"></span></div><div class="mt-2 flex justify-between"><span>Total</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().total_amount : 0)"></span></div><div class="mt-2 flex justify-between"><span>Current Balance</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().balance : 0)"></span></div></div>
+                <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">This will mark the RR as voided and insert a reversing payable ledger row.</div>
                 <div><label class="block text-sm font-medium" for="void_reason">Reason</label><textarea class="input mt-1" id="void_reason" name="void_reason" rows="3" required></textarea></div>
-                <div class="flex gap-3"><button class="btn" type="submit">Void Purchase Order</button><button class="btn btn-secondary" type="button" @click="closeVoid()">Cancel</button></div>
+                <div class="flex gap-3"><button class="btn" type="submit">Void RR / Pickup</button><button class="btn btn-secondary" type="button" @click="closeVoid()">Cancel</button></div>
             </form>
         </div>
     </div>
@@ -338,8 +339,8 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
             <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <h2 class="text-lg font-semibold">Purchase Order History</h2>
-                        <p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'PO# ' + (selectedActionOrder().po_no || '-') + ' | Current total ' + formatAmount(selectedActionOrder().total_amount || 0) : ''"></p>
+                        <h2 class="text-lg font-semibold">RR / Pickup History</h2>
+                        <p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'RR# ' + (selectedActionOrder().po_no || '-') + ' | Current total ' + formatAmount(selectedActionOrder().total_amount || 0) : ''"></p>
                     </div>
                     <button class="btn btn-secondary" type="button" @click="closeHistory()">Close</button>
                 </div>
@@ -347,7 +348,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
 
             <div class="mt-5 space-y-4">
                 <template x-if="selectedHistories().length === 0">
-                    <div class="card p-4 text-sm">No history recorded for this purchase order yet.</div>
+                    <div class="card p-4 text-sm">No history recorded for this RR yet.</div>
                 </template>
                 <template x-for="history in selectedHistories()" :key="history.id">
                     <div class="card p-4">
@@ -364,7 +365,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                         <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">Before</p>
-                                <p class="mt-2">PO#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
                                 <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'" ></span></p>
                                 <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)" ></span></p>
                                 <div class="mt-3">
@@ -398,7 +399,7 @@ $printParams['supplier_id'] = $supplier['id'] ?? 0;
                             </div>
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">After</p>
-                                <p class="mt-2">PO#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
                                 <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'" ></span></p>
                                 <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)" ></span></p>
                                 <div class="mt-3">

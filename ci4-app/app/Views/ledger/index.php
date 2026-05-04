@@ -13,117 +13,124 @@
  * @var int $perPage
  * @var int $totalPages
  * @var int $rowOffset
- * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
  * @var array<int|string, int> $itemCounts
- * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
- * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayment
- * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
- * @var array<int|string, array<string, int|float|string|null>> $paymentsById
  */
 ?>
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
-<?php
-$itemsJson = json_encode($itemsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-$deliveryAllocJson = json_encode($allocationsByDelivery ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-$paymentAllocJson = json_encode($allocationsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-$paymentOtherJson = json_encode($otherAccountsByPayment ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-$paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-?>
 <script>
-    // Store data in window before Alpine initializes
-    window.ledgerData = {
-        itemsByDelivery: <?= $itemsJson ?>,
-        allocationsByDelivery: <?= $deliveryAllocJson ?>,
-        allocationsByPayment: <?= $paymentAllocJson ?>,
-        otherAccountsByPayment: <?= $paymentOtherJson ?>,
-        paymentsById: <?= $paymentsByIdJson ?>
-    };
-
     function ledgerItems() {
         return {
             ...soaModalState(),
-            itemsByDelivery: window.ledgerData.itemsByDelivery,
-            allocationsByDelivery: window.ledgerData.allocationsByDelivery,
-            allocationsByPayment: window.ledgerData.allocationsByPayment,
-            otherAccountsByPayment: window.ledgerData.otherAccountsByPayment,
-            paymentsById: window.ledgerData.paymentsById,
+            detailUrls: {
+                delivery: '<?= base_url('ajax/deliveries') ?>',
+                payment: '<?= base_url('ajax/payments') ?>',
+            },
+            deliveryDetailsById: {},
+            paymentDetailsById: {},
             itemsOpen: false,
             drDetailsOpen: false,
             allocOpen: false,
             allocType: '',
             selectedItemId: null,
             selectedAllocId: null,
-            openItems(id) {
+            selectedDrLabel: '',
+            selectedPrLabel: '',
+            detailLoading: false,
+            detailError: '',
+            async openItems(id) {
                 this.selectedItemId = id;
+                this.detailError = '';
                 this.itemsOpen = true;
                 this.allocOpen = false;
+                this.drDetailsOpen = false;
+                await this.loadDeliveryDetails(id);
             },
             closeItems() {
                 this.itemsOpen = false;
                 this.selectedItemId = null;
             },
-            openDrDetails(id) {
+            async openDrDetails(id, drNo = '') {
                 this.selectedItemId = id;
+                this.selectedDrLabel = drNo;
+                this.detailError = '';
                 this.drDetailsOpen = true;
+                this.itemsOpen = false;
                 this.allocOpen = false;
+                await this.loadDeliveryDetails(id);
             },
             closeDrDetails() {
                 this.drDetailsOpen = false;
                 this.selectedItemId = null;
             },
+            deliveryDetails() {
+                return this.deliveryDetailsById[this.selectedItemId] || null;
+            },
             selectedDrNumber() {
-                // Find from items data which has delivery_id
-                for (const deliveryId in this.itemsByDelivery) {
-                    if (String(deliveryId) === String(this.selectedItemId)) {
-                        return this.itemsByDelivery[deliveryId][0]?.dr_no || '';
-                    }
-                }
-                return '';
+                const detail = this.deliveryDetails();
+                return detail && detail.delivery ? detail.delivery.dr_no : this.selectedDrLabel;
             },
             selectedItems() {
-                return this.itemsByDelivery[this.selectedItemId] || [];
+                const detail = this.deliveryDetails();
+                return detail ? (detail.items || []) : [];
             },
             itemsTotal() {
                 return this.selectedItems()
                     .reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0)
                     .toFixed(2);
             },
-            openDeliveryAllocations(id) {
+            async openDeliveryAllocations(id) {
                 this.allocType = 'delivery';
                 this.selectedAllocId = id;
+                this.detailError = '';
                 this.allocOpen = true;
                 this.itemsOpen = false;
+                this.drDetailsOpen = false;
+                await this.loadDeliveryDetails(id);
             },
-            openPaymentAllocations(id) {
+            async openPaymentAllocations(id, prNo = '') {
                 this.allocType = 'payment';
                 this.selectedAllocId = id;
+                this.selectedPrLabel = prNo;
+                this.detailError = '';
                 this.allocOpen = true;
                 this.itemsOpen = false;
+                this.drDetailsOpen = false;
+                await this.loadPaymentDetails(id);
             },
             closeAllocations() {
                 this.allocOpen = false;
                 this.allocType = '';
                 this.selectedAllocId = null;
             },
+            paymentDetails() {
+                return this.paymentDetailsById[this.selectedAllocId] || null;
+            },
             selectedAllocations() {
                 if (this.allocType === 'delivery') {
-                    return this.allocationsByDelivery[this.selectedAllocId] || [];
+                    const detail = this.deliveryDetailsById[this.selectedAllocId] || null;
+                    return detail ? (detail.allocations || []) : [];
                 }
                 if (this.allocType === 'payment') {
-                    return this.allocationsByPayment[this.selectedAllocId] || [];
+                    const detail = this.paymentDetails();
+                    return detail ? (detail.allocations || []) : [];
                 }
                 return [];
             },
             selectedOtherAccounts() {
-                return this.otherAccountsByPayment[this.selectedAllocId] || [];
+                const detail = this.paymentDetails();
+                return detail ? (detail.other_accounts || []) : [];
             },
             selectedPayment() {
-                return this.paymentsById[this.selectedAllocId] || null;
+                const detail = this.paymentDetails();
+                return detail ? detail.payment : null;
             },
             selectedAllocatedTotal() {
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+            },
+            allocTotal() {
+                return this.selectedAllocatedTotal().toFixed(2);
             },
             selectedArOtherTotal() {
                 return this.selectedOtherAccounts()
@@ -136,7 +143,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                 return this.selectedOtherAccounts().find((item) => (parseFloat(item.ar_others) || 0) > 0) || null;
             },
             selectedDrItems() {
-                return this.itemsByDelivery[this.selectedItemId] || [];
+                const detail = this.deliveryDetails();
+                return detail ? (detail.items || []) : [];
             },
             drItemsTotal() {
                 return this.selectedDrItems()
@@ -144,7 +152,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                     .toFixed(2);
             },
             selectedDrAllocations() {
-                return this.allocationsByDelivery[this.selectedItemId] || [];
+                const detail = this.deliveryDetails();
+                return detail ? (detail.allocations || []) : [];
             },
             drAllocationsTotal() {
                 return this.selectedDrAllocations()
@@ -160,8 +169,36 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                 return this.allocType === 'delivery' ? 'DR Allocations' : 'PR Summary';
             },
             selectedPrNumber() {
-                const payment = this.paymentsById[String(this.selectedAllocId)];
-                return payment ? payment.pr_no : '';
+                const payment = this.selectedPayment();
+                return payment ? payment.pr_no : this.selectedPrLabel;
+            },
+            async loadDeliveryDetails(id) {
+                await this.loadDetails(this.detailUrls.delivery, id, this.deliveryDetailsById);
+            },
+            async loadPaymentDetails(id) {
+                await this.loadDetails(this.detailUrls.payment, id, this.paymentDetailsById);
+            },
+            async loadDetails(baseUrl, id, cache) {
+                if (!id || cache[id]) {
+                    return;
+                }
+
+                this.detailLoading = true;
+                this.detailError = '';
+                try {
+                    const response = await fetch(baseUrl + '/' + id, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Unable to load details.');
+                    }
+                    cache[id] = data;
+                } catch (error) {
+                    this.detailError = error.message || 'Unable to load details.';
+                } finally {
+                    this.detailLoading = false;
+                }
             }
         };
     }
@@ -248,8 +285,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                             <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                             <td><?= esc((string) $row['entry_date']) ?></td>
                             <td>
-                                <?php if (! empty($row['delivery_id']) && (! empty($itemsByDelivery[$row['delivery_id']]) || ! empty($allocationsByDelivery[$row['delivery_id']]))) : ?>
-                                    <button class="btn-link" type="button" @click="openDrDetails(<?= (int) $row['delivery_id'] ?>)">
+                                <?php if (! empty($row['delivery_id'])) : ?>
+                                    <button class="btn-link" type="button" @click="openDrDetails(<?= (int) $row['delivery_id'] ?>, '<?= esc((string) ($row['dr_no'] ?? ''), 'js') ?>')">
                                         <?= esc((string) ($row['dr_no'] ?? '')) ?>
                                     </button>
                                 <?php else: ?>
@@ -257,8 +294,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if (! empty($row['payment_id']) && ! empty($allocationsByPayment[$row['payment_id']])): ?>
-                                    <button class="btn-link" type="button" @click="openPaymentAllocations(<?= (int) $row['payment_id'] ?>)">
+                                <?php if (! empty($row['payment_id'])): ?>
+                                    <button class="btn-link" type="button" @click="openPaymentAllocations(<?= (int) $row['payment_id'] ?>, '<?= esc((string) ($row['pr_no'] ?? ''), 'js') ?>')">
                                         <?= esc((string) ($row['pr_no'] ?? '')) ?>
                                     </button>
                                 <?php else: ?>
@@ -316,12 +353,14 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
         
         <?php endif; ?>
     <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
-        <div class="modal-panel max-w-4xl p-6" @click.stop>
+        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
             <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">Details for DR#: <span x-text="selectedDrNumber()"></span></h2>
+                <h2 class="text-lg font-semibold">DR Details: <span x-text="selectedDrNumber()"></span></h2>
             </div>
+            <div class="mb-4 text-sm muted" x-show="detailLoading">Loading details...</div>
+            <div class="mb-4 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
 
-            <div class="grid grid-cols-2 gap-6">
+            <div class="modal-split">
                 <div>
                     <h3 class="mb-3 font-semibold">Delivery Items</h3>
                     <table class="table">
@@ -334,7 +373,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-if="selectedDrItems().length === 0">
+                            <template x-if="detailLoading">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="4">Loading...</td>
+                                </tr>
+                            </template>
+                            <template x-if="!detailLoading && selectedDrItems().length === 0">
                                 <tr>
                                     <td class="py-3 text-center" colspan="4">No items found.</td>
                                 </tr>
@@ -365,7 +409,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-if="selectedDrAllocations().length === 0">
+                            <template x-if="detailLoading">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="3">Loading...</td>
+                                </tr>
+                            </template>
+                            <template x-if="!detailLoading && selectedDrAllocations().length === 0">
                                 <tr>
                                     <td class="py-3 text-center" colspan="3">No allocations found.</td>
                                 </tr>
@@ -394,6 +443,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     <div class="modal-backdrop" x-show="itemsOpen" x-cloak @click.self="closeItems()">
         <div class="modal-panel max-w-lg p-6" @click.stop>
             <h2 class="text-lg font-semibold">Delivery Items</h2>
+            <div class="mt-3 text-sm muted" x-show="detailLoading">Loading details...</div>
+            <div class="mt-3 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
             <table class="table mt-4">
                 <thead>
                     <tr>
@@ -404,7 +455,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-if="selectedItems().length === 0">
+                    <template x-if="detailLoading">
+                        <tr>
+                            <td class="py-3" colspan="4">Loading...</td>
+                        </tr>
+                    </template>
+                    <template x-if="!detailLoading && selectedItems().length === 0">
                         <tr>
                             <td class="py-3" colspan="4">No items found.</td>
                         </tr>
@@ -432,8 +488,10 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
     <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
         <div class="modal-panel max-w-lg p-6" @click.stop>
             <h2 class="text-lg font-semibold">
-                <span x-text="allocType === 'delivery' ? 'DR Allocations' : 'PR Summary for: ' + (selectedPayment() ? selectedPayment().pr_no : '')"></span>
+                <span x-text="allocType === 'delivery' ? 'DR Allocations' : 'PR Summary for: ' + selectedPrNumber()"></span>
             </h2>
+            <div class="mt-3 text-sm muted" x-show="detailLoading">Loading details...</div>
+            <div class="mt-3 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
             <table class="table mt-4">
                 <thead>
                     <tr>
@@ -443,7 +501,12 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], JSON_HEX_TAG | JSON_HEX_APO
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-if="selectedAllocations().length === 0">
+                    <template x-if="detailLoading">
+                        <tr>
+                            <td class="py-3" colspan="3">Loading...</td>
+                        </tr>
+                    </template>
+                    <template x-if="!detailLoading && selectedAllocations().length === 0">
                         <tr>
                             <td class="py-3" colspan="3">No allocations found.</td>
                         </tr>

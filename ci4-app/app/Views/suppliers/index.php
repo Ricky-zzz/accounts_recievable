@@ -62,9 +62,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
                             </button>
                         </td>
                         <td>
-                            <a class="btn-link" href="<?= base_url('payable-ledger?supplier_id=' . $supplier['id']) ?>">Ledger</a> |
-                            <a class="btn-link" href="<?= base_url('suppliers/' . $supplier['id'] . '/purchase-orders') ?>">Orders</a> |
+                            <a class="btn-link" href="<?= base_url('suppliers/' . $supplier['id'] . '/supplier-orders') ?>">PO</a> |
+                            <a class="btn-link" href="<?= base_url('suppliers/' . $supplier['id'] . '/purchase-orders') ?>">Pickup</a> |
                             <a class="btn-link" href="<?= base_url('payables/supplier/' . $supplier['id']) ?>">Payments</a> |
+                            <a class="btn-link" href="<?= base_url('payable-ledger?supplier_id=' . $supplier['id']) ?>">Ledger</a> |
                             <button class="btn-link" type="button" @click='openSupplierStatementModal(<?= (int) $supplier['id'] ?>, <?= json_encode((string) $supplier['name'], $jsonFlags) ?>, <?= json_encode((string) ($supplier['payment_term'] ?? ''), $jsonFlags) ?>)'>Payables</button>
                         </td>
                         <td class="text-left">

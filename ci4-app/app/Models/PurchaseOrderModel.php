@@ -11,6 +11,7 @@ class PurchaseOrderModel extends Model
     protected $returnType = 'array';
     protected $allowedFields = [
         'supplier_id',
+        'supplier_order_id',
         'po_no',
         'date',
         'payment_term',

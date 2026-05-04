@@ -220,7 +220,7 @@ class PayablePostingService
 
             $balance = $balances[$purchaseOrderId] ?? null;
             if ($balance === null || $amount > $balance) {
-                throw new RuntimeException('Allocation exceeds purchase order balance.');
+                throw new RuntimeException('Allocation exceeds RR balance.');
             }
 
             $cleanAllocations[] = [

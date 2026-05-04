@@ -6,6 +6,7 @@
  * @var list<array{id: int|string, client_id?: int|string|null, dr_no?: string|null, date?: string|null, due_date?: string|null, payment_term?: int|string|null, client_name?: string|null, total_amount?: int|float|string|null, allocated_amount?: int|float|string|null, balance?: int|float|string|null}> $deliveries
  * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
  * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
+ * @var array<int|string, list<array<string, int|float|string|null>>> $pickupAllocationsByDelivery
  * @var array<int|string, list<array<string, int|float|string|null>>> $historiesByDelivery
  * @var int|float|string $totalAmount
  * @var int|float|string $totalBalance
@@ -22,6 +23,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 $deliveriesJson = json_encode($deliveries ?? [], $jsonFlags);
 $itemsJson = json_encode($itemsByDelivery ?? [], $jsonFlags);
 $allocationsJson = json_encode($allocationsByDelivery ?? [], $jsonFlags);
+$pickupAllocationsJson = json_encode($pickupAllocationsByDelivery ?? [], $jsonFlags);
 $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
 $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
 $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $jsonFlags);
@@ -157,12 +159,12 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
     </div>
 
     <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
-        <div class="modal-panel max-w-4xl p-6" @click.stop>
+        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
             <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">Details for DR#: <span x-text="selectedDrNumber()"></span></h2>
+                <h2 class="text-lg font-semibold">DR Details: <span x-text="selectedDrNumber()"></span></h2>
             </div>
 
-            <div class="grid grid-cols-2 gap-6">
+            <div class="modal-split">
                 <div>
                     <h3 class="mb-3 font-semibold">Delivery Items</h3>
                     <table class="table">
@@ -226,6 +228,35 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 </div>
             </div>
 
+            <div class="mt-6">
+                <h3 class="mb-3 font-semibold">Connected RR / Pickup</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>RR#</th>
+                            <th>Supplier</th>
+                            <th>Product</th>
+                            <th class="text-right">Quantity</th>
+                            <th class="text-right">Deliverable / Loss</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-if="selectedPickupAllocations().length === 0">
+                            <tr><td colspan="5">No RR connected.</td></tr>
+                        </template>
+                        <template x-for="item in selectedPickupAllocations()" :key="item.purchase_order_id + '-' + item.product_id">
+                            <tr>
+                                <td x-text="item.rr_no"></td>
+                                <td x-text="item.supplier_name"></td>
+                                <td x-text="item.product_name"></td>
+                                <td class="text-right" x-text="formatAmount(item.qty_allocated)"></td>
+                                <td class="text-right" x-text="formatAmount((parseFloat(item.remaining_qty) || 0) - (parseFloat(item.qty_allocated) || 0))"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
             <div class="mt-6 flex items-center justify-end">
                 <button class="btn" type="button" @click="closeDrDetails()">Close</button>
             </div>
@@ -244,9 +275,11 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             quickPayDeliveries: <?= $deliveriesJson ?>,
             itemsByDelivery: <?= $itemsJson ?>,
             allocationsByDelivery: <?= $allocationsJson ?>,
+            pickupAllocationsByDelivery: <?= $pickupAllocationsJson ?>,
             historiesByDelivery: <?= $historiesJson ?>,
             products: <?= $productsJson ?>,
             clientPriceMap: <?= $clientPriceMapJson ?>,
+            pickupSearchUrl: '<?= base_url('deliveries/pickups/search') ?>',
             itemsOpen: false,
             drDetailsOpen: false,
             allocOpen: false,
@@ -263,6 +296,12 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 due_date: '',
             },
             editItems: [],
+            editPickupQuery: '',
+            editPickupSearching: false,
+            editPickupSearchToken: 0,
+            editPickupMessage: '',
+            editPickupResults: [],
+            editPickup: { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0, qty_allocated: 0 },
             quickPayDeliveryId: '<?= esc(old('delivery_id') ?: '') ?>',
             quickPay: {
                 date: '<?= esc(old('date') ?: date('Y-m-d')) ?>',
@@ -350,6 +389,9 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             selectedAllocations() {
                 return this.allocationsByDelivery[this.selectedDeliveryId] || [];
             },
+            selectedPickupAllocations() {
+                return this.pickupAllocationsByDelivery[this.selectedDeliveryId] || [];
+            },
             allocTotal() {
                 return this.selectedAllocations()
                     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
@@ -408,6 +450,21 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                     unit_price: item.unit_price,
                     line_total: this.formatInputAmount(item.line_total)
                 }));
+                const pickup = (this.pickupAllocationsByDelivery[id] || [])[0] || null;
+                this.editPickup = pickup ? {
+                    id: pickup.purchase_order_id || '',
+                    product_id: pickup.product_id || '',
+                    rr_no: pickup.rr_no || '',
+                    supplier_name: pickup.supplier_name || '',
+                    product_name: pickup.product_name || '',
+                    remaining_qty: pickup.remaining_qty || 0,
+                    qty_allocated: pickup.qty_allocated || 0,
+                } : { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0, qty_allocated: 0 };
+                this.editPickupQuery = pickup ? (pickup.rr_no || '') : '';
+                this.editPickupSearchToken++;
+                this.editPickupSearching = false;
+                this.editPickupResults = [];
+                this.editPickupMessage = '';
                 if (this.editItems.length === 0) {
                     this.addEditItem();
                 }
@@ -451,8 +508,107 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             removeEditItem(index) {
                 this.editItems.splice(index, 1);
             },
+            handleEditPickupQueryInput() {
+                if (this.editPickup.id && String(this.editPickupQuery || '').trim() !== String(this.editPickup.rr_no || '').trim()) {
+                    this.clearEditPickup(false);
+                }
+                if (String(this.editPickupQuery || '').trim() === '') {
+                    this.editPickupResults = [];
+                    this.editPickupMessage = '';
+                    return;
+                }
+                this.searchEditPickups();
+            },
+            async searchEditPickups() {
+                const query = String(this.editPickupQuery || '').trim();
+                if (query === '') {
+                    this.editPickupResults = [];
+                    this.editPickupMessage = '';
+                    return;
+                }
+                const token = ++this.editPickupSearchToken;
+                this.editPickupSearching = true;
+                this.editPickupMessage = '';
+                try {
+                    const params = new URLSearchParams({
+                        q: query,
+                        exclude_delivery_id: this.actionDeliveryId || '',
+                    });
+                    const response = await fetch(this.pickupSearchUrl + '?' + params.toString(), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (token !== this.editPickupSearchToken) {
+                        return;
+                    }
+                    this.editPickupResults = Array.isArray(data.results) ? data.results : [];
+                    if (this.editPickupResults.length === 0) {
+                        this.editPickupMessage = 'No open RR found.';
+                    }
+                } catch (error) {
+                    if (token !== this.editPickupSearchToken) {
+                        return;
+                    }
+                    this.editPickupResults = [];
+                    this.editPickupMessage = 'Unable to search RRs right now.';
+                } finally {
+                    if (token === this.editPickupSearchToken) {
+                        this.editPickupSearching = false;
+                    }
+                }
+            },
+            selectEditPickup(row) {
+                const delivery = this.selectedActionDelivery();
+                this.editPickup = {
+                    id: row.purchase_order_id || '',
+                    product_id: String(row.product_id || ''),
+                    rr_no: row.rr_no || '',
+                    supplier_name: row.supplier_name || '',
+                    product_name: row.product_name || '',
+                    remaining_qty: row.remaining_qty || 0,
+                    qty_allocated: row.remaining_qty || 0,
+                };
+                this.editPickupQuery = row.rr_no || '';
+                this.editPickupResults = [];
+                this.editPickupMessage = '';
+                this.editItems = [{
+                    product_id: String(row.product_id || ''),
+                    qty: row.remaining_qty || 0,
+                    unit_price: this.effectiveUnitPrice(String(row.product_id || ''), delivery ? delivery.client_id : ''),
+                    line_total: '0.00'
+                }];
+                this.updateEditLine(0);
+            },
+            clearEditPickup(resetQuery = true) {
+                this.editPickupSearchToken++;
+                this.editPickup = { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0, qty_allocated: 0 };
+                this.editPickupSearching = false;
+                this.editPickupResults = [];
+                this.editPickupMessage = '';
+                if (resetQuery) {
+                    this.editPickupQuery = '';
+                }
+            },
+            editPickupAvailableQty() {
+                return parseFloat(this.editPickup.remaining_qty) || parseFloat(this.editPickup.qty_allocated) || 0;
+            },
+            editPickupDeliveryQty() {
+                if (!this.editPickup.id) {
+                    return 0;
+                }
+
+                return this.editItems
+                    .filter((item) => String(item.product_id) === String(this.editPickup.product_id))
+                    .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            },
+            editPickupBalanceAfterDelivery() {
+                return this.editPickupAvailableQty() - this.editPickupDeliveryQty();
+            },
             selectEditProduct(index) {
                 const item = this.editItems[index];
+                if (this.editPickup.id && String(item.product_id) !== String(this.editPickup.product_id)) {
+                    this.clearEditPickup(false);
+                }
                 const delivery = this.selectedActionDelivery();
                 item.unit_price = this.effectiveUnitPrice(item.product_id, delivery ? delivery.client_id : '');
                 this.updateEditLine(index);

@@ -12,7 +12,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Voided Purchase Orders Report</title>
+    <title>Voided Pickups Report</title>
     <style>
         @page {
             margin: 24px;
@@ -114,10 +114,10 @@
             <img class="print-logo" src="<?= esc($logoSrc) ?>" alt="SRC Enterprises logo">
         <?php endif; ?>
         <div class="company-title">SRC ENTERPRISES INC</div>
-        <div class="report-title">Voided Purchase Orders Report</div>
+        <div class="report-title">Voided Pickups Report</div>
         <div class="meta">Date from: <?= esc($firstDate ?: 'All') ?> to <?= esc($lastDate ?: 'All') ?></div>
         <?php if (($poNo ?? '') !== ''): ?>
-            <div class="meta">PO filter: <?= esc((string) $poNo) ?></div>
+            <div class="meta">RR filter: <?= esc((string) $poNo) ?></div>
         <?php endif; ?>
     </div>
 
@@ -125,7 +125,7 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>PO #</th>
+                <th>RR #</th>
                 <th>Date</th>
                 <th>Due Date</th>
                 <th>Voided At</th>
@@ -138,7 +138,7 @@
         <tbody>
             <?php if (empty($rows)): ?>
                 <tr>
-                    <td class="text-center" colspan="9">No voided purchase orders found.</td>
+                    <td class="text-center" colspan="9">No voided pickups found.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($rows as $index => $row): ?>

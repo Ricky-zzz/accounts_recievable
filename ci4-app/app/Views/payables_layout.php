@@ -163,6 +163,22 @@
             overflow: hidden;
         }
 
+        .modal-split {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .modal-split > div {
+            min-width: 0;
+            overflow-x: auto;
+        }
+
+        @media (min-width: 1024px) {
+            .modal-split {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+        }
+
         .table th,
         .table td {
             padding: .75rem 1rem;
@@ -175,6 +191,14 @@
             font-weight: 600;
             text-align: left;
             white-space: nowrap;
+        }
+
+        .table thead th.text-right {
+            text-align: right;
+        }
+
+        .table thead th.text-center {
+            text-align: center;
         }
 
         .table tbody tr+tr td {
@@ -400,7 +424,7 @@
     }
     $isNavActive = static fn(string $segment): bool => $currentPath === $segment || str_starts_with($currentPath, $segment . '/');
     $navAttributes = static fn(string $segment): string => $isNavActive($segment) ? 'class="nav-link nav-link-active" aria-current="page"' : 'class="nav-link"';
-    $reportsActive = $isNavActive('purchase-orders') || $isNavActive('payables') || $isNavActive('payable-reports');
+    $reportsActive = $isNavActive('supplier-orders') || $isNavActive('purchase-orders') || $isNavActive('payables') || $isNavActive('payable-reports');
     $accountName = trim((string) (session()->get('name') ?: session()->get('username') ?: 'Account'));
     $accountInitial = strtoupper(substr($accountName, 0, 1)) ?: 'A';
     ?>
@@ -446,10 +470,11 @@
                             <summary class="<?= $reportsActive ? 'nav-link nav-link-active' : 'nav-link' ?>" <?= $reportsActive ? 'aria-current="page"' : '' ?>>Reports</summary>
                             <div class="nav-menu">
                                 <?php if (can_access('purchase_orders.view')): ?>
-                                    <a href="<?= base_url('purchase-orders') ?>" <?= $navAttributes('purchase-orders') ?>>Purchase Orders</a>
+                                    <a href="<?= base_url('supplier-orders') ?>" <?= $navAttributes('supplier-orders') ?>>Purchase Orders</a>
+                                    <a href="<?= base_url('purchase-orders') ?>" <?= $navAttributes('purchase-orders') ?>>Pickups</a>
                                 <?php endif; ?>
                                 <?php if (can_access('payables.view')): ?>
-                                    <a href="<?= base_url('payables') ?>" <?= $navAttributes('payables') ?>>Payments</a>
+                                    <a href="<?= base_url('payables') ?>" <?= $navAttributes('payables') ?>>CV / Payments</a>
                                 <?php endif; ?>
                                 <?php if (can_access('payable_reports.credits.view')): ?>
                                     <a href="<?= base_url('payable-reports/credits') ?>" <?= $navAttributes('payable-reports/credits') ?>>Credits</a>
@@ -458,7 +483,8 @@
                                     <a href="<?= base_url('payable-reports/overdue') ?>" <?= $navAttributes('payable-reports/overdue') ?>>Overdue</a>
                                 <?php endif; ?>
                                 <?php if (can_access('payable_reports.voided.view')): ?>
-                                    <a href="<?= base_url('payable-reports/voided') ?>" <?= $navAttributes('payable-reports/voided') ?>>Voided</a>
+                                    <a href="<?= base_url('payable-reports/voided') ?>" <?= $navAttributes('payable-reports/voided') ?>>Voided Pickups</a>
+                                    <a href="<?= base_url('payable-reports/voided-pos') ?>" <?= $navAttributes('payable-reports/voided-pos') ?>>Voided POs</a>
                                 <?php endif; ?>
                             </div>
                         </details>

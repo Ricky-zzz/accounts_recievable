@@ -56,6 +56,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('deliveries', 'Deliveries::index');
     $routes->get('deliveries/list', 'Deliveries::index');
     $routes->get('deliveries/print', 'Deliveries::print');
+    $routes->get('deliveries/pickups/search', 'Deliveries::searchPickups');
+    $routes->get('ajax/deliveries/(:num)', 'TransactionDetails::delivery/$1');
     $routes->get('deliveries/client/(:num)', 'Deliveries::createForm/$1');
     $routes->get('clients/(:num)/deliveries', 'Deliveries::clientList/$1');
     $routes->get('clients/(:num)/deliveries/print', 'Deliveries::listPrint/$1');
@@ -71,6 +73,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('ledger', 'Ledger::index');
     $routes->get('ledger/print', 'Ledger::print');
+    $routes->get('ajax/payments/(:num)', 'TransactionDetails::payment/$1');
 
     $routes->get('payments', 'Payments::index');
     $routes->get('payments/print', 'Payments::print');
@@ -82,16 +85,26 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('purchase-orders', 'PurchaseOrders::index', ['filter' => 'permission:purchase_orders.view']);
     $routes->get('purchase-orders/print', 'PurchaseOrders::print', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('ajax/purchase-orders/(:num)', 'TransactionDetails::purchaseOrder/$1', ['filter' => 'permission:purchase_orders.view']);
     $routes->get('suppliers/(:num)/purchase-orders', 'PurchaseOrders::supplierList/$1', ['filter' => 'permission:purchase_orders.view']);
     $routes->post('purchase-orders', 'PurchaseOrders::create', ['filter' => 'permission:purchase_orders.view']);
     $routes->post('purchase-orders/(:num)', 'PurchaseOrders::update/$1', ['filter' => 'permission:purchase_orders.view']);
     $routes->post('purchase-orders/(:num)/void', 'PurchaseOrders::void/$1', ['filter' => 'permission:purchase_orders.view']);
+
+    $routes->get('supplier-orders', 'SupplierOrders::index', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('supplier-orders/print', 'SupplierOrders::print', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('suppliers/(:num)/supplier-orders', 'SupplierOrders::supplierList/$1', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('suppliers/(:num)/supplier-orders/print', 'SupplierOrders::supplierPrint/$1', ['filter' => 'permission:purchase_orders.view']);
+    $routes->post('supplier-orders', 'SupplierOrders::create', ['filter' => 'permission:purchase_orders.view']);
+    $routes->post('supplier-orders/(:num)', 'SupplierOrders::update/$1', ['filter' => 'permission:purchase_orders.view']);
+    $routes->post('supplier-orders/(:num)/void', 'SupplierOrders::void/$1', ['filter' => 'permission:purchase_orders.view']);
 
     $routes->get('payable-ledger', 'PayableLedger::index', ['filter' => 'permission:payable_ledger.view']);
     $routes->get('payable-ledger/print', 'PayableLedger::print', ['filter' => 'permission:payable_ledger.view']);
 
     $routes->get('payables', 'Payables::index', ['filter' => 'permission:payables.view']);
     $routes->get('payables/print', 'Payables::print', ['filter' => 'permission:payables.view']);
+    $routes->get('ajax/payables/(:num)', 'TransactionDetails::payable/$1', ['filter' => 'permission:payables.view']);
     $routes->get('payables/supplier/(:num)', 'Payables::supplierList/$1', ['filter' => 'permission:payables.view']);
     $routes->get('payables/supplier/(:num)/print', 'Payables::supplierPrint/$1', ['filter' => 'permission:payables.view']);
     $routes->get('payables/supplier/(:num)/create', 'Payables::createForm/$1', ['filter' => 'permission:payables.view']);
@@ -114,6 +127,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('payable-reports/overdue/print', 'PayableReports::overduePrint', ['filter' => 'permission:payable_reports.overdue.view']);
     $routes->get('payable-reports/voided', 'PayableReports::voided', ['filter' => 'permission:payable_reports.voided.view']);
     $routes->get('payable-reports/voided/print', 'PayableReports::voidedPrint', ['filter' => 'permission:payable_reports.voided.view']);
+    $routes->get('payable-reports/voided-pos', 'PayableReports::voidedPos', ['filter' => 'permission:payable_reports.voided.view']);
+    $routes->get('payable-reports/voided-pos/print', 'PayableReports::voidedPosPrint', ['filter' => 'permission:payable_reports.voided.view']);
 
     $routes->get('excess', 'Excess::index');
 });

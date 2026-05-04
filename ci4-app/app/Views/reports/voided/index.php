@@ -139,12 +139,12 @@ $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
     </div>
 
     <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
-        <div class="modal-panel max-w-4xl p-6" @click.stop>
+        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
             <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">Details for DR#: <span x-text="selectedDrNumber()"></span></h2>
+                <h2 class="text-lg font-semibold">DR Details: <span x-text="selectedDrNumber()"></span></h2>
             </div>
 
-            <div class="grid grid-cols-2 gap-6">
+            <div class="modal-split">
                 <div>
                     <h3 class="mb-3 font-semibold">Delivery Items</h3>
                     <table class="table">

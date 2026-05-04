@@ -6,12 +6,7 @@
  * @var string $end
  * @var int|float|string $openingBalance
  * @var list<array<string, int|float|string|null>> $rows
- * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByDelivery
  * @var array<int|string, int> $itemCounts
- * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByDelivery
- * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayment
- * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayment
- * @var array<int|string, array<string, int|float|string|null>> $paymentsById
  * @var array{amount?: int|float|string, collection?: int|float|string, other_accounts?: int|float|string, ending_balance?: int|float|string} $totals
  * @var int|float|string $currentBalance
  */
