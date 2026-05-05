@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var string $title
  * @var string $action
@@ -21,13 +22,13 @@
 <?php endif; ?>
 <?php $formClass = ! empty($embeddedForm) ? 'space-y-6' : 'mt-6 space-y-6'; ?>
 <?php if (empty($embeddedForm)): ?>
-<div class="flex flex-wrap items-end justify-between gap-4">
-    <div>
-        <h1 class="text-xl font-semibold">New Delivery</h1>
-        <p class="mt-1 text-sm muted">Add a delivery receipt with one or more items.</p>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-xl font-semibold">New Delivery</h1>
+            <p class="mt-1 text-sm muted">Add a delivery receipt with one or more items.</p>
+        </div>
+        <a class="btn btn-secondary" href="<?= base_url(($selectedClient['id'] ?? $clientId ?? 0) ? 'clients/' . ($selectedClient['id'] ?? $clientId) . '/deliveries' : 'deliveries') ?>">Back</a>
     </div>
-    <a class="btn btn-secondary" href="<?= base_url(($selectedClient['id'] ?? $clientId ?? 0) ? 'clients/' . ($selectedClient['id'] ?? $clientId) . '/deliveries' : 'deliveries') ?>">Back</a>
-</div>
 <?php endif; ?>
 
 <?php if (isset($validation)): ?>
@@ -149,7 +150,14 @@ if ($termValue === null) {
 
         <div class="mt-3 overflow-x-auto rounded border border-gray-200" x-show="pickup.id" x-cloak>
             <table class="table">
-                <thead><tr><th>Supplier</th><th>Product</th><th>Quantity</th><th>Deliverable / Loss</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Deliverable / Loss</th>
+                    </tr>
+                </thead>
                 <tbody>
                     <tr>
                         <td x-text="pickup.supplier_name"></td>
@@ -315,7 +323,9 @@ if ($termValue === null) {
                 this.pickupMessage = '';
                 try {
                     const response = await fetch(this.pickupSearchUrl + '?q=' + encodeURIComponent(query), {
-                        headers: { 'Accept': 'application/json' }
+                        headers: {
+                            'Accept': 'application/json'
+                        }
                     });
                     const data = await response.json();
                     if (token !== this.pickupSearchToken) {
@@ -346,7 +356,7 @@ if ($termValue === null) {
             },
             selectPickup(row) {
                 const pickupId = row.purchase_order_id || row.id || '';
-                const productId = row.product_id || row.productId || '';
+                const productId = this.resolveProductId(row.product_id || row.productId || '');
                 this.pickup = {
                     id: pickupId,
                     product_id: String(productId),
@@ -374,7 +384,14 @@ if ($termValue === null) {
             },
             clearPickup(resetQuery = true) {
                 this.pickupSearchToken++;
-                this.pickup = { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0 };
+                this.pickup = {
+                    id: '',
+                    product_id: '',
+                    rr_no: '',
+                    supplier_name: '',
+                    product_name: '',
+                    remaining_qty: 0
+                };
                 this.pickupSearching = false;
                 this.pickupResults = [];
                 this.pickupMessage = '';
@@ -415,15 +432,27 @@ if ($termValue === null) {
                     }
                 });
             },
+            resolveProductId(value) {
+                const rawValue = String(value || '');
+                if (rawValue === '') {
+                    return '';
+                }
+
+                const match = this.products.find((product) => {
+                    return String(product.id) === rawValue || String(product.product_id) === rawValue;
+                });
+
+                return match ? String(match.id) : rawValue;
+            },
             effectiveUnitPrice(productId, clientId) {
                 const product = this.products.find((row) => String(row.id) === String(productId));
                 const defaultPrice = product ? product.unit_price : '';
                 const clientPrices = this.clientPriceMap[String(clientId)] || {};
                 const specialPrice = clientPrices[String(productId)];
 
-                return specialPrice !== undefined && specialPrice !== null && String(specialPrice) !== ''
-                    ? specialPrice
-                    : defaultPrice;
+                return specialPrice !== undefined && specialPrice !== null && String(specialPrice) !== '' ?
+                    specialPrice :
+                    defaultPrice;
             },
             updateLine(index) {
                 const item = this.items[index];
