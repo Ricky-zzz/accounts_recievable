@@ -5,7 +5,6 @@
  * @var string $start
  * @var string $end
  * @var int|float|string $openingBalance
- * @var int|float|string $openingOpenBalance
  * @var list<array<string, int|float|string|null>> $rows
  * @var array<string, int|float> $totals
  */
@@ -115,14 +114,14 @@
             <tr>
                 <th>#</th>
                 <th>Date</th>
-                <th>PO#</th>
                 <th>RR#</th>
                 <th>CV#</th>
                 <th>Account</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Price</th>
                 <th class="text-right">Payables</th>
                 <th class="text-right">Payment</th>
                 <th class="text-right">Other Accounts</th>
-                <th class="text-right">PO Balance</th>
                 <th class="text-right">Balance</th>
             </tr>
         </thead>
@@ -132,12 +131,12 @@
                 <td></td>
                 <td></td>
                 <td></td>
-                <td></td>
                 <td>Balance Forwarded</td>
                 <td class="text-right"></td>
                 <td class="text-right"></td>
                 <td class="text-right"></td>
-                <td class="text-right"><?= esc(number_format((float) ($openingOpenBalance ?? 0), 2)) ?></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
                 <td class="text-right"><?= esc(number_format((float) ($openingBalance ?? 0), 2)) ?></td>
             </tr>
             <?php if (empty($rows)): ?>
@@ -146,21 +145,17 @@
                 </tr>
             <?php else: ?>
                 <?php foreach ($rows as $index => $row): ?>
-                    <?php
-                    $isRrRow = ! empty($row['purchase_order_id']);
-                    $isSupplierPoRow = ! $isRrRow && empty($row['payable_id']) && ! empty($row['supplier_order_id']);
-                    ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc((string) ($row['entry_date'] ?? '')) ?></td>
-                        <td><?= $isSupplierPoRow ? esc((string) ($row['supplier_order_po_no'] ?? '')) : '' ?></td>
                         <td><?= esc((string) ($row['po_no'] ?? '')) ?></td>
                         <td><?= esc((string) ($row['pr_no'] ?? '')) ?></td>
                         <td><?= esc((string) ($row['account_title'] ?? '')) ?></td>
+                        <td class="text-right"><?= ($row['qty'] ?? '') !== '' ? esc(number_format((float) ($row['qty'] ?? 0), 2)) : '' ?></td>
+                        <td class="text-right"><?= ($row['price'] ?? '') !== '' ? esc(number_format((float) ($row['price'] ?? 0), 2)) : '' ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['payables'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['payment'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['other_accounts'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($row['total_open_balance'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -169,11 +164,10 @@
         <?php if (! empty($rows)): ?>
             <tfoot>
                 <tr>
-                    <th colspan="6">Totals</th>
+                    <th colspan="7">Totals</th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['payables'] ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['payment'] ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['other_accounts'] ?? 0), 2)) ?></th>
-                    <th class="text-right"></th>
                     <th class="text-right"><?= esc(number_format((float) ($totals['ending_balance'] ?? 0), 2)) ?></th>
                 </tr>
             </tfoot>

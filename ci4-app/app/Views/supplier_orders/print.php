@@ -5,6 +5,7 @@
  * @var string $fromDate
  * @var string $toDate
  * @var string $poNo
+ * @var string $statusFilter
  * @var list<array<string, int|float|string|null>> $orders
  * @var int|float|string $totalOrdered
  * @var int|float|string $totalPickedUp
@@ -108,6 +109,7 @@
         <?php if (($poNo ?? '') !== ''): ?>
             <div class="meta">PO filter: <?= esc((string) $poNo) ?></div>
         <?php endif; ?>
+        <div class="meta">Status: <?= esc(ucfirst((string) ($statusFilter ?? 'all'))) ?></div>
     </div>
 
     <table class="table">
@@ -117,7 +119,7 @@
                 <th>Date</th>
                 <th>Supplier</th>
                 <th>PO #</th>
-                <th class="text-right">Ordered Qty</th>
+                <th class="text-right">Purchase Qty</th>
                 <th class="text-right">Picked Qty</th>
                 <th class="text-right">Balance Qty</th>
             </tr>

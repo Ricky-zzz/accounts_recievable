@@ -5,7 +5,6 @@ namespace App\Controllers;
 use App\Models\PayableLedgerModel;
 use App\Models\PurchaseOrderItemModel;
 use App\Models\SupplierModel;
-use App\Models\SupplierOrderItemModel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -71,47 +70,30 @@ class PayableLedger extends BaseController
         $supplierModel = new SupplierModel();
         $selectedSupplier = $supplierId > 0 ? $supplierModel->find($supplierId) : null;
         $openingBalance = 0.0;
-        $openingOpenBalance = 0.0;
+        $currentBalance = 0.0;
         $rows = [];
         $itemsByPurchaseOrder = [];
-        $itemCounts = [];
         $allocationsByPurchaseOrder = [];
         $allocationsByPayable = [];
         $otherAccountsByPayable = [];
         $payablesById = [];
-        $supplierOrdersById = [];
-        $supplierOrderItemsByOrder = [];
-        $supplierOrderConsumptionsByOrder = [];
-        $currentBalance = 0.0;
         $currentPage = max(1, (int) ($this->request->getGet('page') ?? 1));
         $totalRows = 0;
         $totalPages = 1;
         $rowOffset = 0;
 
         if ($selectedSupplier) {
-            $ledgerModel = new PayableLedgerModel();
-            $openingRows = [];
-
             if ($start !== '') {
-                $openingRow = $ledgerModel
+                $openingRow = $this->filteredLedgerModel($supplierId)
                     ->select('balance')
-                    ->where('supplier_id', $supplierId)
                     ->where('entry_date <', $start)
                     ->orderBy('entry_date', 'desc')
                     ->orderBy('id', 'desc')
                     ->first();
                 $openingBalance = (float) ($openingRow['balance'] ?? 0);
-
-                $openingRows = $ledgerModel
-                    ->select('id, entry_date, qty, account_title, supplier_order_id, supplier_order_item_id, purchase_order_id')
-                    ->where('supplier_id', $supplierId)
-                    ->where('entry_date <', $start)
-                    ->orderBy('entry_date', 'asc')
-                    ->orderBy('id', 'asc')
-                    ->findAll();
             }
 
-            $builder = $ledgerModel->where('supplier_id', $supplierId);
+            $builder = $this->filteredLedgerModel($supplierId);
             if ($start !== '') {
                 $builder->where('entry_date >=', $start);
             }
@@ -120,7 +102,6 @@ class PayableLedger extends BaseController
             }
 
             $allRows = $builder->orderBy('entry_date', 'asc')->orderBy('id', 'asc')->findAll();
-            $rows = $allRows;
             $totalRows = count($allRows);
             $totalPages = max(1, (int) ceil($totalRows / self::LEDGER_PER_PAGE));
             $currentBalance = $openingBalance;
@@ -130,47 +111,31 @@ class PayableLedger extends BaseController
                 $currentBalance = (float) ($lastRow['balance'] ?? $openingBalance);
             }
 
-            $supplierOrderQtyById = $this->fetchSupplierOrderQuantities(
-                $this->collectSupplierOrderIdsFromLedgerRows($openingRows, $allRows)
-            );
-            $openingOpenBalance = $this->computeOpenBalanceFromLedgerRows($openingRows, $supplierOrderQtyById);
-            $allRows = $this->applyOpenBalancesToRows($allRows, $openingOpenBalance, $supplierOrderQtyById);
-            $rows = $allRows;
-
             if ($paginate) {
                 $currentPage = min($currentPage, $totalPages);
                 $rowOffset = ($currentPage - 1) * self::LEDGER_PER_PAGE;
                 $rows = array_slice($allRows, $rowOffset, self::LEDGER_PER_PAGE);
             } else {
+                $rows = $allRows;
                 $currentPage = 1;
                 $totalPages = 1;
             }
 
             $purchaseOrderIds = array_filter(array_column($rows, 'purchase_order_id'));
             $payableIds = array_filter(array_column($rows, 'payable_id'));
-            $supplierOrderIds = array_filter(array_column($rows, 'supplier_order_id'));
             $db = db_connect();
 
             if (! empty($purchaseOrderIds)) {
                 $items = (new PurchaseOrderItemModel())
                     ->select('purchase_order_items.*, products.product_name')
-                    ->select('supplier_orders.id as supplier_order_id, supplier_orders.po_no as supplier_order_po_no')
-                    ->select('supplier_order_items.qty_balance as current_po_qty_balance')
                     ->join('products', 'products.id = purchase_order_items.product_id', 'left')
-                    ->join('supplier_order_items', 'supplier_order_items.id = purchase_order_items.supplier_order_item_id', 'left')
-                    ->join('supplier_orders', 'supplier_orders.id = supplier_order_items.supplier_order_id', 'left')
                     ->whereIn('purchase_order_id', $purchaseOrderIds)
                     ->orderBy('purchase_order_id', 'asc')
                     ->orderBy('id', 'asc')
                     ->findAll();
 
                 foreach ($items as $item) {
-                    $purchaseOrderId = (int) $item['purchase_order_id'];
-                    $itemsByPurchaseOrder[$purchaseOrderId][] = $item;
-                    $itemCounts[$purchaseOrderId] = ($itemCounts[$purchaseOrderId] ?? 0) + 1;
-                    if (! empty($item['supplier_order_id'])) {
-                        $supplierOrderIds[] = (int) $item['supplier_order_id'];
-                    }
+                    $itemsByPurchaseOrder[(int) $item['purchase_order_id']][] = $item;
                 }
 
                 $poAllocations = $db->table('payable_allocations pa')
@@ -183,58 +148,6 @@ class PayableLedger extends BaseController
 
                 foreach ($poAllocations as $allocation) {
                     $allocationsByPurchaseOrder[(int) $allocation['purchase_order_id']][] = $allocation;
-                }
-            }
-
-            $supplierOrderIds = array_values(array_unique(array_filter(array_map('intval', $supplierOrderIds))));
-            if (! empty($supplierOrderIds)) {
-                $supplierOrderRows = $db->table('supplier_orders so')
-                    ->select('so.*, suppliers.name as supplier_name')
-                    ->join('suppliers', 'suppliers.id = so.supplier_id', 'left')
-                    ->whereIn('so.id', $supplierOrderIds)
-                    ->get()
-                    ->getResultArray();
-
-                foreach ($supplierOrderRows as $row) {
-                    $supplierOrdersById[(int) $row['id']] = $row;
-                }
-
-                $supplierOrderItems = (new SupplierOrderItemModel())
-                    ->select('supplier_order_items.*, products.product_name')
-                    ->join('products', 'products.id = supplier_order_items.product_id', 'left')
-                    ->whereIn('supplier_order_id', $supplierOrderIds)
-                    ->orderBy('supplier_order_id', 'asc')
-                    ->orderBy('id', 'asc')
-                    ->findAll();
-
-                foreach ($supplierOrderItems as $item) {
-                    $supplierOrderItemsByOrder[(int) $item['supplier_order_id']][] = $item;
-                }
-
-                $supplierOrderConsumptions = $db->table('purchase_order_items poi')
-                    ->select('soi.supplier_order_id')
-                    ->select('po.id as purchase_order_id, po.po_no as rr_no, po.date as rr_date')
-                    ->select('p.product_name, poi.qty, poi.unit_price, poi.line_total, poi.po_qty_balance_after')
-                    ->join('supplier_order_items soi', 'soi.id = poi.supplier_order_item_id', 'left')
-                    ->join('purchase_orders po', 'po.id = poi.purchase_order_id', 'left')
-                    ->join('products p', 'p.id = poi.product_id', 'left')
-                    ->whereIn('soi.supplier_order_id', $supplierOrderIds)
-                    ->where('po.voided_at', null)
-                    ->orderBy('po.date', 'asc')
-                    ->orderBy('po.id', 'asc')
-                    ->orderBy('poi.id', 'asc')
-                    ->get()
-                    ->getResultArray();
-
-                foreach ($supplierOrderConsumptions as $consumption) {
-                    $supplierOrderConsumptionsByOrder[(int) $consumption['supplier_order_id']][] = $consumption;
-                }
-
-                foreach ($rows as $index => $row) {
-                    $supplierOrderId = (int) ($row['supplier_order_id'] ?? 0);
-                    if ($supplierOrderId > 0 && isset($supplierOrdersById[$supplierOrderId])) {
-                        $rows[$index]['supplier_order_po_no'] = $supplierOrdersById[$supplierOrderId]['po_no'] ?? '';
-                    }
                 }
             }
 
@@ -280,7 +193,6 @@ class PayableLedger extends BaseController
                     $otherAccountsByPayable[(int) $row['payable_id']][] = $row;
                 }
             }
-
         }
 
         return [
@@ -289,7 +201,6 @@ class PayableLedger extends BaseController
             'start' => $start,
             'end' => $end,
             'openingBalance' => $openingBalance,
-            'openingOpenBalance' => $openingOpenBalance,
             'currentBalance' => $currentBalance,
             'rows' => $rows,
             'allRowsCount' => $totalRows,
@@ -298,15 +209,21 @@ class PayableLedger extends BaseController
             'totalPages' => $totalPages,
             'rowOffset' => $rowOffset,
             'itemsByPurchaseOrder' => $itemsByPurchaseOrder,
-            'itemCounts' => $itemCounts,
             'allocationsByPurchaseOrder' => $allocationsByPurchaseOrder,
             'allocationsByPayable' => $allocationsByPayable,
             'otherAccountsByPayable' => $otherAccountsByPayable,
             'payablesById' => $payablesById,
-            'supplierOrdersById' => $supplierOrdersById,
-            'supplierOrderItemsByOrder' => $supplierOrderItemsByOrder,
-            'supplierOrderConsumptionsByOrder' => $supplierOrderConsumptionsByOrder,
         ];
+    }
+
+    private function filteredLedgerModel(int $supplierId): PayableLedgerModel
+    {
+        return (new PayableLedgerModel())
+            ->where('supplier_id', $supplierId)
+            ->groupStart()
+                ->where('account_title', null)
+                ->orWhere("account_title NOT IN ('Supplier PO', 'Voided Supplier PO')", null, false)
+            ->groupEnd();
     }
 
     private function resolveDateRange(): array
@@ -325,87 +242,5 @@ class PayableLedger extends BaseController
         }
 
         return [$start, $end];
-    }
-
-    private function collectSupplierOrderIdsFromLedgerRows(array $openingRows, array $rows): array
-    {
-        $ids = [];
-        foreach ([$openingRows, $rows] as $group) {
-            foreach ($group as $row) {
-                $supplierOrderId = (int) ($row['supplier_order_id'] ?? 0);
-                if ($supplierOrderId > 0) {
-                    $ids[$supplierOrderId] = true;
-                }
-            }
-        }
-
-        return array_keys($ids);
-    }
-
-    private function fetchSupplierOrderQuantities(array $supplierOrderIds): array
-    {
-        $supplierOrderIds = array_values(array_unique(array_filter(array_map('intval', $supplierOrderIds))));
-        if (empty($supplierOrderIds)) {
-            return [];
-        }
-
-        $rows = db_connect()->table('supplier_order_items')
-            ->select('supplier_order_id, SUM(qty_ordered) as qty_ordered', false)
-            ->whereIn('supplier_order_id', $supplierOrderIds)
-            ->groupBy('supplier_order_id')
-            ->get()
-            ->getResultArray();
-
-        $qtyById = [];
-        foreach ($rows as $row) {
-            $supplierOrderId = (int) ($row['supplier_order_id'] ?? 0);
-            if ($supplierOrderId > 0) {
-                $qtyById[$supplierOrderId] = (float) ($row['qty_ordered'] ?? 0);
-            }
-        }
-
-        return $qtyById;
-    }
-
-    private function computeOpenBalanceFromLedgerRows(array $rows, array $supplierOrderQtyById): float
-    {
-        $balance = 0.0;
-        foreach ($rows as $row) {
-            $balance += $this->openBalanceDelta($row, $supplierOrderQtyById);
-        }
-
-        return $balance;
-    }
-
-    private function applyOpenBalancesToRows(array $rows, float $startingBalance, array $supplierOrderQtyById): array
-    {
-        $balance = $startingBalance;
-        foreach ($rows as $index => $row) {
-            $balance += $this->openBalanceDelta($row, $supplierOrderQtyById);
-            $rows[$index]['total_open_balance'] = $balance;
-        }
-
-        return $rows;
-    }
-
-    private function openBalanceDelta(array $row, array $supplierOrderQtyById): float
-    {
-        $accountTitle = (string) ($row['account_title'] ?? '');
-        if ($accountTitle === 'Supplier PO') {
-            return (float) ($row['qty'] ?? 0);
-        }
-
-        if ($accountTitle === 'Voided Supplier PO') {
-            $supplierOrderId = (int) ($row['supplier_order_id'] ?? 0);
-            return $supplierOrderId > 0 ? -1.0 * (float) ($supplierOrderQtyById[$supplierOrderId] ?? 0) : 0.0;
-        }
-
-        $purchaseOrderId = (int) ($row['purchase_order_id'] ?? 0);
-        $hasSupplierOrderLink = ! empty($row['supplier_order_item_id']) || ! empty($row['supplier_order_id']);
-        if ($purchaseOrderId > 0 && $accountTitle === '' && $hasSupplierOrderLink) {
-            return -1.0 * (float) ($row['qty'] ?? 0);
-        }
-
-        return 0.0;
     }
 }

@@ -228,7 +228,7 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                     </table>
                 </div>
                 <div>
-                    <h3 class="mb-3 font-semibold">PO Allocations</h3>
+                    <h3 class="mb-3 font-semibold">CV Allocations</h3>
                     <table class="table">
                         <thead><tr><th>CV #</th><th>Date</th><th>Amount</th></tr></thead>
                         <tbody>

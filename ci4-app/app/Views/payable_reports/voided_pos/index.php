@@ -12,6 +12,7 @@
  * @var int|float|string $totalPickedUp
  * @var int|float|string $totalBalance
  * @var array<int|string, list<array<string, int|float|string|null>>> $itemsBySupplierOrder
+ * @var array<int|string, list<array<string, int|float|string|null>>> $historiesBySupplierOrder
  */
 ?>
 <?= $this->extend('payables_layout') ?>
@@ -19,6 +20,7 @@
 <?php
 $jsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
 $itemsJson = json_encode($itemsBySupplierOrder ?? [], $jsonFlags);
+$historiesJson = json_encode($historiesBySupplierOrder ?? [], $jsonFlags);
 $rowsJson = json_encode($rows ?? [], $jsonFlags);
 $filterQuery = [
     'po_no' => $poNo ?? '',
@@ -68,11 +70,12 @@ $filterQuery = [
                     <th class="text-right">Picked Qty</th>
                     <th class="text-right">Balance Qty</th>
                     <th>Reason</th>
+                    <th class="text-center">History</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($rows)): ?>
-                    <tr><td colspan="9">No voided POs found.</td></tr>
+                    <tr><td colspan="10">No voided POs found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($rows as $index => $row): ?>
                         <?php $rowId = (int) ($row['id'] ?? 0); ?>
@@ -90,6 +93,7 @@ $filterQuery = [
                             <td class="text-right"><?= esc(number_format((float) ($row['qty_picked_up_total'] ?? 0), 2)) ?></td>
                             <td class="text-right"><?= esc(number_format((float) ($row['qty_balance_total'] ?? 0), 2)) ?></td>
                             <td><?= esc((string) ($row['void_reason'] ?? '')) ?></td>
+                            <td class="text-center"><button class="btn btn-secondary" type="button" @click="openHistory(<?= $rowId ?>)">History</button></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -100,7 +104,7 @@ $filterQuery = [
                     <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
-                    <th></th>
+                    <th colspan="2"></th>
                 </tr>
             </tfoot>
         </table>
@@ -142,17 +146,118 @@ $filterQuery = [
             <div class="mt-6 flex items-center justify-end"><button class="btn" type="button" @click="closePoDetails()">Close</button></div>
         </div>
     </div>
+
+    <div class="modal-backdrop" x-show="historyOpen" x-cloak @click.self="closeHistory()">
+        <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
+            <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">Supplier PO History</h2>
+                        <p class="mt-1 text-sm muted" x-text="selectedHistoryOrder() ? 'PO# ' + (selectedHistoryOrder().po_no || '-') : ''"></p>
+                    </div>
+                    <button class="btn btn-secondary" type="button" @click="closeHistory()">Close</button>
+                </div>
+            </div>
+
+            <div class="mt-5 space-y-4">
+                <template x-if="selectedHistories().length === 0">
+                    <div class="card p-4 text-sm">No history recorded for this supplier PO yet.</div>
+                </template>
+                <template x-for="history in selectedHistories()" :key="history.id">
+                    <div class="card p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold" x-text="history.action === 'void' ? 'Voided' : 'Edited'"></h3>
+                                <p class="mt-1 text-sm muted" x-text="history.change_summary || 'No summary available.'"></p>
+                            </div>
+                            <div class="text-right text-xs muted">
+                                <p x-text="history.created_at"></p>
+                                <p x-text="history.editor_name || history.editor_username || 'System'"></p>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                            <div class="rounded border border-gray-200 p-3">
+                                <p class="font-semibold">Before</p>
+                                <p class="mt-2">PO#: <span x-text="historyOrder(history.old_supplier_order_json).po_no || '-'"></span></p>
+                                <p>Date: <span x-text="historyOrder(history.old_supplier_order_json).date || '-'"></span></p>
+                                <p>Ordered Qty: <span x-text="formatQty(historyTotalQty(history.old_items_json))"></span></p>
+                                <table class="table mt-3 text-xs">
+                                    <thead><tr><th>Product</th><th class="text-right">Ordered</th><th class="text-right">Picked</th><th class="text-right">Balance</th></tr></thead>
+                                    <tbody>
+                                        <template x-if="historyItems(history.old_items_json).length === 0"><tr><td colspan="4">No items recorded.</td></tr></template>
+                                        <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
+                                            <tr>
+                                                <td x-text="item.product_name || item.product_id || '-'"></td>
+                                                <td class="text-right" x-text="formatQty(item.qty_ordered)"></td>
+                                                <td class="text-right" x-text="formatQty(item.qty_picked_up)"></td>
+                                                <td class="text-right" x-text="formatQty(item.qty_balance)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="rounded border border-gray-200 p-3">
+                                <p class="font-semibold">After</p>
+                                <p class="mt-2">PO#: <span x-text="historyOrder(history.new_supplier_order_json).po_no || '-'"></span></p>
+                                <p>Date: <span x-text="historyOrder(history.new_supplier_order_json).date || '-'"></span></p>
+                                <p>Ordered Qty: <span x-text="formatQty(historyTotalQty(history.new_items_json))"></span></p>
+                                <table class="table mt-3 text-xs">
+                                    <thead><tr><th>Product</th><th class="text-right">Ordered</th><th class="text-right">Picked</th><th class="text-right">Balance</th></tr></thead>
+                                    <tbody>
+                                        <template x-if="historyItems(history.new_items_json).length === 0"><tr><td colspan="4">No items recorded.</td></tr></template>
+                                        <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
+                                            <tr>
+                                                <td x-text="item.product_name || item.product_id || '-'"></td>
+                                                <td class="text-right" x-text="formatQty(item.qty_ordered)"></td>
+                                                <td class="text-right" x-text="formatQty(item.qty_picked_up)"></td>
+                                                <td class="text-right" x-text="formatQty(item.qty_balance)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     function voidedPosReport() {
         return {
             itemsBySupplierOrder: <?= $itemsJson ?>,
+            historiesBySupplierOrder: <?= $historiesJson ?>,
             rows: <?= $rowsJson ?>,
             poDetailsOpen: false,
+            historyOpen: false,
             selectedSupplierOrderId: null,
+            selectedHistoryId: null,
             openPoDetails(id) { this.selectedSupplierOrderId = id; this.poDetailsOpen = true; },
             closePoDetails() { this.poDetailsOpen = false; this.selectedSupplierOrderId = null; },
+            openHistory(id) { this.selectedHistoryId = id; this.historyOpen = true; },
+            closeHistory() { this.historyOpen = false; this.selectedHistoryId = null; },
+            selectedHistoryOrder() {
+                return this.rows.find((item) => String(item.id) === String(this.selectedHistoryId)) || null;
+            },
+            selectedHistories() { return this.historiesBySupplierOrder[this.selectedHistoryId] || []; },
+            historyOrder(value) {
+                if (!value) return {};
+                try { return JSON.parse(value); } catch (error) { return {}; }
+            },
+            historyItems(value) {
+                if (!value) return [];
+                try {
+                    const items = JSON.parse(value);
+                    return Array.isArray(items) ? items : [];
+                } catch (error) {
+                    return [];
+                }
+            },
+            historyTotalQty(value) {
+                return this.historyItems(value).reduce((sum, item) => sum + (parseFloat(item.qty_ordered) || 0), 0);
+            },
             selectedPoNumber() {
                 const row = this.rows.find((item) => String(item.id) === String(this.selectedSupplierOrderId));
                 return row ? row.po_no : '';

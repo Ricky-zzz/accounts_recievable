@@ -19,9 +19,6 @@
 -- Current Database: `ar`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `ar` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-
-USE `ar`;
 
 --
 -- Table structure for table `banks`
@@ -38,7 +35,7 @@ CREATE TABLE `banks` (
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -47,7 +44,7 @@ CREATE TABLE `banks` (
 
 LOCK TABLES `banks` WRITE;
 /*!40000 ALTER TABLE `banks` DISABLE KEYS */;
-INSERT INTO `banks` VALUES (1,'BDO','BDO','BDO-123','2026-04-29 16:53:37','2026-04-29 16:53:37'),(2,'MBTC','MBTC','MBTC-123','2026-04-29 16:53:44','2026-04-29 16:53:44'),(3,'BPI','BPI','BPI-123','2026-04-29 16:53:50','2026-04-29 16:53:50');
+INSERT INTO `banks` VALUES (1,'BDO','BDO','BDO-123','2026-05-05 15:22:20','2026-05-05 15:22:20');
 /*!40000 ALTER TABLE `banks` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -64,8 +61,6 @@ CREATE TABLE `boa` (
   `payor` int unsigned NOT NULL,
   `reference` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `payment_id` int unsigned NOT NULL,
-  `BPI` decimal(12,2) DEFAULT '0.00',
-  `MBTC` decimal(12,2) DEFAULT '0.00',
   `BDO` decimal(12,2) DEFAULT '0.00',
   `ar_trade` decimal(12,2) NOT NULL DEFAULT '0.00',
   `ar_others` decimal(12,2) NOT NULL DEFAULT '0.00',
@@ -82,7 +77,7 @@ CREATE TABLE `boa` (
   KEY `payment_id` (`payment_id`),
   CONSTRAINT `boa_payment_id_foreign` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `boa_payor_foreign` FOREIGN KEY (`payor`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -91,7 +86,6 @@ CREATE TABLE `boa` (
 
 LOCK TABLES `boa` WRITE;
 /*!40000 ALTER TABLE `boa` DISABLE KEYS */;
-INSERT INTO `boa` VALUES (1,'2026-04-29',1,'1001',1,0.00,0.00,15000.00,16000.00,0.00,NULL,NULL,NULL,0.00,0.00,'2026-04-29 16:54:50','2026-04-29 16:54:50'),(2,'2026-04-29',1,'1001',1,0.00,0.00,0.00,0.00,0.00,'Sales Discount',NULL,NULL,1000.00,0.00,'2026-04-29 16:54:50','2026-04-29 16:54:50'),(3,'2026-04-29',5,'1003',2,0.00,0.00,16500.00,15500.00,0.00,NULL,NULL,NULL,0.00,0.00,'2026-04-29 17:07:04','2026-04-29 17:07:04'),(4,'2026-04-29',5,'1003',2,0.00,0.00,0.00,0.00,1000.00,NULL,NULL,'others',0.00,0.00,'2026-04-29 17:07:04','2026-04-29 17:07:04');
 /*!40000 ALTER TABLE `boa` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -113,7 +107,7 @@ CREATE TABLE `cashier_receipt_ranges` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `cashier_receipt_ranges_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -122,7 +116,6 @@ CREATE TABLE `cashier_receipt_ranges` (
 
 LOCK TABLES `cashier_receipt_ranges` WRITE;
 /*!40000 ALTER TABLE `cashier_receipt_ranges` DISABLE KEYS */;
-INSERT INTO `cashier_receipt_ranges` VALUES (1,1,1001,1999,1004,'active',NULL);
 /*!40000 ALTER TABLE `cashier_receipt_ranges` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -153,7 +146,7 @@ CREATE TABLE `clients` (
 
 LOCK TABLES `clients` WRITE;
 /*!40000 ALTER TABLE `clients` DISABLE KEYS */;
-INSERT INTO `clients` VALUES (1,'Acme Corporation','123 Business Ave, Suite 100, New York, NY 10001','contact@acmecorp.com','+1-212-555-0101',1000000.00,30,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(2,'Global Industries Inc','456 Commerce Boulevard, Los Angeles, CA 90001','info@globalindustries.com','+1-213-555-0202',750000.00,15,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(3,'Tech Solutions Ltd','789 Digital Drive, San Francisco, CA 94102','sales@techsolutions.com','+1-415-555-0303',500000.00,30,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(4,'Manufacturing Pro Services','321 Industrial Park, Chicago, IL 60601','procurement@mfgpro.com','+1-312-555-0404',850000.00,45,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(5,'Enterprise Solutions Group','654 Corporate Plaza, Houston, TX 77002','accounts@enterprisesolutions.com','+1-713-555-0505',1200000.00,30,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(6,'Premier Distribution Network','987 Trade Center, Miami, FL 33101','orders@premierdist.com','+1-305-555-0606',650000.00,20,'2026-04-29 12:49:18','2026-04-29 12:49:18');
+INSERT INTO `clients` VALUES (1,'Acme Corporation','123 Business Ave, Suite 100, New York, NY 10001','contact@acmecorp.com','+1-212-555-0101',1000000.00,30,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(2,'Global Industries Inc','456 Commerce Boulevard, Los Angeles, CA 90001','info@globalindustries.com','+1-213-555-0202',750000.00,15,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(3,'Tech Solutions Ltd','789 Digital Drive, San Francisco, CA 94102','sales@techsolutions.com','+1-415-555-0303',500000.00,30,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(4,'Manufacturing Pro Services','321 Industrial Park, Chicago, IL 60601','procurement@mfgpro.com','+1-312-555-0404',850000.00,45,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(5,'Enterprise Solutions Group','654 Corporate Plaza, Houston, TX 77002','accounts@enterprisesolutions.com','+1-713-555-0505',1200000.00,30,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(6,'Premier Distribution Network','987 Trade Center, Miami, FL 33101','orders@premierdist.com','+1-305-555-0606',650000.00,20,'2026-05-05 15:22:03','2026-05-05 15:22:03');
 /*!40000 ALTER TABLE `clients` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -182,7 +175,7 @@ CREATE TABLE `deliveries` (
   KEY `client_id_date` (`client_id`,`date`),
   KEY `idx_deliveries_due_date` (`due_date`),
   CONSTRAINT `deliveries_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -191,7 +184,6 @@ CREATE TABLE `deliveries` (
 
 LOCK TABLES `deliveries` WRITE;
 /*!40000 ALTER TABLE `deliveries` DISABLE KEYS */;
-INSERT INTO `deliveries` VALUES (1,1,'DR-101','2026-04-29',30,'2026-05-29',16000.00,'active',NULL,NULL,'2026-04-29 16:54:25','2026-04-29 16:54:36'),(2,5,'DR-103','2026-04-29',30,'2026-05-29',15500.00,'active',NULL,NULL,'2026-04-29 17:06:43','2026-04-29 17:06:43');
 /*!40000 ALTER TABLE `deliveries` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -219,7 +211,7 @@ CREATE TABLE `delivery_histories` (
   KEY `action` (`action`),
   CONSTRAINT `delivery_histories_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `delivery_histories_edited_by_foreign` FOREIGN KEY (`edited_by`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -228,7 +220,6 @@ CREATE TABLE `delivery_histories` (
 
 LOCK TABLES `delivery_histories` WRITE;
 /*!40000 ALTER TABLE `delivery_histories` DISABLE KEYS */;
-INSERT INTO `delivery_histories` VALUES (1,1,1,'edit','{\"id\":\"1\",\"client_id\":\"1\",\"dr_no\":\"DR-101\",\"date\":\"2026-04-29\",\"payment_term\":\"30\",\"due_date\":\"2026-05-29\",\"total_amount\":\"17000.00\",\"status\":\"active\",\"void_reason\":null,\"voided_at\":null,\"created_at\":\"2026-04-29 16:54:25\",\"updated_at\":\"2026-04-29 16:54:25\",\"client_name\":\"Acme Corporation\",\"allocated_amount\":\"0.00\",\"balance\":\"17000.00\"}','[{\"id\":\"1\",\"delivery_id\":\"1\",\"product_id\":\"5\",\"qty\":\"100.00\",\"unit_price\":\"170.00\",\"line_total\":\"17000.00\",\"product_name\":\"Electronic Modules\"}]','{\"id\":\"1\",\"client_id\":\"1\",\"dr_no\":\"DR-101\",\"date\":\"2026-04-29\",\"payment_term\":\"30\",\"due_date\":\"2026-05-29\",\"total_amount\":\"16000.00\",\"status\":\"active\",\"void_reason\":null,\"voided_at\":null,\"created_at\":\"2026-04-29 16:54:25\",\"updated_at\":\"2026-04-29 16:54:36\",\"client_name\":\"Acme Corporation\",\"allocated_amount\":\"0.00\",\"balance\":\"16000.00\"}','[{\"id\":\"2\",\"delivery_id\":\"1\",\"product_id\":\"5\",\"qty\":\"100.00\",\"unit_price\":\"160.00\",\"line_total\":\"16000.00\",\"product_name\":\"Electronic Modules\"}]','Total changed from 17,000.00 to 16,000.00.','2026-04-29 16:54:36');
 /*!40000 ALTER TABLE `delivery_histories` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -251,7 +242,7 @@ CREATE TABLE `delivery_items` (
   KEY `product_id` (`product_id`),
   CONSTRAINT `delivery_items_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `delivery_items_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -260,8 +251,40 @@ CREATE TABLE `delivery_items` (
 
 LOCK TABLES `delivery_items` WRITE;
 /*!40000 ALTER TABLE `delivery_items` DISABLE KEYS */;
-INSERT INTO `delivery_items` VALUES (2,1,5,100.00,160.00,16000.00),(3,2,5,100.00,155.00,15500.00);
 /*!40000 ALTER TABLE `delivery_items` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `delivery_pickup_allocations`
+--
+
+DROP TABLE IF EXISTS `delivery_pickup_allocations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `delivery_pickup_allocations` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `delivery_id` int unsigned NOT NULL,
+  `purchase_order_id` int unsigned NOT NULL,
+  `product_id` int unsigned NOT NULL,
+  `qty_allocated` decimal(12,2) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `delivery_id` (`delivery_id`),
+  KEY `purchase_order_id` (`purchase_order_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `delivery_pickup_allocations_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `delivery_pickup_allocations_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `delivery_pickup_allocations_purchase_order_id_foreign` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `delivery_pickup_allocations`
+--
+
+LOCK TABLES `delivery_pickup_allocations` WRITE;
+/*!40000 ALTER TABLE `delivery_pickup_allocations` DISABLE KEYS */;
+/*!40000 ALTER TABLE `delivery_pickup_allocations` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -294,7 +317,7 @@ CREATE TABLE `ledger` (
   CONSTRAINT `ledger_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `ledger_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `ledger_payment_id_foreign` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -303,7 +326,6 @@ CREATE TABLE `ledger` (
 
 LOCK TABLES `ledger` WRITE;
 /*!40000 ALTER TABLE `ledger` DISABLE KEYS */;
-INSERT INTO `ledger` VALUES (1,1,'2026-04-29','DR-101',NULL,100.00,170.00,17000.00,0.00,NULL,0.00,17000.00,1,NULL,'2026-04-29 16:54:25'),(2,1,'2026-04-29','DR-101',NULL,NULL,NULL,0.00,0.00,'Delivery Adjustment',1000.00,16000.00,1,NULL,'2026-04-29 16:54:36'),(3,1,'2026-04-29',NULL,'1001',NULL,NULL,0.00,15000.00,NULL,0.00,1000.00,NULL,1,'2026-04-29 16:54:50'),(4,1,'2026-04-29',NULL,'1001',NULL,NULL,0.00,0.00,'Sales Discount',1000.00,0.00,NULL,1,'2026-04-29 16:54:50'),(5,5,'2026-04-29','DR-103',NULL,100.00,155.00,15500.00,0.00,NULL,0.00,15500.00,2,NULL,'2026-04-29 17:06:43'),(6,5,'2026-04-29',NULL,'1003',NULL,NULL,0.00,15500.00,NULL,0.00,0.00,NULL,2,'2026-04-29 17:07:04');
 /*!40000 ALTER TABLE `ledger` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -323,7 +345,7 @@ CREATE TABLE `migrations` (
   `time` int NOT NULL,
   `batch` int unsigned NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=132 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -332,7 +354,7 @@ CREATE TABLE `migrations` (
 
 LOCK TABLES `migrations` WRITE;
 /*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
-INSERT INTO `migrations` VALUES (111,'2026-04-21-065247','App\\Database\\Migrations\\CreateUsers','default','App',1777466936,1),(112,'2026-04-21-065248','App\\Database\\Migrations\\CreateBanks','default','App',1777466936,1),(113,'2026-04-21-065248','App\\Database\\Migrations\\CreateClients','default','App',1777466936,1),(114,'2026-04-21-065248','App\\Database\\Migrations\\CreateProducts','default','App',1777466936,1),(115,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveries','default','App',1777466936,1),(116,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveryItems','default','App',1777466936,1),(117,'2026-04-21-135124','App\\Database\\Migrations\\CreateCashiers','default','App',1777466936,1),(118,'2026-04-21-135125','App\\Database\\Migrations\\CreateCashierReceiptRanges','default','App',1777466936,1),(119,'2026-04-21-135126','App\\Database\\Migrations\\CreatePayments','default','App',1777466936,1),(120,'2026-04-21-150100','App\\Database\\Migrations\\CreatePaymentAllocations','default','App',1777466937,1),(121,'2026-04-21-150200','App\\Database\\Migrations\\CreateLedger','default','App',1777466937,1),(122,'2026-04-21-155000','App\\Database\\Migrations\\CreateOtherAccounts','default','App',1777466937,1),(123,'2026-04-21-160000','App\\Database\\Migrations\\CreateBoa','default','App',1777466937,1),(124,'2026-04-22-090000','App\\Database\\Migrations\\UpdateOtherAccountsType','default','App',1777466937,1),(125,'2026-04-22-091000','App\\Database\\Migrations\\UpdateBoaForOtherAccounts','default','App',1777466937,1),(126,'2026-04-24-100000','App\\Database\\Migrations\\AddClientCreditFields','default','App',1777466937,1),(127,'2026-04-24-100100','App\\Database\\Migrations\\AddDeliveryTermsFields','default','App',1777466937,1),(128,'2026-04-25-090000','App\\Database\\Migrations\\AddOtherAccountsToLedger','default','App',1777466937,1),(129,'2026-04-29-000000','App\\Database\\Migrations\\CreateDeliveryHistories','default','App',1777466937,1),(130,'2026-04-29-010000','App\\Database\\Migrations\\CreatePayablesTables','default','App',1777466937,1),(131,'2026-05-02-000000','App\\Database\\Migrations\\CreateProductClientPrices','default','App',1777724334,2);
+INSERT INTO `migrations` VALUES (203,'2026-04-21-065247','App\\Database\\Migrations\\CreateUsers','default','App',1777994495,1),(204,'2026-04-21-065248','App\\Database\\Migrations\\CreateBanks','default','App',1777994496,1),(205,'2026-04-21-065248','App\\Database\\Migrations\\CreateClients','default','App',1777994496,1),(206,'2026-04-21-065248','App\\Database\\Migrations\\CreateProducts','default','App',1777994496,1),(207,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveries','default','App',1777994496,1),(208,'2026-04-21-072400','App\\Database\\Migrations\\CreateDeliveryItems','default','App',1777994496,1),(209,'2026-04-21-135124','App\\Database\\Migrations\\CreateCashiers','default','App',1777994496,1),(210,'2026-04-21-135125','App\\Database\\Migrations\\CreateCashierReceiptRanges','default','App',1777994496,1),(211,'2026-04-21-135126','App\\Database\\Migrations\\CreatePayments','default','App',1777994496,1),(212,'2026-04-21-150100','App\\Database\\Migrations\\CreatePaymentAllocations','default','App',1777994496,1),(213,'2026-04-21-150200','App\\Database\\Migrations\\CreateLedger','default','App',1777994496,1),(214,'2026-04-21-155000','App\\Database\\Migrations\\CreateOtherAccounts','default','App',1777994496,1),(215,'2026-04-21-160000','App\\Database\\Migrations\\CreateBoa','default','App',1777994496,1),(216,'2026-04-22-090000','App\\Database\\Migrations\\UpdateOtherAccountsType','default','App',1777994496,1),(217,'2026-04-22-091000','App\\Database\\Migrations\\UpdateBoaForOtherAccounts','default','App',1777994496,1),(218,'2026-04-24-100000','App\\Database\\Migrations\\AddClientCreditFields','default','App',1777994496,1),(219,'2026-04-24-100100','App\\Database\\Migrations\\AddDeliveryTermsFields','default','App',1777994496,1),(220,'2026-04-25-090000','App\\Database\\Migrations\\AddOtherAccountsToLedger','default','App',1777994496,1),(221,'2026-04-29-000000','App\\Database\\Migrations\\CreateDeliveryHistories','default','App',1777994496,1),(222,'2026-04-29-010000','App\\Database\\Migrations\\CreatePayablesTables','default','App',1777994496,1),(223,'2026-05-02-000000','App\\Database\\Migrations\\CreateProductClientPrices','default','App',1777994496,1),(224,'2026-05-04-000000','App\\Database\\Migrations\\CreateSupplierOrdersAndPickupLinks','default','App',1777994497,1),(225,'2026-05-04-020000','App\\Database\\Migrations\\CreateDeliveryPickupAllocations','default','App',1777994497,1),(226,'2026-05-05-000000','App\\Database\\Migrations\\CreateSupplierOrderHistories','default','App',1777994497,1);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -382,7 +404,7 @@ CREATE TABLE `payable_allocations` (
   KEY `purchase_order_id` (`purchase_order_id`),
   CONSTRAINT `payable_allocations_payable_id_foreign` FOREIGN KEY (`payable_id`) REFERENCES `payables` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payable_allocations_purchase_order_id_foreign` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -391,7 +413,6 @@ CREATE TABLE `payable_allocations` (
 
 LOCK TABLES `payable_allocations` WRITE;
 /*!40000 ALTER TABLE `payable_allocations` DISABLE KEYS */;
-INSERT INTO `payable_allocations` VALUES (1,1,1,3300.00,'2026-04-29 16:56:42');
 /*!40000 ALTER TABLE `payable_allocations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -415,6 +436,9 @@ CREATE TABLE `payable_ledger` (
   `account_title` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `other_accounts` decimal(12,2) NOT NULL DEFAULT '0.00',
   `balance` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `supplier_order_id` int unsigned DEFAULT NULL,
+  `supplier_order_item_id` int unsigned DEFAULT NULL,
+  `po_balance` decimal(12,2) DEFAULT NULL,
   `purchase_order_id` int unsigned DEFAULT NULL,
   `payable_id` int unsigned DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
@@ -425,7 +449,7 @@ CREATE TABLE `payable_ledger` (
   CONSTRAINT `payable_ledger_payable_id_foreign` FOREIGN KEY (`payable_id`) REFERENCES `payables` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payable_ledger_purchase_order_id_foreign` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payable_ledger_supplier_id_foreign` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -434,7 +458,7 @@ CREATE TABLE `payable_ledger` (
 
 LOCK TABLES `payable_ledger` WRITE;
 /*!40000 ALTER TABLE `payable_ledger` DISABLE KEYS */;
-INSERT INTO `payable_ledger` VALUES (1,4,'2026-04-29','PO-100',NULL,100.00,33.00,3300.00,0.00,NULL,0.00,3300.00,1,NULL,'2026-04-29 15:14:24'),(2,4,'2026-04-29',NULL,'1002',NULL,NULL,0.00,3300.00,NULL,0.00,0.00,NULL,1,'2026-04-29 16:56:42'),(3,4,'2026-04-30','PO-101',NULL,100.00,33.00,3300.00,0.00,NULL,0.00,3300.00,2,NULL,'2026-04-29 17:00:34');
+INSERT INTO `payable_ledger` VALUES (1,4,'2026-05-05','RR-100',NULL,1000.00,33.00,33000.00,0.00,NULL,0.00,33000.00,1,1,9999998999.99,1,NULL,'2026-05-05 15:23:36');
 /*!40000 ALTER TABLE `payable_ledger` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -468,7 +492,7 @@ CREATE TABLE `payables` (
   CONSTRAINT `payables_deposit_bank_id_foreign` FOREIGN KEY (`deposit_bank_id`) REFERENCES `banks` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payables_supplier_id_foreign` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payables_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -477,7 +501,6 @@ CREATE TABLE `payables` (
 
 LOCK TABLES `payables` WRITE;
 /*!40000 ALTER TABLE `payables` DISABLE KEYS */;
-INSERT INTO `payables` VALUES (1,4,1,1002,'2026-04-29','cash',3300.00,3300.00,0.00,NULL,NULL,1,'posted','2026-04-29 16:56:42','2026-04-29 16:56:42');
 /*!40000 ALTER TABLE `payables` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -499,7 +522,7 @@ CREATE TABLE `payment_allocations` (
   KEY `delivery_id` (`delivery_id`),
   CONSTRAINT `payment_allocations_delivery_id_foreign` FOREIGN KEY (`delivery_id`) REFERENCES `deliveries` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payment_allocations_payment_id_foreign` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -508,7 +531,6 @@ CREATE TABLE `payment_allocations` (
 
 LOCK TABLES `payment_allocations` WRITE;
 /*!40000 ALTER TABLE `payment_allocations` DISABLE KEYS */;
-INSERT INTO `payment_allocations` VALUES (1,1,1,16000.00,'2026-04-29 16:54:50'),(2,2,2,15500.00,'2026-04-29 17:07:04');
 /*!40000 ALTER TABLE `payment_allocations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -542,7 +564,7 @@ CREATE TABLE `payments` (
   CONSTRAINT `payments_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payments_deposit_bank_id_foreign` FOREIGN KEY (`deposit_bank_id`) REFERENCES `banks` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `payments_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -551,7 +573,6 @@ CREATE TABLE `payments` (
 
 LOCK TABLES `payments` WRITE;
 /*!40000 ALTER TABLE `payments` DISABLE KEYS */;
-INSERT INTO `payments` VALUES (1,1,1,1001,'2026-04-29','cash',15000.00,16000.00,0.00,NULL,NULL,1,'posted','2026-04-29 16:54:50','2026-04-29 16:54:50'),(2,5,1,1003,'2026-04-29','cash',16500.00,15500.00,0.00,NULL,NULL,1,'posted','2026-04-29 17:07:04','2026-04-29 17:07:04');
 /*!40000 ALTER TABLE `payments` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -575,7 +596,7 @@ CREATE TABLE `product_client_prices` (
   KEY `client_id` (`client_id`),
   CONSTRAINT `product_client_prices_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `product_client_prices_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -584,7 +605,6 @@ CREATE TABLE `product_client_prices` (
 
 LOCK TABLES `product_client_prices` WRITE;
 /*!40000 ALTER TABLE `product_client_prices` DISABLE KEYS */;
-INSERT INTO `product_client_prices` VALUES (1,2,1,45.00,'2026-05-02 12:25:22','2026-05-02 12:25:22');
 /*!40000 ALTER TABLE `product_client_prices` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -613,7 +633,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'PROD-001','Premium Steel Widgets',45.99,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(2,'PROD-002','Aluminum Components',32.50,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(3,'PROD-003','Industrial Fasteners',12.75,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(4,'PROD-004','Precision Bearings',89.99,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(5,'PROD-005','Electronic Modules',155.00,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(6,'PROD-006','Rubber Seals',8.99,'2026-04-29 12:49:18','2026-04-29 12:49:18');
+INSERT INTO `products` VALUES (1,'PROD-001','Premium Steel Widgets',45.99,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(2,'PROD-002','Aluminum Components',32.50,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(3,'PROD-003','Industrial Fasteners',12.75,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(4,'PROD-004','Precision Bearings',89.99,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(5,'PROD-005','Electronic Modules',155.00,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(6,'PROD-006','Rubber Seals',8.99,'2026-05-05 15:22:03','2026-05-05 15:22:03');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -663,16 +683,18 @@ DROP TABLE IF EXISTS `purchase_order_items`;
 CREATE TABLE `purchase_order_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `purchase_order_id` int unsigned NOT NULL,
+  `supplier_order_item_id` int unsigned DEFAULT NULL,
   `product_id` int unsigned NOT NULL,
   `qty` decimal(12,2) NOT NULL,
   `unit_price` decimal(12,2) NOT NULL,
   `line_total` decimal(12,2) NOT NULL,
+  `po_qty_balance_after` decimal(12,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `purchase_order_id` (`purchase_order_id`),
   KEY `product_id` (`product_id`),
   CONSTRAINT `purchase_order_items_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `purchase_order_items_purchase_order_id_foreign` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -681,7 +703,7 @@ CREATE TABLE `purchase_order_items` (
 
 LOCK TABLES `purchase_order_items` WRITE;
 /*!40000 ALTER TABLE `purchase_order_items` DISABLE KEYS */;
-INSERT INTO `purchase_order_items` VALUES (1,1,2,100.00,33.00,3300.00),(2,2,2,100.00,33.00,3300.00);
+INSERT INTO `purchase_order_items` VALUES (1,1,1,2,1000.00,33.00,33000.00,9999998999.99);
 /*!40000 ALTER TABLE `purchase_order_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -695,6 +717,7 @@ DROP TABLE IF EXISTS `purchase_orders`;
 CREATE TABLE `purchase_orders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `supplier_id` int unsigned NOT NULL,
+  `supplier_order_id` int unsigned DEFAULT NULL,
   `po_no` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
   `date` date NOT NULL,
   `payment_term` int unsigned DEFAULT NULL,
@@ -710,7 +733,7 @@ CREATE TABLE `purchase_orders` (
   KEY `supplier_id_date` (`supplier_id`,`date`),
   KEY `due_date` (`due_date`),
   CONSTRAINT `purchase_orders_supplier_id_foreign` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -719,8 +742,112 @@ CREATE TABLE `purchase_orders` (
 
 LOCK TABLES `purchase_orders` WRITE;
 /*!40000 ALTER TABLE `purchase_orders` DISABLE KEYS */;
-INSERT INTO `purchase_orders` VALUES (1,4,'PO-100','2026-04-29',45,'2026-06-13',3300.00,'active',NULL,NULL,'2026-04-29 15:14:24','2026-04-29 15:14:24'),(2,4,'PO-101','2026-04-30',20,'2026-05-20',3300.00,'active',NULL,NULL,'2026-04-29 17:00:34','2026-04-29 17:00:34');
+INSERT INTO `purchase_orders` VALUES (1,4,1,'RR-100','2026-05-05',45,'2026-06-19',33000.00,'active',NULL,NULL,'2026-05-05 15:23:36','2026-05-05 15:23:36');
 /*!40000 ALTER TABLE `purchase_orders` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `supplier_order_histories`
+--
+
+DROP TABLE IF EXISTS `supplier_order_histories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supplier_order_histories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `supplier_order_id` int unsigned NOT NULL,
+  `edited_by` int unsigned DEFAULT NULL,
+  `action` varchar(30) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'edit',
+  `old_supplier_order_json` longtext COLLATE utf8mb4_general_ci,
+  `old_items_json` longtext COLLATE utf8mb4_general_ci,
+  `new_supplier_order_json` longtext COLLATE utf8mb4_general_ci,
+  `new_items_json` longtext COLLATE utf8mb4_general_ci,
+  `change_summary` text COLLATE utf8mb4_general_ci,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `supplier_order_id_created_at` (`supplier_order_id`,`created_at`),
+  KEY `edited_by` (`edited_by`),
+  KEY `action` (`action`),
+  CONSTRAINT `supplier_order_histories_edited_by_foreign` FOREIGN KEY (`edited_by`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE SET NULL,
+  CONSTRAINT `supplier_order_histories_supplier_order_id_foreign` FOREIGN KEY (`supplier_order_id`) REFERENCES `supplier_orders` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `supplier_order_histories`
+--
+
+LOCK TABLES `supplier_order_histories` WRITE;
+/*!40000 ALTER TABLE `supplier_order_histories` DISABLE KEYS */;
+/*!40000 ALTER TABLE `supplier_order_histories` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `supplier_order_items`
+--
+
+DROP TABLE IF EXISTS `supplier_order_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supplier_order_items` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `supplier_order_id` int unsigned NOT NULL,
+  `product_id` int unsigned NOT NULL,
+  `qty_ordered` decimal(12,2) NOT NULL,
+  `qty_picked_up` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `qty_balance` decimal(12,2) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `supplier_order_id` (`supplier_order_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `supplier_order_items_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `supplier_order_items_supplier_order_id_foreign` FOREIGN KEY (`supplier_order_id`) REFERENCES `supplier_orders` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `supplier_order_items`
+--
+
+LOCK TABLES `supplier_order_items` WRITE;
+/*!40000 ALTER TABLE `supplier_order_items` DISABLE KEYS */;
+INSERT INTO `supplier_order_items` VALUES (1,1,2,9999999999.99,1000.00,9999998999.99,'2026-05-05 15:23:02','2026-05-05 15:23:36');
+/*!40000 ALTER TABLE `supplier_order_items` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `supplier_orders`
+--
+
+DROP TABLE IF EXISTS `supplier_orders`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supplier_orders` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `supplier_id` int unsigned NOT NULL,
+  `po_no` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `date` date NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'active',
+  `void_reason` text COLLATE utf8mb4_general_ci,
+  `voided_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `supplier_id_po_no` (`supplier_id`,`po_no`),
+  KEY `supplier_id_date` (`supplier_id`,`date`),
+  CONSTRAINT `supplier_orders_supplier_id_foreign` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `supplier_orders`
+--
+
+LOCK TABLES `supplier_orders` WRITE;
+/*!40000 ALTER TABLE `supplier_orders` DISABLE KEYS */;
+INSERT INTO `supplier_orders` VALUES (1,4,'PO-100','2026-05-05','active',NULL,NULL,'2026-05-05 15:23:02','2026-05-05 15:23:02');
+/*!40000 ALTER TABLE `supplier_orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -750,7 +877,7 @@ CREATE TABLE `suppliers` (
 
 LOCK TABLES `suppliers` WRITE;
 /*!40000 ALTER TABLE `suppliers` DISABLE KEYS */;
-INSERT INTO `suppliers` VALUES (1,'Northstar Paper Supply','112 Warehouse Road, Quezon City','orders@northstarpaper.test','+63-2-8555-1101',500000.00,30,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(2,'Metro Packaging Traders','45 Trade Avenue, Pasig City','billing@metropackaging.test','+63-2-8555-2202',350000.00,15,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(3,'Prime Office Goods','78 Supply Street, Makati City','accounts@primeoffice.test','+63-2-8555-3303',250000.00,30,'2026-04-29 12:49:18','2026-04-29 12:49:18'),(4,'Harbor Industrial Materials','9 Portside Lane, Manila','ap@harborindustrial.test','+63-2-8555-4404',750000.00,45,'2026-04-29 12:49:18','2026-04-29 12:49:18');
+INSERT INTO `suppliers` VALUES (1,'Northstar Paper Supply','112 Warehouse Road, Quezon City','orders@northstarpaper.test','+63-2-8555-1101',500000.00,30,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(2,'Metro Packaging Traders','45 Trade Avenue, Pasig City','billing@metropackaging.test','+63-2-8555-2202',350000.00,15,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(3,'Prime Office Goods','78 Supply Street, Makati City','accounts@primeoffice.test','+63-2-8555-3303',250000.00,30,'2026-05-05 15:22:03','2026-05-05 15:22:03'),(4,'Harbor Industrial Materials','9 Portside Lane, Manila','ap@harborindustrial.test','+63-2-8555-4404',750000.00,45,'2026-05-05 15:22:03','2026-05-05 15:22:03');
 /*!40000 ALTER TABLE `suppliers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -782,7 +909,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'System Admin','admin','$2y$12$AgnNCqIuHzHpXBCTcPgxB.FdLSQ0b8EhIY4ZspuPGQ7zBS.YmyQZa','admin',1,'2026-04-29 12:49:16','2026-04-29 12:49:16'),(2,'Maria Santos','maria.santos','$2y$12$44Swvw.y0ZFk9h9raSekk.r56dLfA1NXWBbxWyUot4/8bBDxsgyiK','cashier',1,'2026-04-29 12:49:17','2026-04-29 12:49:17'),(3,'Juan Rodriguez','juan.rodriguez','$2y$12$NEV7Eq9f/zqXsm5QAo1gPOVjUn7uNkIDxuc.GMs3CuMxWOqiZGKN2','cashier',1,'2026-04-29 12:49:17','2026-04-29 12:49:17'),(4,'Angela Martinez','angela.martinez','$2y$12$aBqSvjLVYqW3QyDJzTNBXOzhNqi.OIpzNWZv6OzNmViy3o94i5vee','cashier',1,'2026-04-29 12:49:17','2026-04-29 12:49:17'),(5,'Carlos Perez','carlos.perez','$2y$12$V13NxX4Dgjj/R.IQzrMyReTonKuZqrHKQzWJtYowJuZeFrFwqTyLS','cashier',1,'2026-04-29 12:49:17','2026-04-29 12:49:17'),(6,'Isabel Gonzalez','isabel.gonzalez','$2y$12$E89nwnqs2uc4ANgEXXKmb..rD4HWT33JQT8LUjsKx2IE1RTj2d42W','cashier',1,'2026-04-29 12:49:17','2026-04-29 12:49:17'),(7,'Diego Lopez','diego.lopez','$2y$12$so2LFgspiQ7jdpeNP3vQcOiBliVZ6UQuI/HbRYF2CWHO28oMsTC0i','cashier',0,'2026-04-29 12:49:17','2026-04-29 12:49:17');
+INSERT INTO `users` VALUES (1,'System Admin','admin','$2y$12$IHZsXihcYy670b9g3Y7s3eJ9j6YCvUmOHrCSksbhrePXl8H6EImT.','admin',1,'2026-05-05 15:22:02','2026-05-05 15:22:02'),(2,'Maria Santos','maria.santos','$2y$12$jLcrlZ9/gUCh5h6y7xvTYeViCiERFM5JQwRk3G43S9ACdxEO/7ECq','cashier',1,'2026-05-05 15:22:02','2026-05-05 15:22:02'),(3,'Juan Rodriguez','juan.rodriguez','$2y$12$ozAwqhe3GCnDKbXf1D79o.WwaMTaPCWSWRIC0REf6ttIbYjRYt/eC','cashier',1,'2026-05-05 15:22:02','2026-05-05 15:22:02'),(4,'Angela Martinez','angela.martinez','$2y$12$yt08LI.k3aRFVziSNKJ/0u0OgnrbK4nS9/Be.lP7NjdzQRwy4OhTO','cashier',1,'2026-05-05 15:22:02','2026-05-05 15:22:02'),(5,'Carlos Perez','carlos.perez','$2y$12$uyWHm8WE6Xfnl7aUYnm9fupi2q.PmFgFGMVD4WwkNJPpTzFZggATK','cashier',1,'2026-05-05 15:22:02','2026-05-05 15:22:02'),(6,'Isabel Gonzalez','isabel.gonzalez','$2y$12$xrHvZ.neJUKV5Kj6/0h7cuoKwNyXKFZo4TnvoXYpCAXfUMWyBBJtu','cashier',1,'2026-05-05 15:22:02','2026-05-05 15:22:02'),(7,'Diego Lopez','diego.lopez','$2y$12$r1OUMG.XoMH33erBUbC6de.kOeHZS2ZNJg8UC.0czFdqXwgprwriW','cashier',0,'2026-05-05 15:22:02','2026-05-05 15:22:02');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -795,4 +922,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-03 20:00:33
+-- Dump completed on 2026-05-05 23:34:18

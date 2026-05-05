@@ -2,11 +2,12 @@
 
 namespace App\Controllers;
 
-use App\Models\PayableLedgerModel;
 use App\Models\ProductModel;
 use App\Models\SupplierModel;
+use App\Models\SupplierOrderHistoryModel;
 use App\Models\SupplierOrderItemModel;
 use App\Models\SupplierOrderModel;
+use App\Services\SupplierOrderHistoryService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -19,15 +20,18 @@ class SupplierOrders extends BaseController
     {
         [$fromDate, $toDate] = $this->resolveDateRange();
         $poNo = $this->resolvePoNoFilter();
-        $result = $this->fetchSupplierOrders(null, $fromDate, $toDate, $poNo, true);
+        $statusFilter = $this->resolveStatusFilter();
+        $result = $this->fetchSupplierOrders(null, $fromDate, $toDate, $poNo, $statusFilter, true);
 
         return view('supplier_orders/index', [
             'supplier' => null,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
             'poNo' => $poNo,
+            'statusFilter' => $statusFilter,
             'orders' => $result['orders'],
             'itemsByOrder' => $result['itemsByOrder'],
+            'historiesByOrder' => $result['historiesByOrder'],
             'totalOrdered' => $result['totalOrdered'],
             'totalPickedUp' => $result['totalPickedUp'],
             'totalBalance' => $result['totalBalance'],
@@ -46,7 +50,8 @@ class SupplierOrders extends BaseController
 
         [$fromDate, $toDate] = $this->resolveDateRange();
         $poNo = $this->resolvePoNoFilter();
-        $result = $this->fetchSupplierOrders($supplierId, $fromDate, $toDate, $poNo, true);
+        $statusFilter = $this->resolveStatusFilter();
+        $result = $this->fetchSupplierOrders($supplierId, $fromDate, $toDate, $poNo, $statusFilter, true);
 
         return view('supplier_orders/list', [
             'supplier' => $supplier,
@@ -55,8 +60,10 @@ class SupplierOrders extends BaseController
             'fromDate' => $fromDate,
             'toDate' => $toDate,
             'poNo' => $poNo,
+            'statusFilter' => $statusFilter,
             'orders' => $result['orders'],
             'itemsByOrder' => $result['itemsByOrder'],
+            'historiesByOrder' => $result['historiesByOrder'],
             'totalOrdered' => $result['totalOrdered'],
             'totalPickedUp' => $result['totalPickedUp'],
             'totalBalance' => $result['totalBalance'],
@@ -70,9 +77,10 @@ class SupplierOrders extends BaseController
     {
         [$fromDate, $toDate] = $this->resolveDateRange();
         $poNo = $this->resolvePoNoFilter();
-        $result = $this->fetchSupplierOrders(null, $fromDate, $toDate, $poNo);
+        $statusFilter = $this->resolveStatusFilter();
+        $result = $this->fetchSupplierOrders(null, $fromDate, $toDate, $poNo, $statusFilter);
 
-        return $this->renderPrint(null, $fromDate, $toDate, $poNo, $result);
+        return $this->renderPrint(null, $fromDate, $toDate, $poNo, $statusFilter, $result);
     }
 
     public function supplierPrint(int $supplierId)
@@ -84,9 +92,10 @@ class SupplierOrders extends BaseController
 
         [$fromDate, $toDate] = $this->resolveDateRange();
         $poNo = $this->resolvePoNoFilter();
-        $result = $this->fetchSupplierOrders($supplierId, $fromDate, $toDate, $poNo);
+        $statusFilter = $this->resolveStatusFilter();
+        $result = $this->fetchSupplierOrders($supplierId, $fromDate, $toDate, $poNo, $statusFilter);
 
-        return $this->renderPrint($supplier, $fromDate, $toDate, $poNo, $result);
+        return $this->renderPrint($supplier, $fromDate, $toDate, $poNo, $statusFilter, $result);
     }
 
     public function create()
@@ -133,7 +142,6 @@ class SupplierOrders extends BaseController
         }
 
         (new SupplierOrderItemModel())->insertBatch($items);
-        $this->upsertSupplierOrderLedgerRow($orderId);
 
         $db->transComplete();
 
@@ -189,6 +197,9 @@ class SupplierOrders extends BaseController
             return redirect()->back()->withInput()->with('error', 'Add at least one product with quantity.');
         }
 
+        $oldOrder = $this->fetchSupplierOrderForHistory($orderId) ?? $this->normalizeSupplierOrderForHistory($order);
+        $oldItems = $this->fetchSupplierOrderItemsForHistory($orderId);
+
         $db = db_connect();
         $db->transStart();
 
@@ -203,7 +214,22 @@ class SupplierOrders extends BaseController
             $items[$index]['supplier_order_id'] = $orderId;
         }
         $itemModel->insertBatch($items);
-        $this->upsertSupplierOrderLedgerRow($orderId);
+
+        $freshOrder = $this->fetchSupplierOrderForHistory($orderId) ?? array_merge($order, [
+            'po_no' => $poNo,
+            'date' => $date,
+        ]);
+        $freshItems = $this->fetchSupplierOrderItemsForHistory($orderId);
+        (new SupplierOrderHistoryService())->record(
+            $orderId,
+            (int) (session('user_id') ?? 0) ?: null,
+            'edit',
+            $oldOrder,
+            $oldItems,
+            $freshOrder,
+            $freshItems,
+            $this->buildChangeSummary($oldOrder, $freshOrder, $oldItems, $freshItems)
+        );
 
         $db->transComplete();
 
@@ -235,6 +261,8 @@ class SupplierOrders extends BaseController
         }
 
         $voidedAt = date('Y-m-d H:i:s');
+        $oldOrder = $this->fetchSupplierOrderForHistory($orderId) ?? $this->normalizeSupplierOrderForHistory($order);
+        $oldItems = $this->fetchSupplierOrderItemsForHistory($orderId);
 
         $db = db_connect();
         $db->transStart();
@@ -250,7 +278,22 @@ class SupplierOrders extends BaseController
             ->set(['qty_balance' => 0])
             ->update();
 
-        $this->insertSupplierOrderVoidLedgerRow($orderId, $voidedAt);
+        $freshOrder = $this->fetchSupplierOrderForHistory($orderId) ?? array_merge($oldOrder, [
+            'status' => 'voided',
+            'void_reason' => $reason,
+            'voided_at' => $voidedAt,
+        ]);
+        $freshItems = $this->fetchSupplierOrderItemsForHistory($orderId);
+        (new SupplierOrderHistoryService())->record(
+            $orderId,
+            (int) (session('user_id') ?? 0) ?: null,
+            'void',
+            $oldOrder,
+            $oldItems,
+            $freshOrder,
+            $freshItems,
+            'Voided Supplier PO. Reason: ' . $reason
+        );
 
         $db->transComplete();
 
@@ -284,13 +327,14 @@ class SupplierOrders extends BaseController
         return $cleanItems;
     }
 
-    private function renderPrint(?array $supplier, string $fromDate, string $toDate, string $poNo, array $result)
+    private function renderPrint(?array $supplier, string $fromDate, string $toDate, string $poNo, string $statusFilter, array $result)
     {
         $html = view('supplier_orders/print', [
             'supplier' => $supplier,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
             'poNo' => $poNo,
+            'statusFilter' => $statusFilter,
             'orders' => $result['orders'],
             'totalOrdered' => $result['totalOrdered'],
             'totalPickedUp' => $result['totalPickedUp'],
@@ -312,16 +356,22 @@ class SupplierOrders extends BaseController
             ->setBody($dompdf->output());
     }
 
-    private function fetchSupplierOrders(?int $supplierId, string $fromDate, string $toDate, string $poNo, bool $paginate = false): array
+    private function fetchSupplierOrders(?int $supplierId, string $fromDate, string $toDate, string $poNo, string $statusFilter, bool $paginate = false): array
     {
+        $totalsSubquery = $this->supplierOrderTotalsSubquery();
         $model = new SupplierOrderModel();
         $model
             ->select('supplier_orders.*')
             ->select('suppliers.name as supplier_name')
+            ->select('COALESCE(totals.qty_ordered_total, 0) as qty_ordered_total')
+            ->select('COALESCE(totals.qty_picked_up_total, 0) as qty_picked_up_total')
+            ->select('COALESCE(totals.qty_balance_total, 0) as qty_balance_total')
             ->join('suppliers', 'suppliers.id = supplier_orders.supplier_id', 'left')
+            ->join('(' . $totalsSubquery . ') totals', 'totals.supplier_order_id = supplier_orders.id', 'left')
             ->where('supplier_orders.voided_at', null);
 
         $this->applySupplierOrderFilters($model, $supplierId, $fromDate, $toDate, $poNo, 'supplier_orders');
+        $this->applyStatusFilter($model, $statusFilter);
 
         $pagerLinks = '';
         $rowOffset = 0;
@@ -341,6 +391,7 @@ class SupplierOrders extends BaseController
 
         $orderIds = array_filter(array_map('intval', array_column($orders, 'id')));
         $itemsByOrder = [];
+        $historiesByOrder = [];
 
         if (! empty($orderIds)) {
             $items = (new SupplierOrderItemModel())
@@ -355,29 +406,28 @@ class SupplierOrders extends BaseController
                 $orderId = (int) $item['supplier_order_id'];
                 $itemsByOrder[$orderId][] = $item;
             }
-        }
 
-        foreach ($orders as $index => $order) {
-            $ordered = 0.0;
-            $picked = 0.0;
-            $balance = 0.0;
+            if ($this->tableExists('supplier_order_histories')) {
+                $histories = (new SupplierOrderHistoryModel())
+                    ->select('supplier_order_histories.*, users.name as editor_name, users.username as editor_username')
+                    ->join('users', 'users.id = supplier_order_histories.edited_by', 'left')
+                    ->whereIn('supplier_order_id', $orderIds)
+                    ->orderBy('created_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->findAll();
 
-            foreach ($itemsByOrder[(int) $order['id']] ?? [] as $item) {
-                $ordered += (float) ($item['qty_ordered'] ?? 0);
-                $picked += (float) ($item['qty_picked_up'] ?? 0);
-                $balance += (float) ($item['qty_balance'] ?? 0);
+                foreach ($histories as $history) {
+                    $historiesByOrder[(int) $history['supplier_order_id']][] = $history;
+                }
             }
-
-            $orders[$index]['qty_ordered_total'] = $ordered;
-            $orders[$index]['qty_picked_up_total'] = $picked;
-            $orders[$index]['qty_balance_total'] = $balance;
         }
 
-        $totals = $this->supplierOrderTotals($supplierId, $fromDate, $toDate, $poNo);
+        $totals = $this->supplierOrderTotals($supplierId, $fromDate, $toDate, $poNo, $statusFilter);
 
         return [
             'orders' => $orders,
             'itemsByOrder' => $itemsByOrder,
+            'historiesByOrder' => $historiesByOrder,
             'totalOrdered' => $totals['totalOrdered'],
             'totalPickedUp' => $totals['totalPickedUp'],
             'totalBalance' => $totals['totalBalance'],
@@ -407,16 +457,18 @@ class SupplierOrders extends BaseController
         }
     }
 
-    private function supplierOrderTotals(?int $supplierId, string $fromDate, string $toDate, string $poNo): array
+    private function supplierOrderTotals(?int $supplierId, string $fromDate, string $toDate, string $poNo, string $statusFilter): array
     {
+        $totalsSubquery = $this->supplierOrderTotalsSubquery();
         $builder = db_connect()->table('supplier_orders so')
-            ->select('COALESCE(SUM(soi.qty_ordered), 0) as total_ordered')
-            ->select('COALESCE(SUM(soi.qty_picked_up), 0) as total_picked_up')
-            ->select('COALESCE(SUM(soi.qty_balance), 0) as total_balance')
-            ->join('supplier_order_items soi', 'soi.supplier_order_id = so.id', 'left')
+            ->select('COALESCE(SUM(totals.qty_ordered_total), 0) as total_ordered')
+            ->select('COALESCE(SUM(totals.qty_picked_up_total), 0) as total_picked_up')
+            ->select('COALESCE(SUM(totals.qty_balance_total), 0) as total_balance')
+            ->join('(' . $totalsSubquery . ') totals', 'totals.supplier_order_id = so.id', 'left')
             ->where('so.voided_at', null);
 
         $this->applySupplierOrderFilters($builder, $supplierId, $fromDate, $toDate, $poNo, 'so');
+        $this->applyStatusFilter($builder, $statusFilter);
 
         $row = $builder->get()->getRowArray() ?? [];
 
@@ -425,6 +477,29 @@ class SupplierOrders extends BaseController
             'totalPickedUp' => (float) ($row['total_picked_up'] ?? 0),
             'totalBalance' => (float) ($row['total_balance'] ?? 0),
         ];
+    }
+
+    private function supplierOrderTotalsSubquery(): string
+    {
+        return db_connect()->table('supplier_order_items')
+            ->select('supplier_order_id')
+            ->select('SUM(qty_ordered) as qty_ordered_total')
+            ->select('SUM(qty_picked_up) as qty_picked_up_total')
+            ->select('SUM(qty_balance) as qty_balance_total')
+            ->groupBy('supplier_order_id')
+            ->getCompiledSelect();
+    }
+
+    private function applyStatusFilter($builder, string $statusFilter): void
+    {
+        if ($statusFilter === 'active') {
+            $builder->where('COALESCE(totals.qty_balance_total, 0) > 0.005', null, false);
+            return;
+        }
+
+        if ($statusFilter === 'closed') {
+            $builder->where('COALESCE(totals.qty_balance_total, 0) <= 0.005', null, false);
+        }
     }
 
     private function hasPickedQuantity(int $orderId): bool
@@ -437,125 +512,85 @@ class SupplierOrders extends BaseController
         return (float) ($row['picked'] ?? 0) > 0;
     }
 
-    private function upsertSupplierOrderLedgerRow(int $orderId): void
+    private function fetchSupplierOrderForHistory(int $orderId): ?array
     {
-        $order = (new SupplierOrderModel())->find($orderId);
-        if (! $order) {
-            return;
-        }
-
-        $summary = $this->supplierOrderItemSummary($orderId);
-        $ledgerModel = new PayableLedgerModel();
-        $existing = $ledgerModel
-            ->where('supplier_order_id', $orderId)
-            ->where('purchase_order_id', null)
-            ->where('payable_id', null)
-            ->where('account_title', 'Supplier PO')
+        $order = (new SupplierOrderModel())
+            ->select('supplier_orders.*, suppliers.name as supplier_name')
+            ->join('suppliers', 'suppliers.id = supplier_orders.supplier_id', 'left')
+            ->where('supplier_orders.id', $orderId)
             ->first();
 
-        $data = [
-            'supplier_id' => (int) $order['supplier_id'],
-            'entry_date' => (string) $order['date'],
-            'po_no' => null,
-            'pr_no' => null,
-            'qty' => $summary['qty_ordered'],
-            'price' => null,
-            'payables' => 0,
-            'payment' => 0,
-            'account_title' => 'Supplier PO',
-            'other_accounts' => 0,
-            'balance' => $this->ledgerBalanceAsOf((int) $order['supplier_id'], (string) $order['date'], $orderId),
-            'supplier_order_id' => $orderId,
-            'supplier_order_item_id' => $summary['first_item_id'],
-            'po_balance' => $summary['qty_balance'],
-            'purchase_order_id' => null,
-            'payable_id' => null,
+        return $order ? $this->normalizeSupplierOrderForHistory($order) : null;
+    }
+
+    private function normalizeSupplierOrderForHistory(array $order): array
+    {
+        return [
+            'id' => (int) ($order['id'] ?? 0),
+            'supplier_id' => (int) ($order['supplier_id'] ?? 0),
+            'supplier_name' => $order['supplier_name'] ?? '',
+            'po_no' => $order['po_no'] ?? '',
+            'date' => $order['date'] ?? '',
+            'status' => $order['status'] ?? '',
+            'void_reason' => $order['void_reason'] ?? null,
+            'voided_at' => $order['voided_at'] ?? null,
         ];
-
-        if ($existing) {
-            $ledgerModel->update((int) $existing['id'], $data);
-            return;
-        }
-
-        $data['created_at'] = date('Y-m-d H:i:s');
-        $ledgerModel->insert($data);
     }
 
-    private function insertSupplierOrderVoidLedgerRow(int $orderId, string $voidedAt): void
+    private function fetchSupplierOrderItemsForHistory(int $orderId): array
     {
-        $order = (new SupplierOrderModel())->find($orderId);
-        if (! $order) {
-            return;
-        }
-
-        $summary = $this->supplierOrderItemSummary($orderId);
-
-        (new PayableLedgerModel())->insert([
-            'supplier_id' => (int) $order['supplier_id'],
-            'entry_date' => date('Y-m-d', strtotime($voidedAt)),
-            'po_no' => null,
-            'pr_no' => null,
-            'qty' => null,
-            'price' => null,
-            'payables' => 0,
-            'payment' => 0,
-            'account_title' => 'Voided Supplier PO',
-            'other_accounts' => 0,
-            'balance' => $this->ledgerBalanceAsOf((int) $order['supplier_id'], date('Y-m-d', strtotime($voidedAt))),
-            'supplier_order_id' => $orderId,
-            'supplier_order_item_id' => $summary['first_item_id'],
-            'po_balance' => 0,
-            'purchase_order_id' => null,
-            'payable_id' => null,
-            'created_at' => $voidedAt,
-        ]);
-    }
-
-    private function supplierOrderItemSummary(int $orderId): array
-    {
-        $items = (new SupplierOrderItemModel())
+        return (new SupplierOrderItemModel())
+            ->select('supplier_order_items.*, products.product_name')
+            ->join('products', 'products.id = supplier_order_items.product_id', 'left')
             ->where('supplier_order_id', $orderId)
             ->orderBy('id', 'asc')
             ->findAll();
-
-        $ordered = 0.0;
-        $balance = 0.0;
-        $firstItemId = null;
-
-        foreach ($items as $item) {
-            $firstItemId ??= (int) ($item['id'] ?? 0);
-            $ordered += (float) ($item['qty_ordered'] ?? 0);
-            $balance += (float) ($item['qty_balance'] ?? 0);
-        }
-
-        return [
-            'first_item_id' => $firstItemId,
-            'qty_ordered' => $ordered,
-            'qty_balance' => $balance,
-        ];
     }
 
-    private function ledgerBalanceAsOf(int $supplierId, string $date, ?int $excludeSupplierOrderId = null): float
+    private function buildChangeSummary(array $oldOrder, array $newOrder, array $oldItems, array $newItems): string
     {
-        $ledgerModel = new PayableLedgerModel();
-        $ledgerModel
-            ->select('balance')
-            ->where('supplier_id', $supplierId)
-            ->where('entry_date <=', $date);
+        $changes = [];
 
-        if ($excludeSupplierOrderId !== null) {
-            $ledgerModel->groupStart()
-                ->where('supplier_order_id !=', $excludeSupplierOrderId)
-                ->orWhere('supplier_order_id', null)
-                ->groupEnd();
+        if (($oldOrder['po_no'] ?? '') !== ($newOrder['po_no'] ?? '')) {
+            $changes[] = 'PO# changed from ' . ($oldOrder['po_no'] ?? '-') . ' to ' . ($newOrder['po_no'] ?? '-');
         }
 
-        $row = $ledgerModel
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
+        if (($oldOrder['date'] ?? '') !== ($newOrder['date'] ?? '')) {
+            $changes[] = 'Date changed from ' . ($oldOrder['date'] ?? '-') . ' to ' . ($newOrder['date'] ?? '-');
+        }
 
-        return (float) ($row['balance'] ?? 0);
+        $oldTotal = $this->sumHistoryItems($oldItems);
+        $newTotal = $this->sumHistoryItems($newItems);
+        if (abs($oldTotal - $newTotal) > 0.005) {
+            $changes[] = 'Ordered quantity changed from ' . number_format($oldTotal, 2) . ' to ' . number_format($newTotal, 2);
+        }
+
+        if (count($oldItems) !== count($newItems)) {
+            $changes[] = 'Item count changed from ' . count($oldItems) . ' to ' . count($newItems);
+        }
+
+        return implode('; ', $changes) ?: 'Supplier PO details updated.';
+    }
+
+    private function sumHistoryItems(array $items): float
+    {
+        return array_reduce(
+            $items,
+            static fn (float $sum, array $item): float => $sum + (float) ($item['qty_ordered'] ?? 0),
+            0.0
+        );
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $row = db_connect()
+            ->query(
+                'SELECT COUNT(*) AS found FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+                [$table]
+            )
+            ->getRowArray();
+
+        return (int) ($row['found'] ?? 0) > 0;
     }
 
     private function buildFormData(?int $supplierId): array
@@ -580,6 +615,13 @@ class SupplierOrders extends BaseController
     private function resolvePoNoFilter(): string
     {
         return trim((string) ($this->request->getGet('po_no') ?? ''));
+    }
+
+    private function resolveStatusFilter(): string
+    {
+        $status = strtolower(trim((string) ($this->request->getGet('status') ?? 'all')));
+
+        return in_array($status, ['all', 'active', 'closed'], true) ? $status : 'all';
     }
 
 }

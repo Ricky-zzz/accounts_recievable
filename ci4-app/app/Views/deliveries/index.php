@@ -559,9 +559,10 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             },
             selectEditPickup(row) {
                 const delivery = this.selectedActionDelivery();
+                const productKey = String(row.product_id || '');
                 this.editPickup = {
                     id: row.purchase_order_id || '',
-                    product_id: String(row.product_id || ''),
+                    product_id: productKey,
                     rr_no: row.rr_no || '',
                     supplier_name: row.supplier_name || '',
                     product_name: row.product_name || '',
@@ -572,12 +573,18 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 this.editPickupResults = [];
                 this.editPickupMessage = '';
                 this.editItems = [{
-                    product_id: String(row.product_id || ''),
+                    product_id: productKey,
                     qty: row.remaining_qty || 0,
-                    unit_price: this.effectiveUnitPrice(String(row.product_id || ''), delivery ? delivery.client_id : ''),
+                    unit_price: this.effectiveUnitPrice(productKey, delivery ? delivery.client_id : ''),
                     line_total: '0.00'
                 }];
                 this.updateEditLine(0);
+                this.$nextTick(() => {
+                    if (this.editItems[0]) {
+                        this.editItems[0].product_id = productKey;
+                        this.updateEditLine(0);
+                    }
+                });
             },
             clearEditPickup(resetQuery = true) {
                 this.editPickupSearchToken++;

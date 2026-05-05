@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\PurchaseOrderHistoryModel;
 use App\Models\PurchaseOrderItemModel;
 use App\Models\SupplierModel;
+use App\Models\SupplierOrderHistoryModel;
 use App\Models\SupplierOrderItemModel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -269,7 +270,7 @@ class PayableReports extends BaseController
                 $allocationsByPurchaseOrder[$purchaseOrderId][] = $allocation;
             }
 
-            if ($db->tableExists('purchase_order_histories')) {
+            if ($this->tableExists('purchase_order_histories')) {
                 $histories = (new PurchaseOrderHistoryModel())
                     ->select('purchase_order_histories.*, users.name as editor_name, users.username as editor_username')
                     ->join('users', 'users.id = purchase_order_histories.edited_by', 'left')
@@ -342,6 +343,7 @@ class PayableReports extends BaseController
         $pagedRows = $pagination['rows'];
         $supplierOrderIds = array_filter(array_map('intval', array_column($pagedRows, 'id') ?? []));
         $itemsBySupplierOrder = [];
+        $historiesBySupplierOrder = [];
 
         if (! empty($supplierOrderIds)) {
             $items = (new SupplierOrderItemModel())
@@ -356,6 +358,20 @@ class PayableReports extends BaseController
                 $supplierOrderId = (int) $item['supplier_order_id'];
                 $itemsBySupplierOrder[$supplierOrderId][] = $item;
             }
+
+            if ($this->tableExists('supplier_order_histories')) {
+                $histories = (new SupplierOrderHistoryModel())
+                    ->select('supplier_order_histories.*, users.name as editor_name, users.username as editor_username')
+                    ->join('users', 'users.id = supplier_order_histories.edited_by', 'left')
+                    ->whereIn('supplier_order_id', $supplierOrderIds)
+                    ->orderBy('created_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->findAll();
+
+                foreach ($histories as $history) {
+                    $historiesBySupplierOrder[(int) $history['supplier_order_id']][] = $history;
+                }
+            }
         }
 
         return $pagination + [
@@ -366,6 +382,7 @@ class PayableReports extends BaseController
             'totalPickedUp' => $totalPickedUp,
             'totalBalance' => $totalBalance,
             'itemsBySupplierOrder' => $itemsBySupplierOrder,
+            'historiesBySupplierOrder' => $historiesBySupplierOrder,
         ];
     }
 
@@ -431,6 +448,18 @@ class PayableReports extends BaseController
     private function resolveDueSort(): string
     {
         return strtolower((string) $this->request->getGet('due_sort')) === 'desc' ? 'desc' : 'asc';
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $row = db_connect()
+            ->query(
+                'SELECT COUNT(*) AS found FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+                [$table]
+            )
+            ->getRowArray();
+
+        return (int) ($row['found'] ?? 0) > 0;
     }
 
     private function renderPdf(string $html, string $filename, string $orientation)

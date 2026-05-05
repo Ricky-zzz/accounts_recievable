@@ -120,6 +120,34 @@ class TransactionDetailService
         ];
     }
 
+    public function supplierOrder(int $supplierOrderId): ?array
+    {
+        $db = db_connect();
+        $supplierOrder = $db->table('supplier_orders so')
+            ->select('so.*, suppliers.name as supplier_name')
+            ->join('suppliers', 'suppliers.id = so.supplier_id', 'left')
+            ->where('so.id', $supplierOrderId)
+            ->get()
+            ->getRowArray();
+
+        if (! $supplierOrder) {
+            return null;
+        }
+
+        return [
+            'supplier_order' => $supplierOrder,
+            'items' => $db->table('supplier_order_items soi')
+                ->select('soi.*, products.product_name')
+                ->join('products', 'products.id = soi.product_id', 'left')
+                ->where('soi.supplier_order_id', $supplierOrderId)
+                ->orderBy('soi.id', 'asc')
+                ->get()
+                ->getResultArray(),
+            'consumptions' => $this->supplierOrderConsumptions($supplierOrderId),
+            'histories' => $this->supplierOrderHistories($supplierOrderId),
+        ];
+    }
+
     public function payable(int $payableId): ?array
     {
         $db = db_connect();
@@ -196,6 +224,27 @@ class TransactionDetailService
             ->getResultArray();
     }
 
+    private function supplierOrderConsumptions(int $supplierOrderId): array
+    {
+        return db_connect()->table('purchase_order_items poi')
+            ->select('po.id as purchase_order_id, po.po_no as rr_no, po.date as rr_date')
+            ->select('products.product_name')
+            ->select('SUM(poi.qty) as qty')
+            ->select('MAX(poi.unit_price) as unit_price')
+            ->select('SUM(poi.line_total) as line_total')
+            ->select('MIN(poi.po_qty_balance_after) as po_qty_balance_after')
+            ->join('purchase_orders po', 'po.id = poi.purchase_order_id', 'left')
+            ->join('supplier_order_items soi', 'soi.id = poi.supplier_order_item_id', 'left')
+            ->join('products', 'products.id = poi.product_id', 'left')
+            ->where('soi.supplier_order_id', $supplierOrderId)
+            ->where('po.voided_at', null)
+            ->groupBy('po.id, po.po_no, po.date, products.product_name')
+            ->orderBy('po.date', 'asc')
+            ->orderBy('po.id', 'asc')
+            ->get()
+            ->getResultArray();
+    }
+
     private function deliveryHistories(int $deliveryId): array
     {
         if (! $this->tableExists('delivery_histories')) {
@@ -224,6 +273,22 @@ class TransactionDetailService
             ->where('poh.purchase_order_id', $purchaseOrderId)
             ->orderBy('poh.created_at', 'desc')
             ->orderBy('poh.id', 'desc')
+            ->get()
+            ->getResultArray();
+    }
+
+    private function supplierOrderHistories(int $supplierOrderId): array
+    {
+        if (! $this->tableExists('supplier_order_histories')) {
+            return [];
+        }
+
+        return db_connect()->table('supplier_order_histories soh')
+            ->select('soh.*, users.name as editor_name, users.username as editor_username')
+            ->join('users', 'users.id = soh.edited_by', 'left')
+            ->where('soh.supplier_order_id', $supplierOrderId)
+            ->orderBy('soh.created_at', 'desc')
+            ->orderBy('soh.id', 'desc')
             ->get()
             ->getResultArray();
     }

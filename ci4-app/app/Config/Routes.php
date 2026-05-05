@@ -93,6 +93,9 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('supplier-orders', 'SupplierOrders::index', ['filter' => 'permission:purchase_orders.view']);
     $routes->get('supplier-orders/print', 'SupplierOrders::print', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('supplier-orders/(:num)/ledger', 'SupplierOrderLedger::show/$1', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('supplier-orders/(:num)/ledger/print', 'SupplierOrderLedger::print/$1', ['filter' => 'permission:purchase_orders.view']);
+    $routes->get('ajax/supplier-orders/(:num)', 'TransactionDetails::supplierOrder/$1', ['filter' => 'permission:purchase_orders.view']);
     $routes->get('suppliers/(:num)/supplier-orders', 'SupplierOrders::supplierList/$1', ['filter' => 'permission:purchase_orders.view']);
     $routes->get('suppliers/(:num)/supplier-orders/print', 'SupplierOrders::supplierPrint/$1', ['filter' => 'permission:purchase_orders.view']);
     $routes->post('supplier-orders', 'SupplierOrders::create', ['filter' => 'permission:purchase_orders.view']);

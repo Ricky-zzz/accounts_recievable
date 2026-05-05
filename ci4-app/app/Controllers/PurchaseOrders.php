@@ -915,7 +915,7 @@ class PurchaseOrders extends BaseController
                 $allocationsByPurchaseOrder[(int) $allocation['purchase_order_id']][] = $allocation;
             }
 
-            if ($db->tableExists('purchase_order_histories')) {
+            if ($this->tableExists('purchase_order_histories')) {
                 $histories = (new PurchaseOrderHistoryModel())
                     ->select('purchase_order_histories.*, users.name as editor_name, users.username as editor_username')
                     ->join('users', 'users.id = purchase_order_histories.edited_by', 'left')
@@ -950,5 +950,17 @@ class PurchaseOrders extends BaseController
         }
 
         return date('Y-m-d', strtotime('+' . $paymentTerm . ' days', $timestamp));
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $row = db_connect()
+            ->query(
+                'SELECT COUNT(*) AS found FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+                [$table]
+            )
+            ->getRowArray();
+
+        return (int) ($row['found'] ?? 0) > 0;
     }
 }

@@ -5,7 +5,6 @@
  * @var string $start
  * @var string $end
  * @var int|float|string $openingBalance
- * @var int|float|string $openingOpenBalance
  * @var int|float|string $currentBalance
  * @var list<array<string, int|float|string|null>> $rows
  * @var int $allRowsCount
@@ -13,14 +12,10 @@
  * @var int $totalPages
  * @var int $rowOffset
  * @var array<int|string, list<array<string, int|float|string|null>>> $itemsByPurchaseOrder
- * @var array<int|string, int> $itemCounts
  * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPurchaseOrder
  * @var array<int|string, list<array<string, int|float|string|null>>> $allocationsByPayable
  * @var array<int|string, list<array<string, int|float|string|null>>> $otherAccountsByPayable
  * @var array<int|string, array<string, int|float|string|null>> $payablesById
- * @var array<int|string, array<string, int|float|string|null>> $supplierOrdersById
- * @var array<int|string, list<array<string, int|float|string|null>>> $supplierOrderItemsByOrder
- * @var array<int|string, list<array<string, int|float|string|null>>> $supplierOrderConsumptionsByOrder
  */
 ?>
 <?= $this->extend('payables_layout') ?>
@@ -32,9 +27,6 @@ $poAllocJson = json_encode($allocationsByPurchaseOrder ?? [], $jsonFlags);
 $payableAllocJson = json_encode($allocationsByPayable ?? [], $jsonFlags);
 $payableOtherJson = json_encode($otherAccountsByPayable ?? [], $jsonFlags);
 $payablesByIdJson = json_encode($payablesById ?? [], $jsonFlags);
-$supplierOrdersByIdJson = json_encode($supplierOrdersById ?? [], $jsonFlags);
-$supplierOrderItemsJson = json_encode($supplierOrderItemsByOrder ?? [], $jsonFlags);
-$supplierOrderConsumptionsJson = json_encode($supplierOrderConsumptionsByOrder ?? [], $jsonFlags);
 $rowsJson = json_encode($rows ?? [], $jsonFlags);
 ?>
 <script>
@@ -44,10 +36,7 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
         allocationsByPurchaseOrder: <?= $poAllocJson ?>,
         allocationsByPayable: <?= $payableAllocJson ?>,
         otherAccountsByPayable: <?= $payableOtherJson ?>,
-        payablesById: <?= $payablesByIdJson ?>,
-        supplierOrdersById: <?= $supplierOrdersByIdJson ?>,
-        supplierOrderItemsByOrder: <?= $supplierOrderItemsJson ?>,
-        supplierOrderConsumptionsByOrder: <?= $supplierOrderConsumptionsJson ?>
+        payablesById: <?= $payablesByIdJson ?>
     };
     function payableLedger() {
         return {
@@ -58,27 +47,17 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
             allocationsByPayable: window.payableLedgerData.allocationsByPayable,
             otherAccountsByPayable: window.payableLedgerData.otherAccountsByPayable,
             payablesById: window.payableLedgerData.payablesById,
-            supplierOrdersById: window.payableLedgerData.supplierOrdersById,
-            supplierOrderItemsByOrder: window.payableLedgerData.supplierOrderItemsByOrder,
-            supplierOrderConsumptionsByOrder: window.payableLedgerData.supplierOrderConsumptionsByOrder,
             poDetailsOpen: false,
-            supplierOrderOpen: false,
             allocOpen: false,
             allocType: '',
             selectedPoId: null,
-            selectedSupplierOrderId: null,
             selectedPayableId: null,
-            openPoDetails(id) { this.selectedPoId = id; this.poDetailsOpen = true; this.supplierOrderOpen = false; this.allocOpen = false; },
+            openPoDetails(id) { this.selectedPoId = id; this.poDetailsOpen = true; this.allocOpen = false; },
             closePoDetails() { this.poDetailsOpen = false; this.selectedPoId = null; },
-            openSupplierOrder(id) { this.selectedSupplierOrderId = id; this.supplierOrderOpen = true; this.poDetailsOpen = false; this.allocOpen = false; },
-            closeSupplierOrder() { this.supplierOrderOpen = false; this.selectedSupplierOrderId = null; },
-            openPayableAllocations(id) { this.allocType = 'payable'; this.selectedPayableId = id; this.allocOpen = true; this.poDetailsOpen = false; this.supplierOrderOpen = false; },
+            openPayableAllocations(id) { this.allocType = 'payable'; this.selectedPayableId = id; this.allocOpen = true; this.poDetailsOpen = false; },
             closeAllocations() { this.allocOpen = false; this.allocType = ''; this.selectedPayableId = null; },
             selectedItems() { return this.itemsByPurchaseOrder[this.selectedPoId] || []; },
             selectedPoAllocations() { return this.allocationsByPurchaseOrder[this.selectedPoId] || []; },
-            selectedSupplierOrder() { return this.supplierOrdersById[this.selectedSupplierOrderId] || null; },
-            selectedSupplierOrderItems() { return this.supplierOrderItemsByOrder[this.selectedSupplierOrderId] || []; },
-            selectedSupplierOrderConsumptions() { return this.supplierOrderConsumptionsByOrder[this.selectedSupplierOrderId] || []; },
             selectedPayable() { return this.payablesById[this.selectedPayableId] || null; },
             selectedAllocations() { return this.allocationsByPayable[this.selectedPayableId] || []; },
             selectedOtherAccounts() { return this.otherAccountsByPayable[this.selectedPayableId] || []; },
@@ -132,7 +111,6 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
                 <tr>
                     <th>#</th>
                     <th>Date</th>
-                    <th>PO#</th>
                     <th>RR#</th>
                     <th>CV#</th>
                     <th>Account Title</th>
@@ -141,13 +119,11 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
                     <th>Payables</th>
                     <th>Payment</th>
                     <th>Other Accounts</th>
-                    <th>PO Balance</th>
                     <th>Balance</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -158,25 +134,15 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
                     <td></td>
                     <td></td>
                     <td></td>
-                    <td><?= esc(number_format((float) ($openingOpenBalance ?? 0), 2)) ?></td>
                     <td><?= esc(number_format((float) $openingBalance, 2)) ?></td>
                 </tr>
                 <?php if (empty($rows)): ?>
-                    <tr><td colspan="13">No ledger rows in range.</td></tr>
+                    <tr><td colspan="11">No ledger rows in range.</td></tr>
                 <?php else: ?>
                     <?php foreach ($rows as $index => $row): ?>
-                        <?php
-                        $isRrRow = ! empty($row['purchase_order_id']);
-                        $isSupplierPoRow = ! $isRrRow && empty($row['payable_id']) && ! empty($row['supplier_order_id']);
-                        ?>
                         <tr>
                             <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
                             <td><?= esc((string) $row['entry_date']) ?></td>
-                            <td>
-                                <?php if ($isSupplierPoRow): ?>
-                                    <button class="btn-link" type="button" @click="openSupplierOrder(<?= (int) $row['supplier_order_id'] ?>)"><?= esc((string) ($row['supplier_order_po_no'] ?? '')) ?></button>
-                                <?php endif; ?>
-                            </td>
                             <td>
                                 <?php if (! empty($row['purchase_order_id']) && (! empty($itemsByPurchaseOrder[$row['purchase_order_id']]) || ! empty($allocationsByPurchaseOrder[$row['purchase_order_id']]))): ?>
                                     <button class="btn-link" type="button" @click="openPoDetails(<?= (int) $row['purchase_order_id'] ?>)"><?= esc((string) ($row['po_no'] ?? '')) ?></button>
@@ -197,7 +163,6 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
                             <td><?= esc(number_format((float) ($row['payables'] ?? 0), 2)) ?></td>
                             <td><?= (float) ($row['payment'] ?? 0) > 0 ? esc(number_format((float) $row['payment'], 2)) : '' ?></td>
                             <td><?= (float) ($row['other_accounts'] ?? 0) > 0 ? esc(number_format((float) $row['other_accounts'], 2)) : '' ?></td>
-                            <td><?= esc(number_format((float) ($row['total_open_balance'] ?? 0), 2)) ?></td>
                             <td><?= esc(number_format((float) ($row['balance'] ?? 0), 2)) ?></td>
                         </tr>
                     <?php endforeach; ?>
@@ -230,75 +195,21 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
                 <div>
                     <h3 class="mb-3 font-semibold">Pickup Items</h3>
                     <table class="table">
-                        <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th>Source PO</th><th>PO Balance After</th></tr></thead>
+                        <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
                         <tbody>
-                            <template x-if="selectedItems().length === 0"><tr><td colspan="6">No items found.</td></tr></template>
+                            <template x-if="selectedItems().length === 0"><tr><td colspan="4">No items found.</td></tr></template>
                             <template x-for="item in selectedItems()" :key="item.id">
                                 <tr>
                                     <td x-text="item.product_name"></td>
                                     <td x-text="formatQty(item.qty)"></td>
                                     <td x-text="Number(item.unit_price || 0).toFixed(2)"></td>
                                     <td x-text="Number(item.line_total || 0).toFixed(2)"></td>
-                                    <td>
-                                        <template x-if="item.supplier_order_id"><button class="btn-link" type="button" @click="openSupplierOrder(item.supplier_order_id)" x-text="item.supplier_order_po_no || ''"></button></template>
-                                        <template x-if="!item.supplier_order_id"><span>No source PO</span></template>
-                                    </td>
-                                    <td x-text="item.po_qty_balance_after !== null && item.po_qty_balance_after !== undefined ? formatQty(item.po_qty_balance_after) : ''"></td>
                                 </tr>
                             </template>
                         </tbody>
                     </table>
                 </div>
                 <div><h3 class="mb-3 font-semibold">CV Allocations</h3><table class="table"><thead><tr><th>CV #</th><th>Date</th><th>Amount</th></tr></thead><tbody><template x-if="selectedPoAllocations().length === 0"><tr><td colspan="3">No allocations found.</td></tr></template><template x-for="(alloc, index) in selectedPoAllocations()" :key="index"><tr><td x-text="alloc.pr_no"></td><td x-text="alloc.date"></td><td x-text="Number(alloc.amount).toFixed(2)"></td></tr></template></tbody></table></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop" x-show="supplierOrderOpen" x-cloak @click.self="closeSupplierOrder()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 flex items-start justify-between gap-4 border-b pb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">Supplier PO <span x-text="selectedSupplierOrder() ? selectedSupplierOrder().po_no : ''"></span></h2>
-                    <p class="mt-1 text-sm muted" x-text="selectedSupplierOrder() ? selectedSupplierOrder().supplier_name || '' : ''"></p>
-                </div>
-                <button class="btn btn-secondary" type="button" @click="closeSupplierOrder()">Close</button>
-            </div>
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 text-sm font-semibold">PO Items</h3>
-                    <table class="table">
-                        <thead><tr><th>Product</th><th class="text-right">Ordered</th><th class="text-right">Picked-Up</th><th class="text-right">Balance</th></tr></thead>
-                        <tbody>
-                            <template x-if="selectedSupplierOrderItems().length === 0"><tr><td colspan="4">No items found.</td></tr></template>
-                            <template x-for="item in selectedSupplierOrderItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_ordered)"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_picked_up)"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_balance)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 class="mb-3 text-sm font-semibold">RRs Consumed</h3>
-                    <table class="table">
-                        <thead><tr><th>RR#</th><th>Date</th><th>Product</th><th class="text-right">Qty</th><th class="text-right">PO Balance</th></tr></thead>
-                        <tbody>
-                            <template x-if="selectedSupplierOrderConsumptions().length === 0"><tr><td colspan="5">No pickups consumed this PO yet.</td></tr></template>
-                            <template x-for="item in selectedSupplierOrderConsumptions()" :key="item.purchase_order_id + '-' + item.product_name + '-' + item.qty">
-                                <tr>
-                                    <td><button class="btn-link" type="button" @click="openPoDetails(item.purchase_order_id)" x-text="item.rr_no"></button></td>
-                                    <td x-text="item.rr_date"></td>
-                                    <td x-text="item.product_name"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty)"></td>
-                                    <td class="text-right" x-text="item.po_qty_balance_after !== null && item.po_qty_balance_after !== undefined ? formatQty(item.po_qty_balance_after) : ''"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>

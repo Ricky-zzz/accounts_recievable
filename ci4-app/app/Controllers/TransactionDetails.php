@@ -21,6 +21,11 @@ class TransactionDetails extends BaseController
         return $this->jsonDetail((new TransactionDetailService())->purchaseOrder($purchaseOrderId), 'RR / pickup not found.');
     }
 
+    public function supplierOrder(int $supplierOrderId)
+    {
+        return $this->jsonDetail((new TransactionDetailService())->supplierOrder($supplierOrderId), 'Supplier PO not found.');
+    }
+
     public function payable(int $payableId)
     {
         return $this->jsonDetail((new TransactionDetailService())->payable($payableId), 'CV / payable not found.');

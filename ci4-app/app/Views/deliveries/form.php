@@ -356,10 +356,11 @@ if ($termValue === null) {
             },
             selectPickup(row) {
                 const pickupId = row.purchase_order_id || row.id || '';
-                const productId = this.resolveProductId(row.product_id || row.productId || '');
+                const productId = row.product_id || row.productId || '';
+                const productKey = String(productId);
                 this.pickup = {
                     id: pickupId,
-                    product_id: String(productId),
+                    product_id: productKey,
                     rr_no: row.rr_no || '',
                     supplier_name: row.supplier_name || '',
                     product_name: row.product_name || '',
@@ -369,17 +370,23 @@ if ($termValue === null) {
                 this.pickupResults = [];
                 this.pickupMessage = '';
                 this.items = [{
-                    product_id: String(productId),
+                    product_id: productKey,
                     qty: row.remaining_qty || 0,
-                    unit_price: this.effectiveUnitPrice(String(productId), this.selectedClientId),
+                    unit_price: this.effectiveUnitPrice(productKey, this.selectedClientId),
                     line_total: '0.00'
                 }];
                 this.updateLine(0);
+                this.$nextTick(() => {
+                    if (this.items[0]) {
+                        this.items[0].product_id = productKey;
+                        this.updateLine(0);
+                    }
+                });
                 if (this.$refs.pickupId) {
                     this.$refs.pickupId.value = pickupId;
                 }
                 if (this.$refs.pickupProductId) {
-                    this.$refs.pickupProductId.value = String(productId);
+                    this.$refs.pickupProductId.value = productKey;
                 }
             },
             clearPickup(resetQuery = true) {
