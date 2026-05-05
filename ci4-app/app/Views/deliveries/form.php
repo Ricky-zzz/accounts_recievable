@@ -155,7 +155,7 @@ if ($termValue === null) {
                         <th>Supplier</th>
                         <th>Product</th>
                         <th>Quantity</th>
-                        <th>Deliverable / Loss</th>
+                        <th>Remains/Loss</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -376,12 +376,7 @@ if ($termValue === null) {
                     line_total: '0.00'
                 }];
                 this.updateLine(0);
-                this.$nextTick(() => {
-                    if (this.items[0]) {
-                        this.items[0].product_id = productKey;
-                        this.updateLine(0);
-                    }
-                });
+                this.forceProductSelect(0, productKey);
                 if (this.$refs.pickupId) {
                     this.$refs.pickupId.value = pickupId;
                 }
@@ -411,6 +406,21 @@ if ($termValue === null) {
                 if (resetQuery) {
                     this.pickupQuery = '';
                 }
+            },
+            forceProductSelect(index, productId) {
+                this.$nextTick(() => {
+                    window.requestAnimationFrame(() => {
+                        const select = this.$root.querySelector(`#product_${index}`);
+                        if (!select) {
+                            return;
+                        }
+
+                        select.value = String(productId);
+                        if (this.items[index]) {
+                            this.items[index].product_id = String(productId);
+                        }
+                    });
+                });
             },
             pickupDeliveryQty() {
                 if (!this.pickup.id) {

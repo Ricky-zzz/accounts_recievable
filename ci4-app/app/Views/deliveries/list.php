@@ -649,11 +649,21 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                     line_total: '0.00'
                 }];
                 this.updateEditLine(0);
+                this.forceEditProductSelect(0, productKey);
+            },
+            forceEditProductSelect(index, productId) {
                 this.$nextTick(() => {
-                    if (this.editItems[0]) {
-                        this.editItems[0].product_id = productKey;
-                        this.updateEditLine(0);
-                    }
+                    window.requestAnimationFrame(() => {
+                        const select = this.$root.querySelector(`#edit_product_${index}`);
+                        if (!select) {
+                            return;
+                        }
+
+                        select.value = String(productId);
+                        if (this.editItems[index]) {
+                            this.editItems[index].product_id = String(productId);
+                        }
+                    });
                 });
             },
             clearEditPickup(resetQuery = true) {
