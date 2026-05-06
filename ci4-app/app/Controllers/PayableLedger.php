@@ -65,11 +65,42 @@ class PayableLedger extends BaseController
             ->setBody($dompdf->output());
     }
 
+    public function saveForwardBalance()
+    {
+        $supplierId = (int) $this->request->getPost('supplier_id');
+        $balanceInput = trim((string) $this->request->getPost('forwarded_balance'));
+
+        if ($supplierId <= 0) {
+            return redirect()->back()->with('error', 'Select a supplier first.');
+        }
+
+        $supplierModel = new SupplierModel();
+        $supplier = $supplierModel->find($supplierId);
+
+        if (! $supplier) {
+            return redirect()->back()->with('error', 'Supplier not found.');
+        }
+
+        if ($balanceInput === '') {
+            $balance = 0.0;
+        } elseif (! is_numeric($balanceInput)) {
+            return redirect()->back()->with('error', 'Forwarded balance must be a valid number.');
+        } else {
+            $balance = (float) $balanceInput;
+        }
+
+        $supplierModel->update($supplierId, ['forwarded_balance' => $balance]);
+        $this->recalculateSupplierLedgerBalances($supplierId, $balance);
+
+        return redirect()->back()->with('success', 'Forwarded balance saved.');
+    }
+
     private function buildReportData(int $supplierId, string $start, string $end, bool $paginate): array
     {
         $supplierModel = new SupplierModel();
         $selectedSupplier = $supplierId > 0 ? $supplierModel->find($supplierId) : null;
         $openingBalance = 0.0;
+        $forwardedBalance = 0.0;
         $currentBalance = 0.0;
         $rows = [];
         $itemsByPurchaseOrder = [];
@@ -83,6 +114,7 @@ class PayableLedger extends BaseController
         $rowOffset = 0;
 
         if ($selectedSupplier) {
+            $forwardedBalance = (float) ($selectedSupplier['forwarded_balance'] ?? 0);
             if ($start !== '') {
                 $openingRow = $this->filteredLedgerModel($supplierId)
                     ->select('balance')
@@ -90,7 +122,13 @@ class PayableLedger extends BaseController
                     ->orderBy('entry_date', 'desc')
                     ->orderBy('id', 'desc')
                     ->first();
-                $openingBalance = (float) ($openingRow['balance'] ?? 0);
+                if ($openingRow) {
+                    $openingBalance = (float) ($openingRow['balance'] ?? 0);
+                } else {
+                    $openingBalance = $forwardedBalance;
+                }
+            } else {
+                $openingBalance = $forwardedBalance;
             }
 
             $builder = $this->filteredLedgerModel($supplierId);
@@ -201,6 +239,7 @@ class PayableLedger extends BaseController
             'start' => $start,
             'end' => $end,
             'openingBalance' => $openingBalance,
+            'forwardedBalance' => $forwardedBalance,
             'currentBalance' => $currentBalance,
             'rows' => $rows,
             'allRowsCount' => $totalRows,
@@ -216,13 +255,34 @@ class PayableLedger extends BaseController
         ];
     }
 
+    private function recalculateSupplierLedgerBalances(int $supplierId, float $startingBalance): void
+    {
+        $ledgerModel = new PayableLedgerModel();
+        $rows = $ledgerModel
+            ->where('supplier_id', $supplierId)
+            ->orderBy('entry_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->findAll();
+
+        $balance = $startingBalance;
+        foreach ($rows as $row) {
+            $balance += (float) ($row['payables'] ?? 0);
+            $balance -= (float) ($row['payment'] ?? 0);
+            $balance -= (float) ($row['other_accounts'] ?? 0);
+
+            if (abs((float) ($row['balance'] ?? 0) - $balance) > 0.005) {
+                $ledgerModel->update((int) $row['id'], ['balance' => $balance]);
+            }
+        }
+    }
+
     private function filteredLedgerModel(int $supplierId): PayableLedgerModel
     {
         return (new PayableLedgerModel())
             ->where('supplier_id', $supplierId)
             ->groupStart()
-                ->where('account_title', null)
-                ->orWhere("account_title NOT IN ('Supplier PO', 'Voided Supplier PO')", null, false)
+            ->where('account_title', null)
+            ->orWhere("account_title NOT IN ('Supplier PO', 'Voided Supplier PO')", null, false)
             ->groupEnd();
     }
 

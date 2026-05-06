@@ -137,8 +137,8 @@ if ($termValue === null) {
                             <td class="font-semibold" x-text="row.rr_no"></td>
                             <td x-text="row.supplier_name"></td>
                             <td x-text="row.product_name"></td>
-                            <td class="tabular-nums" x-text="formatAmount(row.qty)"></td>
-                            <td class="tabular-nums" x-text="formatAmount(row.remaining_qty)"></td>
+                            <td class="tabular-nums" x-text="formatQty(row.qty)"></td>
+                            <td class="tabular-nums" x-text="formatQty(row.remaining_qty)"></td>
                             <td class="text-right">
                                 <button class="btn btn-secondary" type="button" @click="selectPickup(row)">Choose</button>
                             </td>
@@ -162,8 +162,8 @@ if ($termValue === null) {
                     <tr>
                         <td x-text="pickup.supplier_name"></td>
                         <td x-text="pickup.product_name"></td>
-                        <td class="tabular-nums" x-text="formatAmount(pickup.remaining_qty)"></td>
-                        <td class="tabular-nums" x-text="formatAmount(pickupBalanceAfterDelivery())"></td>
+                        <td class="tabular-nums" x-text="formatQty(pickup.remaining_qty)"></td>
+                        <td class="tabular-nums" x-text="formatQty(pickupBalanceAfterDelivery())"></td>
                     </tr>
                 </tbody>
             </table>
@@ -177,11 +177,11 @@ if ($termValue === null) {
         </div>
 
         <div class="mt-4 space-y-4">
-            <template x-for="(item, index) in items" :key="item.product_id + '-' + index">
+            <template x-for="(item, index) in items" :key="index">
                 <div class="grid gap-3 sm:grid-cols-6">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-medium" :for="'product_' + index">Product</label>
-                        <select class="input mt-1" :id="'product_' + index" x-model="item.product_id" @change="selectProduct(index)" :name="'items[' + index + '][product_id]'" required>
+                        <select class="input mt-1" :id="'product_' + index" x-model="item.product_id" @change="selectProduct(index, $event)" :name="'items[' + index + '][product_id]'" required>
                             <option value="">Select product</option>
                             <template x-for="product in products" :key="product.id">
                                 <option :value="String(product.id)" x-text="product.product_name"></option>
@@ -194,7 +194,7 @@ if ($termValue === null) {
                     </div>
                     <div>
                         <label class="block text-xs font-medium" :for="'qty_' + index">Qty</label>
-                        <input class="input mt-1" :id="'qty_' + index" type="number" step="0.01" min="0" x-model="item.qty" @input="updateLine(index)" :name="'items[' + index + '][qty]'" required>
+                        <input class="input mt-1" :id="'qty_' + index" type="number" step="0.00001" min="0" x-model="item.qty" @input="updateLine(index)" :name="'items[' + index + '][qty]'" required>
                     </div>
                     <div>
                         <label class="block text-xs font-medium" :for="'total_' + index">Total</label>
@@ -434,8 +434,12 @@ if ($termValue === null) {
             pickupBalanceAfterDelivery() {
                 return (parseFloat(this.pickup.remaining_qty) || 0) - this.pickupDeliveryQty();
             },
-            selectProduct(index) {
+            selectProduct(index, event) {
                 const item = this.items[index];
+                const selectedId = event && event.target ? String(event.target.value) : String(item.product_id || '');
+                if (selectedId !== String(item.product_id || '')) {
+                    item.product_id = selectedId;
+                }
                 if (this.pickup.id && String(item.product_id) !== String(this.pickup.product_id)) {
                     this.clearPickup(false);
                 }
@@ -489,6 +493,12 @@ if ($termValue === null) {
                 if (this.$refs.pickupProductId) {
                     this.$refs.pickupProductId.value = this.pickup.product_id || '';
                 }
+            },
+            formatQty(value) {
+                return (Math.round((parseFloat(value) || 0) * 100000) / 100000).toLocaleString(undefined, {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5,
+                });
             },
             formatAmount(value) {
                 return (Math.round((parseFloat(value) || 0) * 100) / 100).toLocaleString(undefined, {

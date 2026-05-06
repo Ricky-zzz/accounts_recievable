@@ -13,7 +13,7 @@
             <img class="h-16 w-16 rounded-2xl border border-stone-200 object-cover bg-white" src="<?= esc(base_url('logo.png')) ?>" alt="SRC Enterprises logo">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">SRC Enterprises Inc</p>
-                <h1 class="mt-1 text-2xl font-semibold">Accounts Recievable Dashboard</h1>
+                <h1 class="mt-1 text-2xl font-semibold">Accounts Receivable Dashboard</h1>
                 <p class="mt-2 text-sm muted">Choose a module to manage records.</p>
             </div>
         </div>

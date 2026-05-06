@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var array{id: int|string, name: string, payment_term?: int|string|null}|null $supplier
  * @var int|null $supplierId
@@ -107,7 +108,8 @@ if (! $supplier && ! empty($supplierId)) {
         <colgroup>
             <col class="w-12">
             <col class="w-32">
-            <?php if (! $supplier): ?><col><?php endif; ?>
+            <?php if (! $supplier): ?>
+                <col><?php endif; ?>
             <col class="w-32">
             <col class="w-40">
             <col class="w-40">
@@ -128,7 +130,9 @@ if (! $supplier && ! empty($supplierId)) {
         </thead>
         <tbody>
             <?php if (empty($orders)): ?>
-                <tr><td colspan="<?= $supplier ? 7 : 8 ?>">No supplier POs found.</td></tr>
+                <tr>
+                    <td colspan="<?= $supplier ? 7 : 8 ?>">No supplier POs found.</td>
+                </tr>
             <?php else: ?>
                 <?php foreach ($orders as $index => $order): ?>
                     <tr>
@@ -136,9 +140,9 @@ if (! $supplier && ! empty($supplierId)) {
                         <td><?= esc((string) ($order['date'] ?? '')) ?></td>
                         <?php if (! $supplier): ?><td><?= esc((string) ($order['supplier_name'] ?? '')) ?></td><?php endif; ?>
                         <td><button class="btn-link" type="button" @click="openDetails(<?= (int) $order['id'] ?>)"><?= esc((string) ($order['po_no'] ?? '')) ?></button></td>
-                        <td class="text-right"><?= esc(number_format((float) ($order['qty_ordered_total'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($order['qty_picked_up_total'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($order['qty_balance_total'] ?? 0), 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['qty_ordered_total'] ?? 0), 5)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['qty_picked_up_total'] ?? 0), 5)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['qty_balance_total'] ?? 0), 5)) ?></td>
                         <td class="text-center">
                             <div class="flex flex-wrap justify-center gap-2">
                                 <button class="btn btn-secondary" type="button" @click="openEdit(<?= (int) $order['id'] ?>)" <?= (float) ($order['qty_picked_up_total'] ?? 0) > 0 || ($order['status'] ?? '') === 'voided' ? 'disabled' : '' ?>>Edit</button>
@@ -156,15 +160,15 @@ if (! $supplier && ! empty($supplierId)) {
     <div class="grid gap-4 sm:grid-cols-3">
         <div class="card p-4">
             <p class="muted">Total Purchase</p>
-            <p class="mt-1 text-lg font-semibold"><?= esc(number_format((float) ($totalOrdered ?? 0), 2)) ?></p>
+            <p class="mt-1 text-lg font-semibold"><?= esc(number_format((float) ($totalOrdered ?? 0), 5)) ?></p>
         </div>
         <div class="card p-4">
             <p class="muted">Total Picked</p>
-            <p class="mt-1 text-lg font-semibold"><?= esc(number_format((float) ($totalPickedUp ?? 0), 2)) ?></p>
+            <p class="mt-1 text-lg font-semibold"><?= esc(number_format((float) ($totalPickedUp ?? 0), 5)) ?></p>
         </div>
         <div class="card p-4">
             <p class="muted">Total Balance</p>
-            <p class="mt-1 text-lg font-semibold"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></p>
+            <p class="mt-1 text-lg font-semibold"><?= esc(number_format((float) ($totalBalance ?? 0), 5)) ?></p>
         </div>
     </div>
 
@@ -226,7 +230,7 @@ if (! $supplier && ! empty($supplierId)) {
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium">Qty</label>
-                                    <input class="input mt-1" type="number" step="0.01" min="0" x-model="item.qty_ordered" :name="'items[' + index + '][qty_ordered]'" required>
+                                    <input class="input mt-1" type="number" step="0.00001" min="0" x-model="item.qty_ordered" :name="'items[' + index + '][qty_ordered]'" required>
                                 </div>
                                 <div class="flex items-end">
                                     <button class="btn btn-secondary" type="button" @click="formItems.splice(index, 1)" x-show="formItems.length > 1">Remove</button>
@@ -257,9 +261,20 @@ if (! $supplier && ! empty($supplierId)) {
                 <section>
                     <h3 class="mb-3 text-sm font-semibold">PO Items</h3>
                     <table class="table">
-                        <thead><tr><th>Product</th><th class="text-right">Purchase Qty</th><th class="text-right">Picked-Up</th><th class="text-right">Balance</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-right">Purchase Qty</th>
+                                <th class="text-right">Picked-Up</th>
+                                <th class="text-right">Balance</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <template x-if="selectedItems().length === 0"><tr><td colspan="4">No items found.</td></tr></template>
+                            <template x-if="selectedItems().length === 0">
+                                <tr>
+                                    <td colspan="4">No items found.</td>
+                                </tr>
+                            </template>
                             <template x-for="item in selectedItems()" :key="item.id">
                                 <tr>
                                     <td x-text="item.product_name"></td>
@@ -275,10 +290,25 @@ if (! $supplier && ! empty($supplierId)) {
                     <h3 class="mb-3 text-sm font-semibold">RR Consumption</h3>
                     <div class="overflow-y-auto rounded border border-gray-200" style="max-height: 45vh;">
                         <table class="table">
-                            <thead><tr><th>RR#</th><th>Date</th><th>Product</th><th class="text-right">Qty</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>RR#</th>
+                                    <th>Date</th>
+                                    <th>Product</th>
+                                    <th class="text-right">Qty</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                <template x-if="detailsLoading"><tr><td colspan="4">Loading RR consumption...</td></tr></template>
-                                <template x-if="!detailsLoading && selectedConsumptions().length === 0"><tr><td colspan="4">No RR consumption found.</td></tr></template>
+                                <template x-if="detailsLoading">
+                                    <tr>
+                                        <td colspan="4">Loading RR consumption...</td>
+                                    </tr>
+                                </template>
+                                <template x-if="!detailsLoading && selectedConsumptions().length === 0">
+                                    <tr>
+                                        <td colspan="4">No RR consumption found.</td>
+                                    </tr>
+                                </template>
                                 <template x-for="(item, index) in selectedConsumptions()" :key="index">
                                     <tr>
                                         <td x-text="item.rr_no || '-'"></td>
@@ -308,7 +338,7 @@ if (! $supplier && ! empty($supplierId)) {
                 <?= csrf_field() ?>
                 <div class="card p-4 text-sm">
                     <div class="flex justify-between"><span>PO#</span><span x-text="selectedActionOrder() ? selectedActionOrder().po_no : ''"></span></div>
-                    <div class="mt-2 flex justify-between"><span>Balance Qty</span><span x-text="selectedActionOrder() ? formatQty(selectedActionOrder().qty_balance_total) : '0.00'"></span></div>
+                    <div class="mt-2 flex justify-between"><span>Balance Qty</span><span x-text="selectedActionOrder() ? formatQty(selectedActionOrder().qty_balance_total) : '0.00000'"></span></div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="void_reason">Reason</label>
@@ -357,9 +387,20 @@ if (! $supplier && ! empty($supplierId)) {
                                 <p>Date: <span x-text="historyOrder(history.old_supplier_order_json).date || '-'"></span></p>
                                 <p>Purchase Qty: <span x-text="formatQty(historyTotalQty(history.old_items_json))"></span></p>
                                 <table class="table mt-3 text-xs">
-                                    <thead><tr><th>Product</th><th class="text-right">Purchase Qty</th><th class="text-right">Picked-Up</th><th class="text-right">Balance</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th class="text-right">Purchase Qty</th>
+                                            <th class="text-right">Picked-Up</th>
+                                            <th class="text-right">Balance</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        <template x-if="historyItems(history.old_items_json).length === 0"><tr><td colspan="4">No items recorded.</td></tr></template>
+                                        <template x-if="historyItems(history.old_items_json).length === 0">
+                                            <tr>
+                                                <td colspan="4">No items recorded.</td>
+                                            </tr>
+                                        </template>
                                         <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
                                             <tr>
                                                 <td x-text="item.product_name || item.product_id || '-'"></td>
@@ -377,9 +418,20 @@ if (! $supplier && ! empty($supplierId)) {
                                 <p>Date: <span x-text="historyOrder(history.new_supplier_order_json).date || '-'"></span></p>
                                 <p>Purchase Qty: <span x-text="formatQty(historyTotalQty(history.new_items_json))"></span></p>
                                 <table class="table mt-3 text-xs">
-                                    <thead><tr><th>Product</th><th class="text-right">Purchase Qty</th><th class="text-right">Picked-Up</th><th class="text-right">Balance</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th class="text-right">Purchase Qty</th>
+                                            <th class="text-right">Picked-Up</th>
+                                            <th class="text-right">Balance</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        <template x-if="historyItems(history.new_items_json).length === 0"><tr><td colspan="4">No items recorded.</td></tr></template>
+                                        <template x-if="historyItems(history.new_items_json).length === 0">
+                                            <tr>
+                                                <td colspan="4">No items recorded.</td>
+                                            </tr>
+                                        </template>
                                         <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
                                             <tr>
                                                 <td x-text="item.product_name || item.product_id || '-'"></td>
@@ -424,7 +476,10 @@ if (! $supplier && ! empty($supplierId)) {
                 po_no: '',
                 date: '<?= esc(date('Y-m-d')) ?>',
             },
-            formItems: [{ product_id: '', qty_ordered: 1 }],
+            formItems: [{
+                product_id: '',
+                qty_ordered: 1
+            }],
             openCreate() {
                 this.isEdit = false;
                 this.formAction = '<?= base_url('supplier-orders') ?>';
@@ -433,7 +488,10 @@ if (! $supplier && ! empty($supplierId)) {
                     po_no: '',
                     date: '<?= esc(date('Y-m-d')) ?>',
                 };
-                this.formItems = [{ product_id: '', qty_ordered: 1 }];
+                this.formItems = [{
+                    product_id: '',
+                    qty_ordered: 1
+                }];
                 this.formOpen = true;
             },
             openEdit(id) {
@@ -453,15 +511,26 @@ if (! $supplier && ! empty($supplierId)) {
                 if (this.formItems.length === 0) this.addItem();
                 this.formOpen = true;
             },
-            closeForm() { this.formOpen = false; },
-            addItem() { this.formItems.push({ product_id: '', qty_ordered: 1 }); },
+            closeForm() {
+                this.formOpen = false;
+            },
+            addItem() {
+                this.formItems.push({
+                    product_id: '',
+                    qty_ordered: 1
+                });
+            },
             async openDetails(id) {
                 this.selectedOrderId = id;
                 this.detailsOpen = true;
                 this.detailsLoading = true;
                 this.supplierOrderDetail = {};
                 try {
-                    const response = await fetch(`<?= base_url('ajax/supplier-orders') ?>/${id}`, { headers: { 'Accept': 'application/json' } });
+                    const response = await fetch(`<?= base_url('ajax/supplier-orders') ?>/${id}`, {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
                     if (String(this.selectedOrderId) === String(id)) {
                         this.supplierOrderDetail = response.ok ? await response.json() : {};
                     }
@@ -471,19 +540,50 @@ if (! $supplier && ! empty($supplierId)) {
                     }
                 }
             },
-            closeDetails() { this.detailsOpen = false; this.selectedOrderId = null; this.supplierOrderDetail = {}; this.detailsLoading = false; },
-            selectedOrder() { return this.orders.find((row) => String(row.id) === String(this.selectedOrderId)) || null; },
-            selectedItems() { return this.supplierOrderDetail.items || this.itemsByOrder[this.selectedOrderId] || []; },
-            selectedConsumptions() { return this.supplierOrderDetail.consumptions || []; },
-            selectedActionOrder() { return this.orders.find((row) => String(row.id) === String(this.actionOrderId)) || null; },
-            openVoid(id) { this.actionOrderId = id; this.voidOpen = true; },
-            closeVoid() { this.voidOpen = false; this.actionOrderId = null; },
-            openHistory(id) { this.actionOrderId = id; this.historyOpen = true; },
-            closeHistory() { this.historyOpen = false; this.actionOrderId = null; },
-            selectedHistories() { return this.historiesByOrder[this.actionOrderId] || []; },
+            closeDetails() {
+                this.detailsOpen = false;
+                this.selectedOrderId = null;
+                this.supplierOrderDetail = {};
+                this.detailsLoading = false;
+            },
+            selectedOrder() {
+                return this.orders.find((row) => String(row.id) === String(this.selectedOrderId)) || null;
+            },
+            selectedItems() {
+                return this.supplierOrderDetail.items || this.itemsByOrder[this.selectedOrderId] || [];
+            },
+            selectedConsumptions() {
+                return this.supplierOrderDetail.consumptions || [];
+            },
+            selectedActionOrder() {
+                return this.orders.find((row) => String(row.id) === String(this.actionOrderId)) || null;
+            },
+            openVoid(id) {
+                this.actionOrderId = id;
+                this.voidOpen = true;
+            },
+            closeVoid() {
+                this.voidOpen = false;
+                this.actionOrderId = null;
+            },
+            openHistory(id) {
+                this.actionOrderId = id;
+                this.historyOpen = true;
+            },
+            closeHistory() {
+                this.historyOpen = false;
+                this.actionOrderId = null;
+            },
+            selectedHistories() {
+                return this.historiesByOrder[this.actionOrderId] || [];
+            },
             historyOrder(value) {
                 if (!value) return {};
-                try { return JSON.parse(value); } catch (error) { return {}; }
+                try {
+                    return JSON.parse(value);
+                } catch (error) {
+                    return {};
+                }
             },
             historyItems(value) {
                 if (!value) return [];
@@ -494,8 +594,15 @@ if (! $supplier && ! empty($supplierId)) {
                     return [];
                 }
             },
-            historyTotalQty(value) { return this.historyItems(value).reduce((sum, item) => sum + (parseFloat(item.qty_ordered) || 0), 0); },
-            formatQty(value) { return (Math.round((parseFloat(value) || 0) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+            historyTotalQty(value) {
+                return this.historyItems(value).reduce((sum, item) => sum + (parseFloat(item.qty_ordered) || 0), 0);
+            },
+            formatQty(value) {
+                return (Math.round((parseFloat(value) || 0) * 100000) / 100000).toLocaleString(undefined, {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
+                });
+            },
         };
     }
 </script>

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var array<string, mixed> $quickPayData
  */
@@ -61,7 +62,7 @@ $banks = $quickPayData['banks'] ?? [];
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="quick_amount_received">Amount Received</label>
-                        <input class="input mt-1" id="quick_amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="quickPay.amountReceived" required>
+                        <input class="input mt-1" id="quick_amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="quickPay.amountReceived" @input="syncAllocationFromReceived()" required>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="quick_deposit_bank_id">Deposit Bank</label>

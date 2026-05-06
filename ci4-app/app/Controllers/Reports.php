@@ -66,7 +66,7 @@ class Reports extends BaseController
     {
         $clientModel = new ClientModel();
         $clients = $clientModel->orderBy('name', 'asc')->findAll();
-        $clientIds = array_map(static fn (array $client): int => (int) $client['id'], $clients);
+        $clientIds = array_map(static fn(array $client): int => (int) $client['id'], $clients);
         $balancesByClient = [];
 
         if (! empty($clientIds)) {
@@ -93,7 +93,9 @@ class Reports extends BaseController
         foreach ($clients as $client) {
             $clientId = (int) ($client['id'] ?? 0);
             $creditLimit = (float) ($client['credit_limit'] ?? 0);
-            $currentBalance = $balancesByClient[$clientId] ?? 0.0;
+            $currentBalance = array_key_exists($clientId, $balancesByClient)
+                ? $balancesByClient[$clientId]
+                : (float) ($client['forwarded_balance'] ?? 0);
             $availableBalance = $creditLimit - $currentBalance;
 
             $rows[] = [

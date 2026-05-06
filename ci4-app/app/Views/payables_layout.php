@@ -168,7 +168,7 @@
             gap: 1.5rem;
         }
 
-        .modal-split > div {
+        .modal-split>div {
             min-width: 0;
             overflow-x: auto;
         }
@@ -456,7 +456,7 @@
                 </a>
                 <?php if (session()->get('user_id')): ?>
                     <nav class="flex flex-wrap items-center gap-1 text-sm text-black">
-                        <a href="<?= base_url('/') ?>">Recievables</a>
+                        <a href="<?= base_url('/') ?>">Receivables</a>
                         <?php if (can_access('suppliers.view')): ?>
                             <a href="<?= base_url('suppliers') ?>" <?= $navAttributes('suppliers') ?>>Suppliers</a>
                         <?php endif; ?>

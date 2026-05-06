@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var string $fromVoidedDate
  * @var string $toVoidedDate
@@ -75,7 +76,9 @@ $filterQuery = [
             </thead>
             <tbody>
                 <?php if (empty($rows)): ?>
-                    <tr><td colspan="10">No voided POs found.</td></tr>
+                    <tr>
+                        <td colspan="10">No voided POs found.</td>
+                    </tr>
                 <?php else: ?>
                     <?php foreach ($rows as $index => $row): ?>
                         <?php $rowId = (int) ($row['id'] ?? 0); ?>
@@ -89,9 +92,9 @@ $filterQuery = [
                             <td><?= esc((string) ($row['date'] ?? '')) ?></td>
                             <td><?= esc((string) ($row['voided_at'] ?? '')) ?></td>
                             <td><?= esc((string) ($row['supplier_name'] ?? '')) ?></td>
-                            <td class="text-right"><?= esc(number_format((float) ($row['qty_ordered_total'] ?? 0), 2)) ?></td>
-                            <td class="text-right"><?= esc(number_format((float) ($row['qty_picked_up_total'] ?? 0), 2)) ?></td>
-                            <td class="text-right"><?= esc(number_format((float) ($row['qty_balance_total'] ?? 0), 2)) ?></td>
+                            <td class="text-right"><?= esc(number_format((float) ($row['qty_ordered_total'] ?? 0), 5)) ?></td>
+                            <td class="text-right"><?= esc(number_format((float) ($row['qty_picked_up_total'] ?? 0), 5)) ?></td>
+                            <td class="text-right"><?= esc(number_format((float) ($row['qty_balance_total'] ?? 0), 5)) ?></td>
                             <td><?= esc((string) ($row['void_reason'] ?? '')) ?></td>
                             <td class="text-center"><button class="btn btn-secondary" type="button" @click="openHistory(<?= $rowId ?>)">History</button></td>
                         </tr>
@@ -101,9 +104,9 @@ $filterQuery = [
             <tfoot>
                 <tr class="total-highlight">
                     <th colspan="5">Totals</th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 2)) ?></th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 2)) ?></th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 5)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 5)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 5)) ?></th>
                     <th colspan="2"></th>
                 </tr>
             </tfoot>
@@ -130,9 +133,20 @@ $filterQuery = [
                 <h2 class="text-lg font-semibold">Details for PO#: <span x-text="selectedPoNumber()"></span></h2>
             </div>
             <table class="table">
-                <thead><tr><th>Product</th><th class="text-right">Ordered</th><th class="text-right">Picked</th><th class="text-right">Balance</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-right">Ordered</th>
+                        <th class="text-right">Picked</th>
+                        <th class="text-right">Balance</th>
+                    </tr>
+                </thead>
                 <tbody>
-                    <template x-if="selectedItems().length === 0"><tr><td class="py-3 text-center" colspan="4">No items found.</td></tr></template>
+                    <template x-if="selectedItems().length === 0">
+                        <tr>
+                            <td class="py-3 text-center" colspan="4">No items found.</td>
+                        </tr>
+                    </template>
                     <template x-for="item in selectedItems()" :key="item.id">
                         <tr>
                             <td x-text="item.product_name"></td>
@@ -182,9 +196,20 @@ $filterQuery = [
                                 <p>Date: <span x-text="historyOrder(history.old_supplier_order_json).date || '-'"></span></p>
                                 <p>Ordered Qty: <span x-text="formatQty(historyTotalQty(history.old_items_json))"></span></p>
                                 <table class="table mt-3 text-xs">
-                                    <thead><tr><th>Product</th><th class="text-right">Ordered</th><th class="text-right">Picked</th><th class="text-right">Balance</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th class="text-right">Ordered</th>
+                                            <th class="text-right">Picked</th>
+                                            <th class="text-right">Balance</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        <template x-if="historyItems(history.old_items_json).length === 0"><tr><td colspan="4">No items recorded.</td></tr></template>
+                                        <template x-if="historyItems(history.old_items_json).length === 0">
+                                            <tr>
+                                                <td colspan="4">No items recorded.</td>
+                                            </tr>
+                                        </template>
                                         <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
                                             <tr>
                                                 <td x-text="item.product_name || item.product_id || '-'"></td>
@@ -202,9 +227,20 @@ $filterQuery = [
                                 <p>Date: <span x-text="historyOrder(history.new_supplier_order_json).date || '-'"></span></p>
                                 <p>Ordered Qty: <span x-text="formatQty(historyTotalQty(history.new_items_json))"></span></p>
                                 <table class="table mt-3 text-xs">
-                                    <thead><tr><th>Product</th><th class="text-right">Ordered</th><th class="text-right">Picked</th><th class="text-right">Balance</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th class="text-right">Ordered</th>
+                                            <th class="text-right">Picked</th>
+                                            <th class="text-right">Balance</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        <template x-if="historyItems(history.new_items_json).length === 0"><tr><td colspan="4">No items recorded.</td></tr></template>
+                                        <template x-if="historyItems(history.new_items_json).length === 0">
+                                            <tr>
+                                                <td colspan="4">No items recorded.</td>
+                                            </tr>
+                                        </template>
                                         <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
                                             <tr>
                                                 <td x-text="item.product_name || item.product_id || '-'"></td>
@@ -234,17 +270,35 @@ $filterQuery = [
             historyOpen: false,
             selectedSupplierOrderId: null,
             selectedHistoryId: null,
-            openPoDetails(id) { this.selectedSupplierOrderId = id; this.poDetailsOpen = true; },
-            closePoDetails() { this.poDetailsOpen = false; this.selectedSupplierOrderId = null; },
-            openHistory(id) { this.selectedHistoryId = id; this.historyOpen = true; },
-            closeHistory() { this.historyOpen = false; this.selectedHistoryId = null; },
+            openPoDetails(id) {
+                this.selectedSupplierOrderId = id;
+                this.poDetailsOpen = true;
+            },
+            closePoDetails() {
+                this.poDetailsOpen = false;
+                this.selectedSupplierOrderId = null;
+            },
+            openHistory(id) {
+                this.selectedHistoryId = id;
+                this.historyOpen = true;
+            },
+            closeHistory() {
+                this.historyOpen = false;
+                this.selectedHistoryId = null;
+            },
             selectedHistoryOrder() {
                 return this.rows.find((item) => String(item.id) === String(this.selectedHistoryId)) || null;
             },
-            selectedHistories() { return this.historiesBySupplierOrder[this.selectedHistoryId] || []; },
+            selectedHistories() {
+                return this.historiesBySupplierOrder[this.selectedHistoryId] || [];
+            },
             historyOrder(value) {
                 if (!value) return {};
-                try { return JSON.parse(value); } catch (error) { return {}; }
+                try {
+                    return JSON.parse(value);
+                } catch (error) {
+                    return {};
+                }
             },
             historyItems(value) {
                 if (!value) return [];
@@ -262,11 +316,13 @@ $filterQuery = [
                 const row = this.rows.find((item) => String(item.id) === String(this.selectedSupplierOrderId));
                 return row ? row.po_no : '';
             },
-            selectedItems() { return this.itemsBySupplierOrder[this.selectedSupplierOrderId] || []; },
+            selectedItems() {
+                return this.itemsBySupplierOrder[this.selectedSupplierOrderId] || [];
+            },
             formatQty(value) {
-                return (Math.round((parseFloat(value) || 0) * 100) / 100).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
+                return (Math.round((parseFloat(value) || 0) * 100000) / 100000).toLocaleString(undefined, {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5,
                 });
             },
         };

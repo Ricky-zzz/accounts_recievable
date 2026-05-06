@@ -11,6 +11,7 @@
  */
 ?>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <title>Voided POs Report</title>
@@ -149,9 +150,9 @@
                         <td><?= esc((string) ($row['date'] ?? '')) ?></td>
                         <td><?= esc((string) ($row['voided_at'] ?? '')) ?></td>
                         <td><?= esc((string) ($row['supplier_name'] ?? '')) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($row['qty_ordered_total'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($row['qty_picked_up_total'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($row['qty_balance_total'] ?? 0), 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($row['qty_ordered_total'] ?? 0), 5)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($row['qty_picked_up_total'] ?? 0), 5)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($row['qty_balance_total'] ?? 0), 5)) ?></td>
                         <td><?= esc((string) ($row['void_reason'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -160,9 +161,9 @@
         <tfoot>
             <tr>
                 <th colspan="5">Totals</th>
-                <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 2)) ?></th>
-                <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 2)) ?></th>
-                <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
+                <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 5)) ?></th>
+                <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 5)) ?></th>
+                <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 5)) ?></th>
                 <th></th>
             </tr>
         </tfoot>

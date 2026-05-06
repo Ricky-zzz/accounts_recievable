@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var array{id: int|string, name: string, payment_term?: int|string|null} $client
  * @var string $fromDate
@@ -52,38 +53,38 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
 
     <form method="get" action="<?= base_url('clients/' . ($client['id'] ?? 0) . '/deliveries') ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
         <div class="grid gap-4 md:grid-cols-4">
-        <div>
-            <label class="block text-sm font-medium" for="dr_no">DR Number</label>
-            <input
-                class="input mt-1"
-                id="dr_no"
-                name="dr_no"
-                value="<?= esc($drNo ?? '') ?>"
-                @input.debounce.1000ms="$el.form.requestSubmit()">
-        </div>
-        <div>
-            <label class="block text-sm font-medium" for="from_date">From Date</label>
-            <input
-                class="input mt-1"
-                id="from_date"
-                name="from_date"
-                type="date"
-                value="<?= esc($fromDate ?? '') ?>"
-                @change="$el.form.requestSubmit()">
-        </div>
-        <div>
-            <label class="block text-sm font-medium" for="to_date">To Date</label>
-            <input
-                class="input mt-1"
-                id="to_date"
-                name="to_date"
-                type="date"
-                value="<?= esc($toDate ?? '') ?>"
-                @change="$el.form.requestSubmit()">
-        </div>
-        <div class="flex items-end gap-2">
-            <a class="btn btn-secondary" href="<?= base_url('clients/' . ($client['id'] ?? 0) . '/deliveries') ?>">Clear</a>
-        </div>
+            <div>
+                <label class="block text-sm font-medium" for="dr_no">DR Number</label>
+                <input
+                    class="input mt-1"
+                    id="dr_no"
+                    name="dr_no"
+                    value="<?= esc($drNo ?? '') ?>"
+                    @input.debounce.1000ms="$el.form.requestSubmit()">
+            </div>
+            <div>
+                <label class="block text-sm font-medium" for="from_date">From Date</label>
+                <input
+                    class="input mt-1"
+                    id="from_date"
+                    name="from_date"
+                    type="date"
+                    value="<?= esc($fromDate ?? '') ?>"
+                    @change="$el.form.requestSubmit()">
+            </div>
+            <div>
+                <label class="block text-sm font-medium" for="to_date">To Date</label>
+                <input
+                    class="input mt-1"
+                    id="to_date"
+                    name="to_date"
+                    type="date"
+                    value="<?= esc($toDate ?? '') ?>"
+                    @change="$el.form.requestSubmit()">
+            </div>
+            <div class="flex items-end gap-2">
+                <a class="btn btn-secondary" href="<?= base_url('clients/' . ($client['id'] ?? 0) . '/deliveries') ?>">Clear</a>
+            </div>
         </div>
     </form>
 
@@ -109,11 +110,11 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             <?php else: ?>
                 <?php foreach ($deliveries as $index => $delivery): ?>
                     <?php
-                        $deliveryBalance = (float) ($delivery['balance'] ?? 0);
-                        $deliveryAllocated = (float) ($delivery['allocated_amount'] ?? 0);
-                        $canCollectDelivery = $deliveryBalance > 0;
-                        $canEditDelivery = $deliveryAllocated <= 0;
-                        $canVoidDelivery = $deliveryAllocated <= 0 && $deliveryBalance > 0;
+                    $deliveryBalance = (float) ($delivery['balance'] ?? 0);
+                    $deliveryAllocated = (float) ($delivery['allocated_amount'] ?? 0);
+                    $canCollectDelivery = $deliveryBalance > 0;
+                    $canEditDelivery = $deliveryAllocated <= 0;
+                    $canVoidDelivery = $deliveryAllocated <= 0 && $deliveryBalance > 0;
                     ?>
                     <tr>
                         <td><?= esc((string) ((int) ($rowOffset ?? 0) + $index + 1)) ?></td>
@@ -189,7 +190,7 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                     <template x-for="item in selectedItems()" :key="item.id">
                         <tr>
                             <td x-text="item.product_name"></td>
-                            <td x-text="item.qty"></td>
+                            <td x-text="formatQty(item.qty)"></td>
                             <td x-text="Number(item.unit_price).toFixed(2)"></td>
                             <td x-text="Number(item.line_total).toFixed(2)"></td>
                         </tr>
@@ -250,7 +251,7 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                             <template x-for="item in selectedItems()" :key="item.id">
                                 <tr>
                                     <td x-text="item.product_name"></td>
-                                    <td x-text="item.qty"></td>
+                                    <td x-text="formatQty(item.qty)"></td>
                                     <td x-text="Number(item.unit_price).toFixed(2)"></td>
                                     <td x-text="Number(item.line_total).toFixed(2)"></td>
                                 </tr>
@@ -307,15 +308,17 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                     </thead>
                     <tbody>
                         <template x-if="selectedPickupAllocations().length === 0">
-                            <tr><td colspan="5">No RR connected.</td></tr>
+                            <tr>
+                                <td colspan="5">No RR connected.</td>
+                            </tr>
                         </template>
                         <template x-for="item in selectedPickupAllocations()" :key="item.purchase_order_id + '-' + item.product_id">
                             <tr>
                                 <td x-text="item.rr_no"></td>
                                 <td x-text="item.supplier_name"></td>
                                 <td x-text="item.product_name"></td>
-                                <td class="text-right" x-text="formatAmount(item.qty_allocated)"></td>
-                                <td class="text-right" x-text="formatAmount((parseFloat(item.remaining_qty) || 0) - (parseFloat(item.qty_allocated) || 0))"></td>
+                                <td class="text-right" x-text="formatQty(item.qty_allocated)"></td>
+                                <td class="text-right" x-text="formatQty((parseFloat(item.remaining_qty) || 0) - (parseFloat(item.qty_allocated) || 0))"></td>
                             </tr>
                         </template>
                     </tbody>
@@ -363,7 +366,15 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             editPickupSearchToken: 0,
             editPickupMessage: '',
             editPickupResults: [],
-            editPickup: { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0, qty_allocated: 0 },
+            editPickup: {
+                id: '',
+                product_id: '',
+                rr_no: '',
+                supplier_name: '',
+                product_name: '',
+                remaining_qty: 0,
+                qty_allocated: 0
+            },
             quickPayDeliveryId: '<?= esc(old('delivery_id') ?: '') ?>',
             quickPay: {
                 date: '<?= esc(old('date') && old('delivery_id') ? old('date') : date('Y-m-d')) ?>',
@@ -389,8 +400,17 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                     maximumFractionDigits: 2,
                 });
             },
+            formatQty(value) {
+                return (Math.round((parseFloat(value) || 0) * 100000) / 100000).toLocaleString(undefined, {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5,
+                });
+            },
             formatInputAmount(value) {
                 return this.normalizeAmount(value).toFixed(2);
+            },
+            syncAllocationFromReceived() {
+                this.quickPay.allocationAmount = this.quickPay.amountReceived;
             },
             effectiveUnitPrice(productId, clientId) {
                 const product = this.products.find((row) => String(row.id) === String(productId));
@@ -398,9 +418,9 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 const clientPrices = this.clientPriceMap[String(clientId)] || {};
                 const specialPrice = clientPrices[String(productId)];
 
-                return specialPrice !== undefined && specialPrice !== null && String(specialPrice) !== ''
-                    ? specialPrice
-                    : defaultPrice;
+                return specialPrice !== undefined && specialPrice !== null && String(specialPrice) !== '' ?
+                    specialPrice :
+                    defaultPrice;
             },
             openDeliveryForm() {
                 this.deliveryFormOpen = true;
@@ -493,10 +513,10 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 ].reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
             },
             quickPayBalanceAmount() {
-                return (parseFloat(this.quickPay.amountReceived) || 0)
-                    + this.quickPayFixedAccountsTotal()
-                    - (parseFloat(this.quickPay.allocationAmount) || 0)
-                    - (parseFloat(this.quickPay.arOtherAmount) || 0);
+                return (parseFloat(this.quickPay.amountReceived) || 0) +
+                    this.quickPayFixedAccountsTotal() -
+                    (parseFloat(this.quickPay.allocationAmount) || 0) -
+                    (parseFloat(this.quickPay.arOtherAmount) || 0);
             },
             selectedActionDelivery() {
                 return this.quickPayDeliveries.find((delivery) => String(delivery.id) === String(this.actionDeliveryId)) || null;
@@ -528,7 +548,15 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                     product_name: pickup.product_name || '',
                     remaining_qty: pickup.remaining_qty || 0,
                     qty_allocated: pickup.qty_allocated || 0,
-                } : { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0, qty_allocated: 0 };
+                } : {
+                    id: '',
+                    product_id: '',
+                    rr_no: '',
+                    supplier_name: '',
+                    product_name: '',
+                    remaining_qty: 0,
+                    qty_allocated: 0
+                };
                 this.editPickupQuery = pickup ? (pickup.rr_no || '') : '';
                 this.editPickupSearchToken++;
                 this.editPickupSearching = false;
@@ -605,7 +633,9 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                         exclude_delivery_id: this.actionDeliveryId || '',
                     });
                     const response = await fetch(this.pickupSearchUrl + '?' + params.toString(), {
-                        headers: { 'Accept': 'application/json' }
+                        headers: {
+                            'Accept': 'application/json'
+                        }
                     });
                     const data = await response.json();
                     if (token !== this.editPickupSearchToken) {
@@ -668,7 +698,15 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             },
             clearEditPickup(resetQuery = true) {
                 this.editPickupSearchToken++;
-                this.editPickup = { id: '', product_id: '', rr_no: '', supplier_name: '', product_name: '', remaining_qty: 0, qty_allocated: 0 };
+                this.editPickup = {
+                    id: '',
+                    product_id: '',
+                    rr_no: '',
+                    supplier_name: '',
+                    product_name: '',
+                    remaining_qty: 0,
+                    qty_allocated: 0
+                };
                 this.editPickupSearching = false;
                 this.editPickupResults = [];
                 this.editPickupMessage = '';

@@ -493,12 +493,12 @@ class SupplierOrders extends BaseController
     private function applyStatusFilter($builder, string $statusFilter): void
     {
         if ($statusFilter === 'active') {
-            $builder->where('COALESCE(totals.qty_balance_total, 0) > 0.005', null, false);
+            $builder->where('COALESCE(totals.qty_balance_total, 0) > 0.000005', null, false);
             return;
         }
 
         if ($statusFilter === 'closed') {
-            $builder->where('COALESCE(totals.qty_balance_total, 0) <= 0.005', null, false);
+            $builder->where('COALESCE(totals.qty_balance_total, 0) <= 0.000005', null, false);
         }
     }
 
@@ -561,8 +561,8 @@ class SupplierOrders extends BaseController
 
         $oldTotal = $this->sumHistoryItems($oldItems);
         $newTotal = $this->sumHistoryItems($newItems);
-        if (abs($oldTotal - $newTotal) > 0.005) {
-            $changes[] = 'Ordered quantity changed from ' . number_format($oldTotal, 2) . ' to ' . number_format($newTotal, 2);
+        if (abs($oldTotal - $newTotal) > 0.000005) {
+            $changes[] = 'Ordered quantity changed from ' . number_format($oldTotal, 5) . ' to ' . number_format($newTotal, 5);
         }
 
         if (count($oldItems) !== count($newItems)) {
@@ -576,7 +576,7 @@ class SupplierOrders extends BaseController
     {
         return array_reduce(
             $items,
-            static fn (float $sum, array $item): float => $sum + (float) ($item['qty_ordered'] ?? 0),
+            static fn(float $sum, array $item): float => $sum + (float) ($item['qty_ordered'] ?? 0),
             0.0
         );
     }
@@ -623,5 +623,4 @@ class SupplierOrders extends BaseController
 
         return in_array($status, ['all', 'active', 'closed'], true) ? $status : 'all';
     }
-
 }

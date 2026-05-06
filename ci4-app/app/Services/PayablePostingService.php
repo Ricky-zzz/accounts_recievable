@@ -7,6 +7,7 @@ use App\Models\CashierReceiptRangeModel;
 use App\Models\PayableAllocationModel;
 use App\Models\PayableLedgerModel;
 use App\Models\PayableModel;
+use App\Models\SupplierModel;
 use RuntimeException;
 
 class PayablePostingService
@@ -274,14 +275,7 @@ class PayablePostingService
         float $apOtherAmount,
         string $apOtherDescription
     ): void {
-        $lastLedger = $ledgerModel
-            ->select('balance')
-            ->where('supplier_id', $supplierId)
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $currentBalance = (float) ($lastLedger['balance'] ?? 0);
+        $currentBalance = $this->resolveStartingBalance($ledgerModel, $supplierId);
         $ledgerPayment = min($amountPaid, $allocatedTotal);
         $currentBalance -= $ledgerPayment;
 
@@ -346,5 +340,25 @@ class PayablePostingService
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
+    }
+
+    private function resolveStartingBalance(PayableLedgerModel $ledgerModel, int $supplierId): float
+    {
+        $lastLedger = $ledgerModel
+            ->select('balance')
+            ->where('supplier_id', $supplierId)
+            ->orderBy('entry_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if ($lastLedger) {
+            return (float) ($lastLedger['balance'] ?? 0);
+        }
+
+        $supplier = (new SupplierModel())
+            ->select('forwarded_balance')
+            ->find($supplierId);
+
+        return (float) ($supplier['forwarded_balance'] ?? 0);
     }
 }

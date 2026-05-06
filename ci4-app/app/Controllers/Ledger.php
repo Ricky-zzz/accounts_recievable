@@ -67,6 +67,36 @@ class Ledger extends BaseController
             ->setBody($dompdf->output());
     }
 
+    public function saveForwardBalance()
+    {
+        $clientId = (int) $this->request->getPost('client_id');
+        $balanceInput = trim((string) $this->request->getPost('forwarded_balance'));
+
+        if ($clientId <= 0) {
+            return redirect()->back()->with('error', 'Select a client first.');
+        }
+
+        $clientModel = new ClientModel();
+        $client = $clientModel->find($clientId);
+
+        if (! $client) {
+            return redirect()->back()->with('error', 'Client not found.');
+        }
+
+        if ($balanceInput === '') {
+            $balance = 0.0;
+        } elseif (! is_numeric($balanceInput)) {
+            return redirect()->back()->with('error', 'Forwarded balance must be a valid number.');
+        } else {
+            $balance = (float) $balanceInput;
+        }
+
+        $clientModel->update($clientId, ['forwarded_balance' => $balance]);
+        $this->recalculateClientLedgerBalances($clientId, $balance);
+
+        return redirect()->back()->with('success', 'Forwarded balance saved.');
+    }
+
     private function buildReportData(int $clientId, string $start, string $end, bool $paginate): array
     {
         $clientModel = new ClientModel();
@@ -74,6 +104,7 @@ class Ledger extends BaseController
 
         $selectedClient = null;
         $openingBalance = 0.0;
+        $forwardedBalance = 0.0;
         $rows = [];
         $itemCounts = [];
         $allRows = [];
@@ -85,6 +116,9 @@ class Ledger extends BaseController
 
         if ($clientId > 0) {
             $selectedClient = $clientModel->find($clientId);
+            if ($selectedClient) {
+                $forwardedBalance = (float) ($selectedClient['forwarded_balance'] ?? 0);
+            }
         }
 
         if ($selectedClient) {
@@ -99,7 +133,13 @@ class Ledger extends BaseController
                     ->orderBy('id', 'desc')
                     ->first();
 
-                $openingBalance = (float) ($openingRow['balance'] ?? 0);
+                if ($openingRow) {
+                    $openingBalance = (float) ($openingRow['balance'] ?? 0);
+                } else {
+                    $openingBalance = $forwardedBalance;
+                }
+            } else {
+                $openingBalance = $forwardedBalance;
             }
 
             $builder = $ledgerModel->where('client_id', $clientId);
@@ -162,6 +202,7 @@ class Ledger extends BaseController
             'start' => $start,
             'end' => $end,
             'openingBalance' => $openingBalance,
+            'forwardedBalance' => $forwardedBalance,
             'currentBalance' => $currentBalance,
             'rows' => $rows,
             'allRowsCount' => $totalRows,
@@ -171,6 +212,27 @@ class Ledger extends BaseController
             'rowOffset' => $rowOffset,
             'itemCounts' => $itemCounts,
         ];
+    }
+
+    private function recalculateClientLedgerBalances(int $clientId, float $startingBalance): void
+    {
+        $ledgerModel = new LedgerModel();
+        $rows = $ledgerModel
+            ->where('client_id', $clientId)
+            ->orderBy('entry_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->findAll();
+
+        $balance = $startingBalance;
+        foreach ($rows as $row) {
+            $balance += (float) ($row['amount'] ?? 0);
+            $balance -= (float) ($row['collection'] ?? 0);
+            $balance -= (float) ($row['other_accounts'] ?? 0);
+
+            if (abs((float) ($row['balance'] ?? 0) - $balance) > 0.005) {
+                $ledgerModel->update((int) $row['id'], ['balance' => $balance]);
+            }
+        }
     }
 
     private function resolveDateRange(): array

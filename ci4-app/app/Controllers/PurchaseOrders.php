@@ -153,14 +153,14 @@ class PurchaseOrders extends BaseController
         }
 
         $supplierOrderId = $this->resolveHeaderSupplierOrderId($cleanItems);
-        $total = array_reduce($cleanItems, static fn (float $sum, array $item): float => $sum + (float) $item['line_total'], 0.0);
+        $total = array_reduce($cleanItems, static fn(float $sum, array $item): float => $sum + (float) $item['line_total'], 0.0);
         $previousBalance = $this->latestLedgerBalance($supplierId);
         $creditLimit = $supplier['credit_limit'] ?? null;
         if ($creditLimit !== null && $creditLimit !== '' && (float) $creditLimit > 0 && $previousBalance + $total > (float) $creditLimit) {
             return redirect()->back()->withInput()->with(
                 'error',
                 'Credit limit exceeded. Projected balance ' . number_format($previousBalance + $total, 2)
-                . ' is greater than supplier credit limit ' . number_format((float) $creditLimit, 2) . '.'
+                    . ' is greater than supplier credit limit ' . number_format((float) $creditLimit, 2) . '.'
             );
         }
 
@@ -256,7 +256,7 @@ class PurchaseOrders extends BaseController
         }
 
         $supplierOrderId = $this->resolveHeaderSupplierOrderId($cleanItems);
-        $total = array_reduce($cleanItems, static fn (float $sum, array $item): float => $sum + (float) $item['line_total'], 0.0);
+        $total = array_reduce($cleanItems, static fn(float $sum, array $item): float => $sum + (float) $item['line_total'], 0.0);
         $effectivePaymentTerm = $postedPaymentTerm === '' ? (int) ($purchaseOrder['payment_term'] ?? 0) : (int) $postedPaymentTerm;
         $effectivePaymentTerm = max(0, $effectivePaymentTerm);
         $dueDate = $this->calculateDueDate($date, $effectivePaymentTerm);
@@ -460,13 +460,21 @@ class PurchaseOrders extends BaseController
             ->orderBy('id', 'desc')
             ->first();
 
-        return (float) ($lastLedger['balance'] ?? 0);
+        if ($lastLedger) {
+            return (float) ($lastLedger['balance'] ?? 0);
+        }
+
+        $supplier = (new SupplierModel())
+            ->select('forwarded_balance')
+            ->find($supplierId);
+
+        return (float) ($supplier['forwarded_balance'] ?? 0);
     }
 
     private function autoAllocateSupplierOrders(int $supplierId, array $items, array $restoredQuantities = []): array
     {
         $productIds = array_values(array_unique(array_filter(array_map(
-            static fn (array $item): int => (int) ($item['product_id'] ?? 0),
+            static fn(array $item): int => (int) ($item['product_id'] ?? 0),
             $items
         ))));
 
@@ -496,7 +504,7 @@ class PurchaseOrders extends BaseController
         foreach ($sources as $source) {
             $sourceItemId = (int) ($source['id'] ?? 0);
             $availableQty = (float) ($source['qty_balance'] ?? 0) + (float) ($restoredQuantities[$sourceItemId] ?? 0);
-            if ($sourceItemId <= 0 || $availableQty <= 0.005) {
+            if ($sourceItemId <= 0 || $availableQty <= 0.000005) {
                 continue;
             }
 
@@ -513,12 +521,12 @@ class PurchaseOrders extends BaseController
             $productSources = $sourcesByProduct[$productId] ?? [];
 
             foreach ($productSources as $sourceIndex => $source) {
-                if ($remainingQty <= 0.005) {
+                if ($remainingQty <= 0.000005) {
                     break;
                 }
 
                 $availableQty = (float) ($source['available_qty'] ?? 0);
-                if ($availableQty <= 0.005) {
+                if ($availableQty <= 0.000005) {
                     continue;
                 }
 
@@ -537,7 +545,7 @@ class PurchaseOrders extends BaseController
                 $sourcesByProduct[$productId][$sourceIndex]['available_qty'] = $availableQty - $allocatedQty;
             }
 
-            if ($remainingQty > 0.005) {
+            if ($remainingQty > 0.000005) {
                 $productName = $productNames[$productId] ?? ('Product #' . $productId);
                 throw new RuntimeException(
                     'Pickup quantity exceeds open Supplier PO balance for ' . $productName . '. Create a new Supplier PO first.'
@@ -608,7 +616,10 @@ class PurchaseOrders extends BaseController
             ->orderBy('id', 'asc')
             ->findAll();
 
-        $balance = 0.0;
+        $supplier = (new SupplierModel())
+            ->select('forwarded_balance')
+            ->find($supplierId);
+        $balance = (float) ($supplier['forwarded_balance'] ?? 0);
         foreach ($rows as $row) {
             $balance += (float) ($row['payables'] ?? 0);
             $balance -= (float) ($row['payment'] ?? 0);
@@ -696,7 +707,7 @@ class PurchaseOrders extends BaseController
         ]);
 
         return array_map(
-            static fn (array $item): array => array_intersect_key($item, $allowed),
+            static fn(array $item): array => array_intersect_key($item, $allowed),
             $items
         );
     }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var array<string, mixed> $deliveryActionData
  */
@@ -73,8 +74,8 @@ $products = $deliveryActionData['products'] ?? [];
                                     <td class="font-semibold" x-text="row.rr_no"></td>
                                     <td x-text="row.supplier_name"></td>
                                     <td x-text="row.product_name"></td>
-                                    <td class="tabular-nums" x-text="formatAmount(row.qty)"></td>
-                                    <td class="tabular-nums" x-text="formatAmount(row.remaining_qty)"></td>
+                                    <td class="tabular-nums" x-text="formatQty(row.qty)"></td>
+                                    <td class="tabular-nums" x-text="formatQty(row.remaining_qty)"></td>
                                     <td class="text-right">
                                         <button class="btn btn-secondary" type="button" @click="selectEditPickup(row)">Choose</button>
                                     </td>
@@ -86,13 +87,20 @@ $products = $deliveryActionData['products'] ?? [];
 
                 <div class="mt-3 overflow-x-auto rounded border border-gray-200" x-show="editPickup.id" x-cloak>
                     <table class="table">
-                        <thead><tr><th>Supplier</th><th>Product</th><th>Quantity</th><th>Deliverable / Loss</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Supplier</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Deliverable / Loss</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             <tr>
                                 <td x-text="editPickup.supplier_name"></td>
                                 <td x-text="editPickup.product_name"></td>
-                                <td class="tabular-nums" x-text="formatAmount(editPickupAvailableQty())"></td>
-                                <td class="tabular-nums" x-text="formatAmount(editPickupBalanceAfterDelivery())"></td>
+                                <td class="tabular-nums" x-text="formatQty(editPickupAvailableQty())"></td>
+                                <td class="tabular-nums" x-text="formatQty(editPickupBalanceAfterDelivery())"></td>
                             </tr>
                         </tbody>
                     </table>
@@ -123,7 +131,7 @@ $products = $deliveryActionData['products'] ?? [];
                             </div>
                             <div>
                                 <label class="block text-xs font-medium" :for="'edit_qty_' + index">Qty</label>
-                                <input class="input mt-1" :id="'edit_qty_' + index" type="number" step="0.01" min="0" x-model="item.qty" @input="updateEditLine(index)" :name="'items[' + index + '][qty]'" required>
+                                <input class="input mt-1" :id="'edit_qty_' + index" type="number" step="0.00001" min="0" x-model="item.qty" @input="updateEditLine(index)" :name="'items[' + index + '][qty]'" required>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium" :for="'edit_total_' + index">Total</label>
@@ -252,7 +260,7 @@ $products = $deliveryActionData['products'] ?? [];
                                         <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
                                             <tr>
                                                 <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
-                                                <td x-text="item.qty"></td>
+                                                <td x-text="formatQty(item.qty)"></td>
                                                 <td x-text="formatAmount(item.unit_price || 0)"></td>
                                                 <td x-text="formatAmount(item.line_total || 0)"></td>
                                             </tr>
@@ -286,7 +294,7 @@ $products = $deliveryActionData['products'] ?? [];
                                         <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
                                             <tr>
                                                 <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
-                                                <td x-text="item.qty"></td>
+                                                <td x-text="formatQty(item.qty)"></td>
                                                 <td x-text="formatAmount(item.unit_price || 0)"></td>
                                                 <td x-text="formatAmount(item.line_total || 0)"></td>
                                             </tr>

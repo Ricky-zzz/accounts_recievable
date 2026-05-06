@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var string $fromVoidedDate
  * @var string $toVoidedDate
@@ -41,21 +42,21 @@ $filterQuery = [
 
         <form method="get" action="<?= base_url('payable-reports/voided') ?>" class="filter-card rounded border border-gray-200 p-4" x-data>
             <div class="grid gap-4 md:grid-cols-5">
-            <div>
-                <label class="block text-sm font-medium" for="po_no">RR Number</label>
-                <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
-            </div>
-            <div>
-                <label class="block text-sm font-medium" for="from_voided_date">From Voided Date</label>
-                <input class="input mt-1" id="from_voided_date" name="from_voided_date" type="date" value="<?= esc($fromVoidedDate ?? '') ?>" @change="$el.form.requestSubmit()">
-            </div>
-            <div>
-                <label class="block text-sm font-medium" for="to_voided_date">To Voided Date</label>
-                <input class="input mt-1" id="to_voided_date" name="to_voided_date" type="date" value="<?= esc($toVoidedDate ?? '') ?>" @change="$el.form.requestSubmit()">
-            </div>
-            <div class="flex items-end gap-2 md:col-span-2">
-                <a class="btn btn-secondary" href="<?= base_url('payable-reports/voided') ?>">Clear</a>
-            </div>
+                <div>
+                    <label class="block text-sm font-medium" for="po_no">RR Number</label>
+                    <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="from_voided_date">From Voided Date</label>
+                    <input class="input mt-1" id="from_voided_date" name="from_voided_date" type="date" value="<?= esc($fromVoidedDate ?? '') ?>" @change="$el.form.requestSubmit()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium" for="to_voided_date">To Voided Date</label>
+                    <input class="input mt-1" id="to_voided_date" name="to_voided_date" type="date" value="<?= esc($toVoidedDate ?? '') ?>" @change="$el.form.requestSubmit()">
+                </div>
+                <div class="flex items-end gap-2 md:col-span-2">
+                    <a class="btn btn-secondary" href="<?= base_url('payable-reports/voided') ?>">Clear</a>
+                </div>
             </div>
         </form>
 
@@ -76,7 +77,9 @@ $filterQuery = [
             </thead>
             <tbody>
                 <?php if (empty($rows)): ?>
-                    <tr><td colspan="10">No voided pickups found.</td></tr>
+                    <tr>
+                        <td colspan="10">No voided pickups found.</td>
+                    </tr>
                 <?php else: ?>
                     <?php foreach ($rows as $index => $row): ?>
                         <?php $rowId = (int) ($row['id'] ?? 0); ?>
@@ -140,10 +143,28 @@ $filterQuery = [
                 <div>
                     <h3 class="mb-3 font-semibold">Pickup Items</h3>
                     <table class="table">
-                        <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <template x-if="selectedItems().length === 0"><tr><td class="py-3 text-center" colspan="4">No items found.</td></tr></template>
-                            <template x-for="item in selectedItems()" :key="item.id"><tr><td x-text="item.product_name"></td><td x-text="item.qty"></td><td x-text="Number(item.unit_price).toFixed(2)"></td><td x-text="Number(item.line_total).toFixed(2)"></td></tr></template>
+                            <template x-if="selectedItems().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="4">No items found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="item in selectedItems()" :key="item.id">
+                                <tr>
+                                    <td x-text="item.product_name"></td>
+                                    <td x-text="formatQty(item.qty)"></td>
+                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
+                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                     <div class="mt-2 text-sm font-semibold" x-show="selectedItems().length > 0">Total: <span x-text="itemsTotal()"></span></div>
@@ -151,10 +172,26 @@ $filterQuery = [
                 <div>
                     <h3 class="mb-3 font-semibold">CV Allocations</h3>
                     <table class="table">
-                        <thead><tr><th>CV #</th><th>Date</th><th>Amount</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>CV #</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <template x-if="selectedAllocations().length === 0"><tr><td class="py-3 text-center" colspan="3">No allocations found.</td></tr></template>
-                            <template x-for="(alloc, index) in selectedAllocations()" :key="index"><tr><td x-text="alloc.pr_no"></td><td x-text="alloc.date"></td><td x-text="Number(alloc.amount).toFixed(2)"></td></tr></template>
+                            <template x-if="selectedAllocations().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
+                                <tr>
+                                    <td x-text="alloc.pr_no"></td>
+                                    <td x-text="alloc.date"></td>
+                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                     <div class="mt-2 text-sm font-semibold" x-show="selectedAllocations().length > 0">Total: <span x-text="allocationsTotal()"></span></div>
@@ -195,9 +232,9 @@ $filterQuery = [
                         <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">Before</p>
-                                <p class="mt-2">RR#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
-                                <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'" ></span></p>
-                                <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'"></span></p>
+                                <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'"></span></p>
+                                <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)"></span></p>
                                 <div class="mt-3">
                                     <p class="font-semibold">Items</p>
                                     <table class="table mt-2 text-xs">
@@ -218,7 +255,7 @@ $filterQuery = [
                                             <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
                                                 <tr>
                                                     <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
-                                                    <td x-text="item.qty"></td>
+                                                    <td x-text="formatQty(item.qty)"></td>
                                                     <td x-text="formatAmount(item.unit_price || 0)"></td>
                                                     <td x-text="formatAmount(item.line_total || 0)"></td>
                                                 </tr>
@@ -229,9 +266,9 @@ $filterQuery = [
                             </div>
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">After</p>
-                                <p class="mt-2">RR#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
-                                <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'" ></span></p>
-                                <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'"></span></p>
+                                <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'"></span></p>
+                                <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)"></span></p>
                                 <div class="mt-3">
                                     <p class="font-semibold">Items</p>
                                     <table class="table mt-2 text-xs">
@@ -252,7 +289,7 @@ $filterQuery = [
                                             <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
                                                 <tr>
                                                     <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
-                                                    <td x-text="item.qty"></td>
+                                                    <td x-text="formatQty(item.qty)"></td>
                                                     <td x-text="formatAmount(item.unit_price || 0)"></td>
                                                     <td x-text="formatAmount(item.line_total || 0)"></td>
                                                 </tr>
@@ -289,10 +326,28 @@ $filterQuery = [
                     maximumFractionDigits: 2,
                 });
             },
-            openPoDetails(id) { this.selectedPurchaseOrderId = id; this.poDetailsOpen = true; },
-            closePoDetails() { this.poDetailsOpen = false; this.selectedPurchaseOrderId = null; },
-            openHistory(id) { this.selectedHistoryId = id; this.historyOpen = true; },
-            closeHistory() { this.historyOpen = false; this.selectedHistoryId = null; },
+            formatQty(value) {
+                return (Math.round((parseFloat(value) || 0) * 100000) / 100000).toLocaleString(undefined, {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5,
+                });
+            },
+            openPoDetails(id) {
+                this.selectedPurchaseOrderId = id;
+                this.poDetailsOpen = true;
+            },
+            closePoDetails() {
+                this.poDetailsOpen = false;
+                this.selectedPurchaseOrderId = null;
+            },
+            openHistory(id) {
+                this.selectedHistoryId = id;
+                this.historyOpen = true;
+            },
+            closeHistory() {
+                this.historyOpen = false;
+                this.selectedHistoryId = null;
+            },
             selectedPoNumber() {
                 const row = this.rows.find((r) => String(r.id) === String(this.selectedPurchaseOrderId));
                 return row ? row.po_no : '';
@@ -300,11 +355,21 @@ $filterQuery = [
             selectedHistoryOrder() {
                 return this.rows.find((r) => String(r.id) === String(this.selectedHistoryId)) || null;
             },
-            selectedHistories() { return this.historiesByPurchaseOrder[this.selectedHistoryId] || []; },
-            selectedItems() { return this.itemsByPurchaseOrder[this.selectedPurchaseOrderId] || []; },
-            selectedAllocations() { return this.allocationsByPurchaseOrder[this.selectedPurchaseOrderId] || []; },
-            itemsTotal() { return this.selectedItems().reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0).toFixed(2); },
-            allocationsTotal() { return this.selectedAllocations().reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0).toFixed(2); },
+            selectedHistories() {
+                return this.historiesByPurchaseOrder[this.selectedHistoryId] || [];
+            },
+            selectedItems() {
+                return this.itemsByPurchaseOrder[this.selectedPurchaseOrderId] || [];
+            },
+            selectedAllocations() {
+                return this.allocationsByPurchaseOrder[this.selectedPurchaseOrderId] || [];
+            },
+            itemsTotal() {
+                return this.selectedItems().reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0).toFixed(2);
+            },
+            allocationsTotal() {
+                return this.selectedAllocations().reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0).toFixed(2);
+            },
             historyOrder(value) {
                 if (!value) {
                     return {};

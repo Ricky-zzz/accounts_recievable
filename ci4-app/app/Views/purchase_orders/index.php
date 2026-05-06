@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var string $fromDate
  * @var string $toDate
@@ -30,11 +31,6 @@ $selectedSupplier = $formData['selectedSupplier'] ?? null;
 $defaultPaymentTerm = $formData['defaultPaymentTerm'] ?? '';
 $productsJson = json_encode($products, $jsonFlags);
 $suppliersJson = json_encode($suppliers, $jsonFlags);
-$assignedUser = $quickPayData['assignedUser'] ?? null;
-$collectorLabel = trim((string) (($assignedUser['name'] ?? '') . ' (' . ($assignedUser['username'] ?? '-') . ')'));
-$activeReceipt = $quickPayData['activeReceipt'] ?? null;
-$rangeEnd = $quickPayData['rangeEnd'] ?? null;
-$banks = $quickPayData['banks'] ?? [];
 $listUrl = base_url('purchase-orders');
 $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_no' => $poNo ?? ''];
 ?>
@@ -58,21 +54,21 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
 
     <form method="get" action="<?= esc($listUrl) ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
         <div class="grid gap-4 md:grid-cols-4">
-        <div>
-            <label class="block text-sm font-medium" for="po_no">RR Number</label>
-            <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
-        </div>
-        <div>
-            <label class="block text-sm font-medium" for="from_date">From Date</label>
-            <input class="input mt-1" id="from_date" name="from_date" type="date" value="<?= esc($fromDate ?? '') ?>" @change="$el.form.requestSubmit()">
-        </div>
-        <div>
-            <label class="block text-sm font-medium" for="to_date">To Date</label>
-            <input class="input mt-1" id="to_date" name="to_date" type="date" value="<?= esc($toDate ?? '') ?>" @change="$el.form.requestSubmit()">
-        </div>
-        <div class="flex items-end gap-2">
-            <a class="btn btn-secondary" href="<?= esc($listUrl) ?>">Clear</a>
-        </div>
+            <div>
+                <label class="block text-sm font-medium" for="po_no">RR Number</label>
+                <input class="input mt-1" id="po_no" name="po_no" value="<?= esc($poNo ?? '') ?>" @input.debounce.1000ms="$el.form.requestSubmit()">
+            </div>
+            <div>
+                <label class="block text-sm font-medium" for="from_date">From Date</label>
+                <input class="input mt-1" id="from_date" name="from_date" type="date" value="<?= esc($fromDate ?? '') ?>" @change="$el.form.requestSubmit()">
+            </div>
+            <div>
+                <label class="block text-sm font-medium" for="to_date">To Date</label>
+                <input class="input mt-1" id="to_date" name="to_date" type="date" value="<?= esc($toDate ?? '') ?>" @change="$el.form.requestSubmit()">
+            </div>
+            <div class="flex items-end gap-2">
+                <a class="btn btn-secondary" href="<?= esc($listUrl) ?>">Clear</a>
+            </div>
         </div>
     </form>
 
@@ -93,7 +89,9 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
         </thead>
         <tbody>
             <?php if (empty($purchaseOrders)): ?>
-                <tr><td class="py-3" colspan="10">No pickups found for the selected filters.</td></tr>
+                <tr>
+                    <td class="py-3" colspan="10">No pickups found for the selected filters.</td>
+                </tr>
             <?php else: ?>
                 <?php foreach ($purchaseOrders as $index => $order): ?>
                     <tr>
@@ -127,8 +125,12 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
     <?php if (! empty($pagerLinks ?? '')): ?><div class="mt-4"><?= $pagerLinks ?></div><?php endif; ?>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-2">
-        <div class="card p-4 total-highlight"><div class="flex justify-between"><span>Total Amount</span><span><?= esc(number_format((float) $totalAmount, 2)) ?></span></div></div>
-        <div class="card p-4 total-highlight"><div class="flex justify-between"><span>Total Balance</span><span><?= esc(number_format((float) $totalBalance, 2)) ?></span></div></div>
+        <div class="card p-4 total-highlight">
+            <div class="flex justify-between"><span>Total Amount</span><span><?= esc(number_format((float) $totalAmount, 2)) ?></span></div>
+        </div>
+        <div class="card p-4 total-highlight">
+            <div class="flex justify-between"><span>Total Balance</span><span><?= esc(number_format((float) $totalBalance, 2)) ?></span></div>
+        </div>
     </div>
 
     <div class="modal-backdrop" x-show="orderFormOpen" x-cloak @click.self="orderFormOpen = false">
@@ -194,7 +196,7 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                                     </select>
                                 </div>
                                 <div><label class="block text-xs font-medium">Unit Price</label><input class="input mt-1" type="number" step="0.01" x-model="item.unit_price" @input="updateLine(item)" :name="'items[' + index + '][unit_price]'" required></div>
-                                <div><label class="block text-xs font-medium">Qty</label><input class="input mt-1" type="number" step="0.01" min="0" x-model="item.qty" @input="updateLine(item)" :name="'items[' + index + '][qty]'" required></div>
+                                <div><label class="block text-xs font-medium">Qty</label><input class="input mt-1" type="number" step="0.00001" min="0" x-model="item.qty" @input="updateLine(item)" :name="'items[' + index + '][qty]'" required></div>
                                 <div><label class="block text-xs font-medium">Total</label><input class="input mt-1" x-model="item.line_total" readonly></div>
                                 <div class="flex items-end"><button class="btn btn-secondary" type="button" @click="newItems.splice(index, 1)" x-show="newItems.length > 1">Remove</button></div>
                             </div>
@@ -215,25 +217,65 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
 
     <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
         <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4"><h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2></div>
+            <div class="mb-4 border-b pb-4">
+                <h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2>
+            </div>
             <div class="modal-split">
                 <div>
                     <h3 class="mb-3 font-semibold">Purchase Items</h3>
                     <table class="table">
-                        <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th>Source PO</th><th>PO Balance</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                                <th>Source PO</th>
+                                <th>PO Balance</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <template x-if="selectedItems().length === 0"><tr><td class="py-3 text-center" colspan="6">No items found.</td></tr></template>
-                            <template x-for="item in selectedItems()" :key="item.id"><tr><td x-text="item.product_name"></td><td x-text="item.qty"></td><td x-text="Number(item.unit_price).toFixed(2)"></td><td x-text="Number(item.line_total).toFixed(2)"></td><td x-text="item.supplier_order_po_no || ''"></td><td x-text="item.po_qty_balance_after !== null && item.po_qty_balance_after !== undefined ? Number(item.po_qty_balance_after).toFixed(2) : ''"></td></tr></template>
+                            <template x-if="selectedItems().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="6">No items found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="item in selectedItems()" :key="item.id">
+                                <tr>
+                                    <td x-text="item.product_name"></td>
+                                    <td x-text="formatQty(item.qty)"></td>
+                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
+                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
+                                    <td x-text="item.supplier_order_po_no || ''"></td>
+                                    <td x-text="item.po_qty_balance_after !== null && item.po_qty_balance_after !== undefined ? formatQty(item.po_qty_balance_after) : ''"></td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>
                 <div>
                     <h3 class="mb-3 font-semibold">CV Allocations</h3>
                     <table class="table">
-                        <thead><tr><th>CV #</th><th>Date</th><th>Amount</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>CV #</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <template x-if="selectedAllocations().length === 0"><tr><td class="py-3 text-center" colspan="3">No allocations found.</td></tr></template>
-                            <template x-for="(alloc, index) in selectedAllocations()" :key="index"><tr><td x-text="alloc.pr_no"></td><td x-text="alloc.date"></td><td x-text="Number(alloc.amount).toFixed(2)"></td></tr></template>
+                            <template x-if="selectedAllocations().length === 0">
+                                <tr>
+                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
+                                </tr>
+                            </template>
+                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
+                                <tr>
+                                    <td x-text="alloc.pr_no"></td>
+                                    <td x-text="alloc.date"></td>
+                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>
@@ -242,71 +284,39 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="quickPayOpen" x-cloak @click.self="closeQuickPay()">
-        <div class="modal-panel max-h-[92vh] max-w-4xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4">
-                <div><h2 class="text-lg font-semibold">Pay Supplier</h2><p class="mt-1 text-sm muted" x-text="selectedQuickPayOrder() ? 'RR# ' + selectedQuickPayOrder().po_no : ''"></p></div>
-                <button class="btn btn-secondary" type="button" @click="closeQuickPay()">Close</button>
-            </div>
-            <?php if (! $activeReceipt): ?>
-                <div class="card mb-4 p-4"><p class="text-sm text-red-700">No active receipt range is assigned to your user yet. Ask admin to assign a range before posting payables.</p></div>
-            <?php endif; ?>
-            <form method="post" action="<?= base_url('payables/quick-pay') ?>" class="space-y-5" x-on:submit.prevent="if (Math.abs(quickPayBalanceAmount()) > 0.005) { window.showToast('Unallocated amount must be zero before committing.', 'error'); return; } $el.submit();">
-                <?= csrf_field() ?>
-                <input type="hidden" name="supplier_id" :value="selectedQuickPayOrder() ? selectedQuickPayOrder().supplier_id : ''">
-                <input type="hidden" name="purchase_order_id" :value="selectedQuickPayOrder() ? selectedQuickPayOrder().id : ''">
-                <div class="card p-4">
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <div><label class="block text-sm font-medium">Cashier</label><input class="input mt-1" value="<?= esc($collectorLabel) ?>" readonly></div>
-                        <div><label class="block text-sm font-medium">Active CV</label><input class="input mt-1" value="<?= $activeReceipt ? esc((string) $activeReceipt) : 'Not assigned' ?>" readonly><?php if ($activeReceipt && $rangeEnd): ?><p class="mt-1 text-xs muted">Range end: <?= esc((string) $rangeEnd) ?></p><?php endif; ?></div>
-                        <div><label class="block text-sm font-medium" for="quick_date">Date</label><input class="input mt-1" id="quick_date" name="date" type="date" x-model="quickPay.date" required></div>
-                    </div>
-                    <div class="mt-4 grid gap-4 md:grid-cols-3">
-                        <div><label class="block text-sm font-medium" for="quick_method">Payment Method</label><select class="input mt-1" id="quick_method" name="method" x-model="quickPay.method" required><option value="cash">Cash</option><option value="bank">Bank</option><option value="check">Check</option></select></div>
-                        <div><label class="block text-sm font-medium" for="quick_amount_received">Amount Paid</label><input class="input mt-1" id="quick_amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="quickPay.amountReceived" required></div>
-                        <div><label class="block text-sm font-medium" for="quick_deposit_bank_id">Bank</label><select class="input mt-1" id="quick_deposit_bank_id" name="deposit_bank_id" x-model="quickPay.depositBankId" required><option value="">Select bank</option><?php foreach ($banks as $bank): ?><option value="<?= esc((string) $bank['id']) ?>"><?= esc((string) $bank['bank_name']) ?></option><?php endforeach; ?></select></div>
-                        <div x-show="quickPay.method === 'bank' || quickPay.method === 'check'" x-cloak><label class="block text-sm font-medium" for="quick_payer_bank">Supplier Bank</label><input class="input mt-1" id="quick_payer_bank" name="payer_bank" x-model="quickPay.payerBank" :disabled="quickPay.method === 'cash'"></div>
-                        <div x-show="quickPay.method === 'check'" x-cloak><label class="block text-sm font-medium" for="quick_check_no">Check Number</label><input class="input mt-1" id="quick_check_no" name="check_no" x-model="quickPay.checkNo" :disabled="quickPay.method !== 'check'"></div>
-                    </div>
-                </div>
-                <div class="grid gap-5 lg:grid-cols-2">
-                    <div class="card p-4"><h3 class="text-sm font-semibold">Selected RR</h3><div class="mt-4 space-y-3 text-sm" x-show="selectedQuickPayOrder()"><div class="flex justify-between"><span class="muted">RR#</span><span x-text="selectedQuickPayOrder() ? selectedQuickPayOrder().po_no : ''"></span></div><div class="flex justify-between"><span class="muted">Balance</span><span class="font-semibold" x-text="formatAmount(selectedQuickPayOrder() ? selectedQuickPayOrder().balance : 0)"></span></div><div><label class="block text-sm font-medium" for="quick_allocation_amount">Amount to Allocate</label><input class="input mt-1" id="quick_allocation_amount" name="allocation_amount" type="number" step="0.01" min="0" x-model="quickPay.allocationAmount" required></div></div></div>
-                    <div class="card p-4"><h3 class="text-sm font-semibold">Other Accounts</h3><div class="mt-4 grid gap-4"><div><label class="block text-sm font-medium">Discount</label><input class="input mt-1" name="sales_discount" type="number" step="0.01" min="0" x-model="quickPay.salesDiscount"></div><div><label class="block text-sm font-medium">Charges</label><input class="input mt-1" name="delivery_charges" type="number" step="0.01" min="0" x-model="quickPay.deliveryCharges"></div><div><label class="block text-sm font-medium">Taxes</label><input class="input mt-1" name="taxes" type="number" step="0.01" min="0" x-model="quickPay.taxes"></div><div><label class="block text-sm font-medium">Commissions</label><input class="input mt-1" name="commissions" type="number" step="0.01" min="0" x-model="quickPay.commissions"></div></div></div>
-                    <?php /* A/P Other is hidden until the payable-side accounting treatment is confirmed. */ ?>
-                </div>
-                <div class="card p-4">
-                    <div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                        <div><p class="muted">Amount Paid</p><p class="font-semibold" x-text="formatAmount(quickPay.amountReceived)"></p></div>
-                        <div><p class="muted">Allocated</p><p class="font-semibold" x-text="formatAmount(quickPay.allocationAmount)"></p></div>
-                        <div><p class="muted">Other Accounts</p><p class="font-semibold" x-text="formatAmount(quickPayFixedAccountsTotal())"></p></div>
-                        <div><p class="muted">Unallocated</p><p class="font-semibold" x-text="formatAmount(quickPayBalanceAmount())"></p></div>
-                    </div>
-                    <div class="mt-4 flex flex-wrap gap-3"><button class="btn btn-strong" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayOrder()">Commit Payable</button><button class="btn btn-secondary" type="button" @click="closeQuickPay()">Cancel</button></div>
-                </div>
-            </form>
-        </div>
-    </div>
+    <?= view('purchase_orders/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
 
     <div class="modal-backdrop" x-show="editOpen" x-cloak @click.self="closeEdit()">
         <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold">Edit RR / Pickup</h2><p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'RR# ' + selectedActionOrder().po_no : ''"></p></div><button class="btn btn-secondary" type="button" @click="closeEdit()">Close</button></div>
+            <div class="mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Edit RR / Pickup</h2>
+                    <p class="mt-1 text-sm muted" x-text="selectedActionOrder() ? 'RR# ' + selectedActionOrder().po_no : ''"></p>
+                </div><button class="btn btn-secondary" type="button" @click="closeEdit()">Close</button>
+            </div>
             <form method="post" :action="selectedActionOrder() ? '<?= base_url('purchase-orders') ?>/' + selectedActionOrder().id : '#'" class="space-y-6">
                 <?= csrf_field() ?>
                 <div class="grid gap-4 md:grid-cols-5">
-                    <div><label class="block text-sm font-medium">Supplier</label><div class="mt-1 rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm" x-text="selectedActionOrder() ? selectedActionOrder().supplier_name : ''"></div></div>
+                    <div><label class="block text-sm font-medium">Supplier</label>
+                        <div class="mt-1 rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm" x-text="selectedActionOrder() ? selectedActionOrder().supplier_name : ''"></div>
+                    </div>
                     <div><label class="block text-sm font-medium">RR Number</label><input class="input mt-1" name="po_no" x-model="editOrder.po_no" required></div>
                     <div><label class="block text-sm font-medium">Date</label><input class="input mt-1" name="date" type="date" x-model="editOrder.date" @input="recomputeDueDate(editOrder)" required></div>
                     <div><label class="block text-sm font-medium">Payment Term (days)</label><input class="input mt-1" name="payment_term" type="number" step="1" min="0" x-model="editOrder.payment_term" @input="recomputeDueDate(editOrder)"></div>
                     <div><label class="block text-sm font-medium">Due Date</label><input class="input mt-1" type="date" x-model="editOrder.due_date" readonly></div>
                 </div>
                 <div class="card p-4">
-                    <div class="flex items-center justify-between"><h3 class="text-sm font-semibold">Items</h3><button class="btn btn-secondary" type="button" @click="addEditItem()">Add Item</button></div>
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold">Items</h3><button class="btn btn-secondary" type="button" @click="addEditItem()">Add Item</button>
+                    </div>
                     <div class="mt-4 space-y-4">
                         <template x-for="(item, index) in editItems" :key="index">
                             <div class="grid gap-3 sm:grid-cols-6">
-                                <div class="sm:col-span-2"><label class="block text-xs font-medium">Product</label><select class="input mt-1" x-model="item.product_id" @change="selectProduct(editItems, index)" :name="'items[' + index + '][product_id]'" required><option value="">Select product</option><?php foreach ($products as $product): ?><option value="<?= esc((string) $product['id']) ?>"><?= esc((string) $product['product_name']) ?></option><?php endforeach; ?></select></div>
+                                <div class="sm:col-span-2"><label class="block text-xs font-medium">Product</label><select class="input mt-1" x-model="item.product_id" @change="selectProduct(editItems, index)" :name="'items[' + index + '][product_id]'" required>
+                                        <option value="">Select product</option><?php foreach ($products as $product): ?><option value="<?= esc((string) $product['id']) ?>"><?= esc((string) $product['product_name']) ?></option><?php endforeach; ?>
+                                    </select></div>
                                 <div><label class="block text-xs font-medium">Unit Price</label><input class="input mt-1" type="number" step="0.01" x-model="item.unit_price" @input="updateLine(item)" :name="'items[' + index + '][unit_price]'" required></div>
-                                <div><label class="block text-xs font-medium">Qty</label><input class="input mt-1" type="number" step="0.01" min="0" x-model="item.qty" @input="updateLine(item)" :name="'items[' + index + '][qty]'" required></div>
+                                <div><label class="block text-xs font-medium">Qty</label><input class="input mt-1" type="number" step="0.00001" min="0" x-model="item.qty" @input="updateLine(item)" :name="'items[' + index + '][qty]'" required></div>
                                 <div><label class="block text-xs font-medium">Total</label><input class="input mt-1" x-model="item.line_total" readonly></div>
                                 <div class="flex items-end"><button class="btn btn-secondary" type="button" @click="editItems.splice(index, 1)" x-show="editItems.length > 1">Remove</button></div>
                             </div>
@@ -321,10 +331,19 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
 
     <div class="modal-backdrop" x-show="voidOpen" x-cloak @click.self="closeVoid()">
         <div class="modal-panel max-w-xl p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold">Void RR / Pickup</h2><p class="mt-1 text-sm muted">Voiding cannot be undone.</p></div><button class="btn btn-secondary" type="button" @click="closeVoid()">Close</button></div>
+            <div class="mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Void RR / Pickup</h2>
+                    <p class="mt-1 text-sm muted">Voiding cannot be undone.</p>
+                </div><button class="btn btn-secondary" type="button" @click="closeVoid()">Close</button>
+            </div>
             <form method="post" :action="selectedActionOrder() ? '<?= base_url('purchase-orders') ?>/' + selectedActionOrder().id + '/void' : '#'" class="space-y-4">
                 <?= csrf_field() ?>
-                <div class="card p-4 text-sm"><div class="flex justify-between"><span>RR#</span><span x-text="selectedActionOrder() ? selectedActionOrder().po_no : ''"></span></div><div class="mt-2 flex justify-between"><span>Total</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().total_amount : 0)"></span></div><div class="mt-2 flex justify-between"><span>Current Balance</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().balance : 0)"></span></div></div>
+                <div class="card p-4 text-sm">
+                    <div class="flex justify-between"><span>RR#</span><span x-text="selectedActionOrder() ? selectedActionOrder().po_no : ''"></span></div>
+                    <div class="mt-2 flex justify-between"><span>Total</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().total_amount : 0)"></span></div>
+                    <div class="mt-2 flex justify-between"><span>Current Balance</span><span x-text="formatAmount(selectedActionOrder() ? selectedActionOrder().balance : 0)"></span></div>
+                </div>
                 <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">This will mark the RR as voided and insert a reversing payable ledger row.</div>
                 <div><label class="block text-sm font-medium" for="void_reason">Reason</label><textarea class="input mt-1" id="void_reason" name="void_reason" rows="3" required></textarea></div>
                 <div class="flex gap-3"><button class="btn" type="submit">Void RR / Pickup</button><button class="btn btn-secondary" type="button" @click="closeVoid()">Cancel</button></div>
@@ -363,9 +382,9 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                         <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">Before</p>
-                                <p class="mt-2">RR#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'" ></span></p>
-                                <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'" ></span></p>
-                                <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.old_purchase_order_json).po_no || '-'"></span></p>
+                                <p>Date: <span x-text="historyOrder(history.old_purchase_order_json).date || '-'"></span></p>
+                                <p>Total: <span x-text="formatAmount(historyOrder(history.old_purchase_order_json).total_amount || 0)"></span></p>
                                 <div class="mt-3">
                                     <p class="font-semibold">Items</p>
                                     <table class="table mt-2 text-xs">
@@ -386,7 +405,7 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                                             <template x-for="(item, index) in historyItems(history.old_items_json)" :key="index">
                                                 <tr>
                                                     <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
-                                                    <td x-text="item.qty"></td>
+                                                    <td x-text="formatQty(item.qty)"></td>
                                                     <td x-text="formatAmount(item.unit_price || 0)"></td>
                                                     <td x-text="formatAmount(item.line_total || 0)"></td>
                                                 </tr>
@@ -397,9 +416,9 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                             </div>
                             <div class="rounded border border-gray-200 p-3">
                                 <p class="font-semibold">After</p>
-                                <p class="mt-2">RR#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'" ></span></p>
-                                <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'" ></span></p>
-                                <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)" ></span></p>
+                                <p class="mt-2">RR#: <span x-text="historyOrder(history.new_purchase_order_json).po_no || '-'"></span></p>
+                                <p>Date: <span x-text="historyOrder(history.new_purchase_order_json).date || '-'"></span></p>
+                                <p>Total: <span x-text="formatAmount(historyOrder(history.new_purchase_order_json).total_amount || 0)"></span></p>
                                 <div class="mt-3">
                                     <p class="font-semibold">Items</p>
                                     <table class="table mt-2 text-xs">
@@ -420,7 +439,7 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                                             <template x-for="(item, index) in historyItems(history.new_items_json)" :key="index">
                                                 <tr>
                                                     <td x-text="item.product_name || item.product_id || '-'" class="truncate"></td>
-                                                    <td x-text="item.qty"></td>
+                                                    <td x-text="formatQty(item.qty)"></td>
                                                     <td x-text="formatAmount(item.unit_price || 0)"></td>
                                                     <td x-text="formatAmount(item.line_total || 0)"></td>
                                                 </tr>
@@ -462,8 +481,18 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                 payment_term: '<?= esc((string) $defaultPaymentTerm) ?>',
                 due_date: '',
             },
-            editOrder: { po_no: '', date: '', payment_term: '', due_date: '' },
-            newItems: [{ product_id: '', qty: 1, unit_price: '', line_total: '0.00' }],
+            editOrder: {
+                po_no: '',
+                date: '',
+                payment_term: '',
+                due_date: ''
+            },
+            newItems: [{
+                product_id: '',
+                qty: 1,
+                unit_price: '',
+                line_total: '0.00'
+            }],
             editItems: [],
             quickPay: {
                 date: '<?= esc(old('date') && old('purchase_order_id') ? old('date') : date('Y-m-d')) ?>',
@@ -484,7 +513,11 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                 this.recomputeDueDate(this.newOrder);
                 this.applySupplierTerm();
             },
-            openOrderForm() { this.orderFormOpen = true; this.poDetailsOpen = false; this.quickPayOpen = false; },
+            openOrderForm() {
+                this.orderFormOpen = true;
+                this.poDetailsOpen = false;
+                this.quickPayOpen = false;
+            },
             applySupplierTerm() {
                 if (this.newOrder.payment_term !== '') return;
                 const selected = this.suppliers.find((row) => String(row.id) === String(this.newOrder.supplier_id));
@@ -494,16 +527,36 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                 }
             },
             recomputeDueDate(order) {
-                if (!order.date) { order.due_date = ''; return; }
+                if (!order.date) {
+                    order.due_date = '';
+                    return;
+                }
                 const term = parseInt(order.payment_term, 10);
                 const days = Number.isFinite(term) && term >= 0 ? term : 0;
                 const date = new Date(order.date + 'T00:00:00');
-                if (Number.isNaN(date.getTime())) { order.due_date = ''; return; }
+                if (Number.isNaN(date.getTime())) {
+                    order.due_date = '';
+                    return;
+                }
                 date.setDate(date.getDate() + days);
                 order.due_date = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             },
-            addNewItem() { this.newItems.push({ product_id: '', qty: 1, unit_price: '', line_total: '0.00' }); },
-            addEditItem() { this.editItems.push({ product_id: '', qty: 1, unit_price: '', line_total: '0.00' }); },
+            addNewItem() {
+                this.newItems.push({
+                    product_id: '',
+                    qty: 1,
+                    unit_price: '',
+                    line_total: '0.00'
+                });
+            },
+            addEditItem() {
+                this.editItems.push({
+                    product_id: '',
+                    qty: 1,
+                    unit_price: '',
+                    line_total: '0.00'
+                });
+            },
             selectProduct(items, index) {
                 const item = items[index];
                 const product = this.products.find((row) => String(row.id) === String(item.product_id));
@@ -517,15 +570,45 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                 return items.reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0).toFixed(2);
             },
             formatAmount(value) {
-                return (Math.round((parseFloat(value) || 0) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return (Math.round((parseFloat(value) || 0) * 100) / 100).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
             },
-            openPoDetails(id) { this.selectedOrderId = id; this.poDetailsOpen = true; this.quickPayOpen = false; },
-            closePoDetails() { this.poDetailsOpen = false; this.selectedOrderId = null; },
-            selectedOrder() { return this.orders.find((order) => String(order.id) === String(this.selectedOrderId)) || null; },
-            selectedPoNumber() { const order = this.selectedOrder(); return order ? order.po_no : ''; },
-            selectedItems() { return this.itemsByPurchaseOrder[this.selectedOrderId] || []; },
-            selectedAllocations() { return this.allocationsByPurchaseOrder[this.selectedOrderId] || []; },
-            selectedQuickPayOrder() { return this.orders.find((order) => String(order.id) === String(this.quickPayOrderId)) || null; },
+            formatQty(value) {
+                return (Math.round((parseFloat(value) || 0) * 100000) / 100000).toLocaleString(undefined, {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
+                });
+            },
+            syncAllocationFromReceived() {
+                this.quickPay.allocationAmount = this.quickPay.amountReceived;
+            },
+            openPoDetails(id) {
+                this.selectedOrderId = id;
+                this.poDetailsOpen = true;
+                this.quickPayOpen = false;
+            },
+            closePoDetails() {
+                this.poDetailsOpen = false;
+                this.selectedOrderId = null;
+            },
+            selectedOrder() {
+                return this.orders.find((order) => String(order.id) === String(this.selectedOrderId)) || null;
+            },
+            selectedPoNumber() {
+                const order = this.selectedOrder();
+                return order ? order.po_no : '';
+            },
+            selectedItems() {
+                return this.itemsByPurchaseOrder[this.selectedOrderId] || [];
+            },
+            selectedAllocations() {
+                return this.allocationsByPurchaseOrder[this.selectedOrderId] || [];
+            },
+            selectedQuickPayOrder() {
+                return this.orders.find((order) => String(order.id) === String(this.quickPayOrderId)) || null;
+            },
             openQuickPay(id) {
                 this.quickPayOrderId = id;
                 const order = this.selectedQuickPayOrder();
@@ -537,31 +620,65 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                 this.orderFormOpen = false;
                 this.poDetailsOpen = false;
             },
-            closeQuickPay() { this.quickPayOpen = false; this.quickPayOrderId = ''; },
+            closeQuickPay() {
+                this.quickPayOpen = false;
+                this.quickPayOrderId = '';
+            },
             quickPayFixedAccountsTotal() {
                 return [this.quickPay.salesDiscount, this.quickPay.deliveryCharges, this.quickPay.taxes, this.quickPay.commissions].reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
             },
             quickPayBalanceAmount() {
                 return (parseFloat(this.quickPay.amountReceived) || 0) + this.quickPayFixedAccountsTotal() - (parseFloat(this.quickPay.allocationAmount) || 0);
             },
-            selectedActionOrder() { return this.orders.find((order) => String(order.id) === String(this.actionOrderId)) || null; },
+            selectedActionOrder() {
+                return this.orders.find((order) => String(order.id) === String(this.actionOrderId)) || null;
+            },
             openEdit(id) {
                 this.actionOrderId = id;
                 const order = this.selectedActionOrder();
                 if (!order) return;
-                this.editOrder = { po_no: order.po_no || '', date: order.date || '', payment_term: order.payment_term || '', due_date: order.due_date || '' };
-                this.editItems = (this.itemsByPurchaseOrder[id] || []).map((item) => ({ product_id: item.product_id, qty: item.qty, unit_price: item.unit_price, line_total: (parseFloat(item.line_total) || 0).toFixed(2) }));
+                this.editOrder = {
+                    po_no: order.po_no || '',
+                    date: order.date || '',
+                    payment_term: order.payment_term || '',
+                    due_date: order.due_date || ''
+                };
+                this.editItems = (this.itemsByPurchaseOrder[id] || []).map((item) => ({
+                    product_id: item.product_id,
+                    qty: item.qty,
+                    unit_price: item.unit_price,
+                    line_total: (parseFloat(item.line_total) || 0).toFixed(2)
+                }));
                 if (this.editItems.length === 0) this.addEditItem();
                 this.editOpen = true;
                 this.quickPayOpen = false;
                 this.poDetailsOpen = false;
             },
-            closeEdit() { this.editOpen = false; this.actionOrderId = null; },
-            openVoid(id) { this.actionOrderId = id; this.voidOpen = true; this.quickPayOpen = false; },
-            closeVoid() { this.voidOpen = false; this.actionOrderId = null; },
-            openHistory(id) { this.actionOrderId = id; this.historyOpen = true; this.quickPayOpen = false; },
-            closeHistory() { this.historyOpen = false; this.actionOrderId = null; },
-            selectedHistories() { return this.historiesByPurchaseOrder[this.actionOrderId] || []; },
+            closeEdit() {
+                this.editOpen = false;
+                this.actionOrderId = null;
+            },
+            openVoid(id) {
+                this.actionOrderId = id;
+                this.voidOpen = true;
+                this.quickPayOpen = false;
+            },
+            closeVoid() {
+                this.voidOpen = false;
+                this.actionOrderId = null;
+            },
+            openHistory(id) {
+                this.actionOrderId = id;
+                this.historyOpen = true;
+                this.quickPayOpen = false;
+            },
+            closeHistory() {
+                this.historyOpen = false;
+                this.actionOrderId = null;
+            },
+            selectedHistories() {
+                return this.historiesByPurchaseOrder[this.actionOrderId] || [];
+            },
             historyOrder(value) {
                 if (!value) {
                     return {};

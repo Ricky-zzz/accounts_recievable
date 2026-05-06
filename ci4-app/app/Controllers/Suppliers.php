@@ -41,7 +41,7 @@ class Suppliers extends BaseController
         }
 
         $suppliers = $builder->paginate(15);
-        $supplierIds = array_map(static fn (array $supplier): int => (int) $supplier['id'], $suppliers);
+        $supplierIds = array_map(static fn(array $supplier): int => (int) $supplier['id'], $suppliers);
         $balancesBySupplier = [];
 
         if (! empty($supplierIds)) {
@@ -65,7 +65,9 @@ class Suppliers extends BaseController
         foreach ($suppliers as $index => $supplier) {
             $supplierId = (int) ($supplier['id'] ?? 0);
             $creditLimit = isset($supplier['credit_limit']) ? (float) $supplier['credit_limit'] : 0.0;
-            $currentBalance = $balancesBySupplier[$supplierId] ?? 0.0;
+            $currentBalance = array_key_exists($supplierId, $balancesBySupplier)
+                ? $balancesBySupplier[$supplierId]
+                : (float) ($supplier['forwarded_balance'] ?? 0);
 
             $suppliers[$index]['current_balance'] = $currentBalance;
             $suppliers[$index]['available_credit'] = $creditLimit - $currentBalance;

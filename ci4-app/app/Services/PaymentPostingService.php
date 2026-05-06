@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BankModel;
 use App\Models\BoaModel;
 use App\Models\CashierReceiptRangeModel;
+use App\Models\ClientModel;
 use App\Models\LedgerModel;
 use App\Models\PaymentAllocationModel;
 use App\Models\PaymentModel;
@@ -274,14 +275,7 @@ class PaymentPostingService
         float $allocatedTotal,
         array $fixedAccountRows
     ): void {
-        $lastLedger = $ledgerModel
-            ->select('balance')
-            ->where('client_id', $clientId)
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $currentBalance = (float) ($lastLedger['balance'] ?? 0);
+        $currentBalance = $this->resolveStartingBalance($ledgerModel, $clientId);
         $ledgerCollection = min($amountReceived, $allocatedTotal);
         $currentBalance -= $ledgerCollection;
 
@@ -326,6 +320,26 @@ class PaymentPostingService
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
+    }
+
+    private function resolveStartingBalance(LedgerModel $ledgerModel, int $clientId): float
+    {
+        $lastLedger = $ledgerModel
+            ->select('balance')
+            ->where('client_id', $clientId)
+            ->orderBy('entry_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if ($lastLedger) {
+            return (float) ($lastLedger['balance'] ?? 0);
+        }
+
+        $client = (new ClientModel())
+            ->select('forwarded_balance')
+            ->find($clientId);
+
+        return (float) ($client['forwarded_balance'] ?? 0);
     }
 
     private function insertBoaRows(

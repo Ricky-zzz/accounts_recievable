@@ -73,6 +73,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('ledger', 'Ledger::index');
     $routes->get('ledger/print', 'Ledger::print');
+    $routes->post('ledger/forward-balance', 'Ledger::saveForwardBalance');
     $routes->get('ajax/payments/(:num)', 'TransactionDetails::payment/$1');
 
     $routes->get('payments', 'Payments::index');
@@ -104,6 +105,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('payable-ledger', 'PayableLedger::index', ['filter' => 'permission:payable_ledger.view']);
     $routes->get('payable-ledger/print', 'PayableLedger::print', ['filter' => 'permission:payable_ledger.view']);
+    $routes->post('payable-ledger/forward-balance', 'PayableLedger::saveForwardBalance', ['filter' => 'permission:payable_ledger.view']);
 
     $routes->get('payables', 'Payables::index', ['filter' => 'permission:payables.view']);
     $routes->get('payables/print', 'Payables::print', ['filter' => 'permission:payables.view']);

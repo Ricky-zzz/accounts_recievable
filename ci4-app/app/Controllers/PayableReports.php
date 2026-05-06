@@ -86,7 +86,7 @@ class PayableReports extends BaseController
     private function buildCreditsReportData(string $sort, bool $paginate): array
     {
         $suppliers = (new SupplierModel())->orderBy('name', 'asc')->findAll();
-        $supplierIds = array_map(static fn (array $supplier): int => (int) $supplier['id'], $suppliers);
+        $supplierIds = array_map(static fn(array $supplier): int => (int) $supplier['id'], $suppliers);
         $balancesBySupplier = [];
 
         if (! empty($supplierIds)) {
@@ -113,7 +113,9 @@ class PayableReports extends BaseController
         foreach ($suppliers as $supplier) {
             $supplierId = (int) ($supplier['id'] ?? 0);
             $creditLimit = (float) ($supplier['credit_limit'] ?? 0);
-            $currentBalance = $balancesBySupplier[$supplierId] ?? 0.0;
+            $currentBalance = array_key_exists($supplierId, $balancesBySupplier)
+                ? $balancesBySupplier[$supplierId]
+                : (float) ($supplier['forwarded_balance'] ?? 0);
             $availableBalance = $creditLimit - $currentBalance;
 
             $rows[] = [

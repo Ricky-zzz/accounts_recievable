@@ -91,6 +91,14 @@
     $printedDates = array_filter(array_column($purchaseOrders ?? [], 'date'));
     $firstDate = $fromDate ?: (! empty($printedDates) ? min($printedDates) : '');
     $lastDate = $toDate ?: (! empty($printedDates) ? max($printedDates) : '');
+    $totalPaid = 0.0;
+    foreach ($purchaseOrders ?? [] as $order) {
+        if (isset($order['allocated_amount'])) {
+            $totalPaid += (float) ($order['allocated_amount'] ?? 0);
+        } else {
+            $totalPaid += (float) ($order['total_amount'] ?? 0) - (float) ($order['balance'] ?? 0);
+        }
+    }
     ?>
 
     <div class="header">
@@ -119,16 +127,22 @@
                 <th>Due Date</th>
                 <th>Term</th>
                 <th class="text-right">Total Amount</th>
+                <th class="text-right">Paid</th>
                 <th class="text-right">Balance</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($purchaseOrders)): ?>
                 <tr>
-                    <td class="text-center" colspan="8">No pickups found for the selected filters.</td>
+                    <td class="text-center" colspan="9">No pickups found for the selected filters.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($purchaseOrders as $index => $order): ?>
+                    <?php
+                    $paidAmount = isset($order['allocated_amount'])
+                        ? (float) ($order['allocated_amount'] ?? 0)
+                        : (float) ($order['total_amount'] ?? 0) - (float) ($order['balance'] ?? 0);
+                    ?>
                     <tr>
                         <td><?= esc((string) ($index + 1)) ?></td>
                         <td><?= esc((string) ($order['date'] ?? '')) ?></td>
@@ -137,6 +151,7 @@
                         <td><?= esc((string) ($order['due_date'] ?? '')) ?></td>
                         <td><?= esc(($order['payment_term'] ?? '') !== '' ? $order['payment_term'] . ' days' : '') ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($order['total_amount'] ?? 0), 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format($paidAmount, 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($order['balance'] ?? 0), 2)) ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -147,6 +162,7 @@
                 <tr>
                     <th colspan="6">Totals</th>
                     <th class="text-right"><?= esc(number_format((float) $totalAmount, 2)) ?></th>
+                    <th class="text-right"><?= esc(number_format($totalPaid, 2)) ?></th>
                     <th class="text-right"><?= esc(number_format((float) $totalBalance, 2)) ?></th>
                 </tr>
             </tfoot>

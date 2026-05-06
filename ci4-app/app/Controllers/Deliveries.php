@@ -238,13 +238,7 @@ class Deliveries extends BaseController
         }
 
         $ledgerModel = new LedgerModel();
-        $lastLedger = $ledgerModel
-            ->select('balance')
-            ->where('client_id', $clientId)
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-        $previousBalance = (float) ($lastLedger['balance'] ?? 0);
+        $previousBalance = $this->latestLedgerBalance($clientId);
 
         $creditLimit = $client['credit_limit'] ?? null;
         if ($creditLimit !== null && $creditLimit !== '' && (float) $creditLimit > 0) {
@@ -254,7 +248,7 @@ class Deliveries extends BaseController
                     null,
                     [
                         'Credit limit exceeded. Projected balance ' . number_format($projectedBalance, 2)
-                        . ' is greater than client credit limit ' . number_format((float) $creditLimit, 2) . '.',
+                            . ' is greater than client credit limit ' . number_format((float) $creditLimit, 2) . '.',
                     ],
                     $clientId
                 );
@@ -548,7 +542,7 @@ class Deliveries extends BaseController
 
         $rows = $builder
             ->groupBy('po.id, po.po_no, po.date, po.supplier_id, suppliers.name, poi.product_id, products.product_name, alloc.qty_allocated')
-            ->having('remaining_qty >', 0.005)
+            ->having('remaining_qty >', 0.000005)
             ->orderBy('po.date', 'desc')
             ->orderBy('po.id', 'desc')
             ->limit(10)
@@ -587,14 +581,14 @@ class Deliveries extends BaseController
         }
 
         $deliveryQty = $this->deliveryQtyForProduct($deliveryItems, $productId);
-        if ($deliveryQty <= 0.005) {
+        if ($deliveryQty <= 0.000005) {
             throw new RuntimeException('Selected RR / pickup was chosen, but the delivery has no matching product quantity.');
         }
 
         $remainingQty = $this->pickupRemainingQty($pickupId, $productId, $excludeDeliveryId);
-        if ($deliveryQty > $remainingQty + 0.005) {
+        if ($deliveryQty > $remainingQty + 0.000005) {
             throw new RuntimeException(
-                'Delivery quantity exceeds selected RR remaining quantity. Remaining: ' . number_format($remainingQty, 2)
+                'Delivery quantity exceeds selected RR remaining quantity. Remaining: ' . number_format($remainingQty, 5)
             );
         }
 
@@ -800,7 +794,15 @@ class Deliveries extends BaseController
             ->orderBy('id', 'desc')
             ->first();
 
-        return (float) ($lastLedger['balance'] ?? 0);
+        if ($lastLedger) {
+            return (float) ($lastLedger['balance'] ?? 0);
+        }
+
+        $client = (new ClientModel())
+            ->select('forwarded_balance')
+            ->find($clientId);
+
+        return (float) ($client['forwarded_balance'] ?? 0);
     }
 
     private function buildDeliveryChangeSummary(array $oldDelivery, array $newDelivery, array $oldItems, array $newItems): string
@@ -1030,7 +1032,7 @@ class Deliveries extends BaseController
                 ->select('suppliers.name as supplier_name, products.product_name')
                 ->select(
                     '((SELECT COALESCE(SUM(poi.qty), 0) FROM purchase_order_items poi WHERE poi.purchase_order_id = dpa.purchase_order_id AND poi.product_id = dpa.product_id) - '
-                    . '(SELECT COALESCE(SUM(dpa2.qty_allocated), 0) FROM delivery_pickup_allocations dpa2 LEFT JOIN deliveries d2 ON d2.id = dpa2.delivery_id WHERE dpa2.purchase_order_id = dpa.purchase_order_id AND dpa2.product_id = dpa.product_id AND d2.voided_at IS NULL AND dpa2.delivery_id != dpa.delivery_id)) as remaining_qty',
+                        . '(SELECT COALESCE(SUM(dpa2.qty_allocated), 0) FROM delivery_pickup_allocations dpa2 LEFT JOIN deliveries d2 ON d2.id = dpa2.delivery_id WHERE dpa2.purchase_order_id = dpa.purchase_order_id AND dpa2.product_id = dpa.product_id AND d2.voided_at IS NULL AND dpa2.delivery_id != dpa.delivery_id)) as remaining_qty',
                     false
                 )
                 ->join('purchase_orders po', 'po.id = dpa.purchase_order_id', 'left')

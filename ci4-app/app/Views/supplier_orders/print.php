@@ -136,9 +136,9 @@
                         <td><?= esc((string) ($order['date'] ?? '')) ?></td>
                         <td><?= esc((string) ($order['supplier_name'] ?? ($supplier['name'] ?? ''))) ?></td>
                         <td><?= esc((string) ($order['po_no'] ?? '')) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($order['qty_ordered_total'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($order['qty_picked_up_total'] ?? 0), 2)) ?></td>
-                        <td class="text-right"><?= esc(number_format((float) ($order['qty_balance_total'] ?? 0), 2)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['qty_ordered_total'] ?? 0), 5)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['qty_picked_up_total'] ?? 0), 5)) ?></td>
+                        <td class="text-right"><?= esc(number_format((float) ($order['qty_balance_total'] ?? 0), 5)) ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -147,9 +147,9 @@
             <tfoot>
                 <tr>
                     <th colspan="4">Totals</th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 2)) ?></th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 2)) ?></th>
-                    <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 2)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totalOrdered ?? 0), 5)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totalPickedUp ?? 0), 5)) ?></th>
+                    <th class="text-right"><?= esc(number_format((float) ($totalBalance ?? 0), 5)) ?></th>
                 </tr>
             </tfoot>
         <?php endif; ?>

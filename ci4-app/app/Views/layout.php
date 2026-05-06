@@ -179,7 +179,7 @@
             gap: 1.5rem;
         }
 
-        .modal-split > div {
+        .modal-split>div {
             min-width: 0;
             overflow-x: auto;
         }
@@ -499,25 +499,25 @@
     $logoUrl = base_url('logo.png');
     ?>
 
-        <div id="flash-stack" class="flash-stack">
-            <?php if ($successMessage): ?>
-                <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-success" x-cloak>
-                    <div class="flash-text">
-                        <?= esc($successMessage) ?>
-                    </div>
-                    <button class="flash-close" type="button" aria-label="Dismiss success message" @click="open = false">&times;</button>
+    <div id="flash-stack" class="flash-stack">
+        <?php if ($successMessage): ?>
+            <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-success" x-cloak>
+                <div class="flash-text">
+                    <?= esc($successMessage) ?>
                 </div>
-            <?php endif; ?>
+                <button class="flash-close" type="button" aria-label="Dismiss success message" @click="open = false">&times;</button>
+            </div>
+        <?php endif; ?>
 
-            <?php if ($errorMessage): ?>
-                <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-error" x-cloak>
-                    <div class="flash-text">
-                        <?= esc($errorMessage) ?>
-                    </div>
-                    <button class="flash-close" type="button" aria-label="Dismiss error message" @click="open = false">&times;</button>
+        <?php if ($errorMessage): ?>
+            <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.200ms class="flash-message flash-message-error" x-cloak>
+                <div class="flash-text">
+                    <?= esc($errorMessage) ?>
                 </div>
-            <?php endif; ?>
-        </div>
+                <button class="flash-close" type="button" aria-label="Dismiss error message" @click="open = false">&times;</button>
+            </div>
+        <?php endif; ?>
+    </div>
 
     <div class="min-h-screen">
         <header class="site-header">
@@ -526,7 +526,7 @@
                     <a href="<?= base_url('/') ?>" class="brand-lockup">
                         <img class="brand-mark" src="<?= esc($logoUrl) ?>" alt="SRC Enterprises logo">
                         <span class="brand-copy">
-                            <span class="brand-title">Accounts Recievable</span>
+                            <span class="brand-title">Accounts Receivable</span>
                             <span class="brand-subtitle">SRC Enterprises Inc</span>
                         </span>
                     </a>
@@ -571,7 +571,7 @@
         </main>
     </div>
     <script>
-        window.showToast = function (message, type = 'error') {
+        window.showToast = function(message, type = 'error') {
             const stack = document.getElementById('flash-stack');
             if (!stack || !message) {
                 return;

@@ -43,7 +43,7 @@ class Clients extends BaseController
 
         $clients = $builder->paginate(15);
 
-        $clientIds = array_map(static fn (array $client): int => (int) $client['id'], $clients);
+        $clientIds = array_map(static fn(array $client): int => (int) $client['id'], $clients);
         $balancesByClient = [];
         $db = db_connect();
 
@@ -68,7 +68,9 @@ class Clients extends BaseController
         foreach ($clients as $index => $client) {
             $clientId = (int) ($client['id'] ?? 0);
             $creditLimit = isset($client['credit_limit']) ? (float) $client['credit_limit'] : 0.0;
-            $currentBalance = $balancesByClient[$clientId] ?? 0.0;
+            $currentBalance = array_key_exists($clientId, $balancesByClient)
+                ? $balancesByClient[$clientId]
+                : (float) ($client['forwarded_balance'] ?? 0);
 
             $clients[$index]['current_balance'] = $currentBalance;
             $clients[$index]['available_credit'] = $creditLimit - $currentBalance;

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var list<array{id: int|string, name: string}> $clients
  * @var array{id: int|string, name: string, address?: string|null, payment_term?: int|string|null}|null $selectedClient
@@ -14,6 +15,7 @@
  * @var int $totalPages
  * @var int $rowOffset
  * @var array<int|string, int> $itemCounts
+ * @var float $forwardedBalance
  */
 ?>
 <?= $this->extend('layout') ?>
@@ -22,6 +24,9 @@
     function ledgerItems() {
         return {
             ...soaModalState(),
+            forwardedBalance: <?= json_encode((float) ($forwardedBalance ?? 0)) ?>,
+            forwardBalanceOpen: false,
+            forwardBalanceAmount: <?= json_encode((float) ($forwardedBalance ?? 0)) ?>,
             detailUrls: {
                 delivery: '<?= base_url('ajax/deliveries') ?>',
                 payment: '<?= base_url('ajax/payments') ?>',
@@ -38,6 +43,13 @@
             selectedPrLabel: '',
             detailLoading: false,
             detailError: '',
+            openForwardBalance() {
+                this.forwardBalanceAmount = this.forwardedBalance;
+                this.forwardBalanceOpen = true;
+            },
+            closeForwardBalance() {
+                this.forwardBalanceOpen = false;
+            },
             async openItems(id) {
                 this.selectedItemId = id;
                 this.detailError = '';
@@ -187,7 +199,9 @@
                 this.detailError = '';
                 try {
                     const response = await fetch(baseUrl + '/' + id, {
-                        headers: { 'Accept': 'application/json' }
+                        headers: {
+                            'Accept': 'application/json'
+                        }
                     });
                     const data = await response.json();
                     if (!response.ok) {
@@ -217,6 +231,7 @@
                 <a class="btn btn-secondary" href="<?= base_url('clients/' . $clientId . '/deliveries') ?>">Deliveries</a>
                 <a class="btn btn-secondary" href="<?= base_url('payments/client/' . $clientId) ?>">Collections</a>
                 <button class="btn btn-secondary" type="button" @click="openSoaModal(<?= (int) $clientId ?>, '<?= esc((string) ($selectedClient['name'] ?? ''), 'js') ?>', '<?= esc((string) ($selectedClient['payment_term'] ?? ''), 'js') ?>')">SOA</button>
+                <button class="btn btn-secondary" type="button" @click="openForwardBalance()">Forward Balance</button>
             <?php endif; ?>
             <a class="btn btn-secondary" href="<?= base_url('clients') ?>?q=<?= rawurlencode((string) ($selectedClient['name'] ?? '')) ?>">Back</a>
         </div>
@@ -224,21 +239,21 @@
 
     <form class="filter-card mt-6 rounded border border-gray-200 p-4" method="get" action="<?= base_url('ledger') ?>" x-data>
         <div class="flex flex-wrap items-end gap-3">
-        <input type="hidden" name="client_id" value="<?= esc((string) $clientId) ?>">
-        <div>
-            <label class="block text-sm font-medium" for="start">Start Date</label>
-            <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>" @change="$el.form.requestSubmit()">
-        </div>
-        <div>
-            <label class="block text-sm font-medium" for="end">End Date</label>
-            <input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>" @change="$el.form.requestSubmit()">
-        </div>
-        <div class="flex items-end gap-2">
-            <?php if ($selectedClient): ?>
-                <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc((string) $clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print</a>
-                <a class="btn btn-secondary" href="<?= base_url('ledger') ?>?client_id=<?= esc((string) $clientId) ?>">Clear</a>
-            <?php endif; ?>
-        </div>
+            <input type="hidden" name="client_id" value="<?= esc((string) $clientId) ?>">
+            <div>
+                <label class="block text-sm font-medium" for="start">Start Date</label>
+                <input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>" @change="$el.form.requestSubmit()">
+            </div>
+            <div>
+                <label class="block text-sm font-medium" for="end">End Date</label>
+                <input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>" @change="$el.form.requestSubmit()">
+            </div>
+            <div class="flex items-end gap-2">
+                <?php if ($selectedClient): ?>
+                    <a class="btn btn-secondary" target="_blank" href="<?= base_url('ledger/print') ?>?client_id=<?= esc((string) $clientId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print</a>
+                    <a class="btn btn-secondary" href="<?= base_url('ledger') ?>?client_id=<?= esc((string) $clientId) ?>">Clear</a>
+                <?php endif; ?>
+            </div>
         </div>
     </form>
 
@@ -350,8 +365,26 @@
                 </div>
             </div>
         </div>
-        
-        <?php endif; ?>
+
+    <?php endif; ?>
+    <div class="modal-backdrop" x-show="forwardBalanceOpen" x-cloak @click.self="closeForwardBalance()">
+        <div class="modal-panel max-w-lg p-6" @click.stop>
+            <h2 class="text-lg font-semibold">Forward Balance</h2>
+            <p class="mt-1 text-sm muted">Update the starting balance used for this ledger.</p>
+            <form class="mt-4 space-y-4" method="post" action="<?= base_url('ledger/forward-balance') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="client_id" value="<?= esc((string) $clientId) ?>">
+                <div>
+                    <label class="block text-sm font-medium" for="forward_balance">Forwarded Balance</label>
+                    <input class="input mt-1" id="forward_balance" name="forwarded_balance" type="number" step="0.01" inputmode="decimal" x-model="forwardBalanceAmount">
+                </div>
+                <div class="flex items-center justify-end gap-2">
+                    <button class="btn btn-secondary" type="button" @click="closeForwardBalance()">Cancel</button>
+                    <button class="btn" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
         <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
             <div class="mb-4 border-b pb-4">

@@ -151,7 +151,7 @@
                         <td><?= esc((string) ($row['po_no'] ?? '')) ?></td>
                         <td><?= esc((string) ($row['pr_no'] ?? '')) ?></td>
                         <td><?= esc((string) ($row['account_title'] ?? '')) ?></td>
-                        <td class="text-right"><?= ($row['qty'] ?? '') !== '' ? esc(number_format((float) ($row['qty'] ?? 0), 2)) : '' ?></td>
+                        <td class="text-right"><?= ($row['qty'] ?? '') !== '' ? esc(number_format((float) ($row['qty'] ?? 0), 5)) : '' ?></td>
                         <td class="text-right"><?= ($row['price'] ?? '') !== '' ? esc(number_format((float) ($row['price'] ?? 0), 2)) : '' ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['payables'] ?? 0), 2)) ?></td>
                         <td class="text-right"><?= esc(number_format((float) ($row['payment'] ?? 0), 2)) ?></td>
