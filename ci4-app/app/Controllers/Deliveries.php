@@ -105,7 +105,7 @@ class Deliveries extends BaseController
             'pagerLinks' => $result['pagerLinks'],
             'rowOffset' => $result['rowOffset'],
             'deliveryFormData' => $formData,
-            'quickPayData' => $this->buildQuickPayData(),
+            'quickPayData' => $this->buildQuickPayData($clientId),
             'deliveryActionData' => $this->buildDeliveryActionData(),
         ]);
     }
@@ -864,17 +864,19 @@ class Deliveries extends BaseController
         ];
     }
 
-    private function buildQuickPayData(): array
+    private function buildQuickPayData(?int $clientId = null): array
     {
         $userId = (int) (session('user_id') ?? 0);
         $assignedUser = $userId > 0 ? (new UserModel())->find($userId) : null;
-        $activeRange = (new PaymentPostingService())->getActiveReceiptRange($userId);
+        $paymentPosting = new PaymentPostingService();
+        $activeRange = $paymentPosting->getActiveReceiptRange($userId);
 
         return [
             'assignedUser' => $assignedUser,
             'activeReceipt' => $activeRange ? (int) $activeRange['next_no'] : null,
             'rangeEnd' => $activeRange ? (int) $activeRange['end_no'] : null,
             'banks' => (new BankModel())->orderBy('bank_name', 'asc')->findAll(),
+            'advanceCollections' => $paymentPosting->advanceCollections($clientId),
         ];
     }
 

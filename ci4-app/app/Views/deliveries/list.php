@@ -30,6 +30,7 @@ $pickupAllocationsJson = json_encode($pickupAllocationsByDelivery ?? [], $jsonFl
 $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
 $productsJson = json_encode($deliveryActionData['products'] ?? [], $jsonFlags);
 $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $jsonFlags);
+$quickPayAdvanceCollectionsJson = json_encode($quickPayData['advanceCollections'] ?? [], $jsonFlags);
 ?>
 
 <div x-data="deliveryList()" @close-delivery-form.window="deliveryFormOpen = false">
@@ -338,6 +339,7 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
         return {
             ...soaModalState(),
             quickPayDeliveries: <?= $deliveriesJson ?>,
+            quickPayAdvanceCollections: <?= $quickPayAdvanceCollectionsJson ?>,
             itemsByDelivery: <?= $itemsJson ?>,
             allocationsByDelivery: <?= $allocationsJson ?>,
             pickupAllocationsByDelivery: <?= $pickupAllocationsJson ?>,
@@ -353,6 +355,8 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             historyOpen: false,
             deliveryFormOpen: <?= (old('dr_no') || old('items')) && ! old('delivery_id') ? 'true' : 'false' ?>,
             quickPayOpen: <?= old('delivery_id') ? 'true' : 'false' ?>,
+            quickPayAdvanceOpen: false,
+            quickPayAdvancePaymentId: '<?= esc(old('advance_payment_id') ?: '') ?>',
             selectedDeliveryId: null,
             actionDeliveryId: null,
             editDelivery: {
@@ -411,7 +415,10 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 return this.normalizeAmount(value).toFixed(2);
             },
             syncAllocationFromReceived() {
-                this.quickPay.allocationAmount = this.quickPay.amountReceived;
+                const delivery = this.selectedQuickPayDelivery();
+                const received = parseFloat(this.quickPay.amountReceived) || 0;
+                const balance = delivery ? (parseFloat(delivery.balance) || 0) : received;
+                this.quickPay.allocationAmount = this.formatInputAmount(Math.min(received, balance));
             },
             effectiveUnitPrice(productId, clientId) {
                 const product = this.products.find((row) => String(row.id) === String(productId));
@@ -489,8 +496,54 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             selectedQuickPayDelivery() {
                 return this.quickPayDeliveries.find((delivery) => String(delivery.id) === String(this.quickPayDeliveryId)) || null;
             },
+            selectedQuickPayAdvance() {
+                return this.quickPayAdvanceCollections.find((advance) => String(advance.payment_id) === String(this.quickPayAdvancePaymentId)) || null;
+            },
+            quickPayUsingAdvance() {
+                return Boolean(this.selectedQuickPayAdvance());
+            },
+            availableQuickPayAdvances() {
+                const delivery = this.selectedQuickPayDelivery();
+                if (!delivery) {
+                    return [];
+                }
+
+                return this.quickPayAdvanceCollections.filter((advance) => {
+                    return String(advance.client_id) === String(delivery.client_id) && (parseFloat(advance.balance) || 0) > 0;
+                });
+            },
+            chooseQuickPayAdvance(advance) {
+                const delivery = this.selectedQuickPayDelivery();
+                const advanceBalance = parseFloat(advance.balance) || 0;
+                const deliveryBalance = delivery ? (parseFloat(delivery.balance) || 0) : advanceBalance;
+
+                this.quickPayAdvancePaymentId = advance.payment_id;
+                this.quickPay.amountReceived = this.formatInputAmount(advanceBalance);
+                this.quickPay.allocationAmount = this.formatInputAmount(Math.min(advanceBalance, deliveryBalance));
+                this.quickPay.salesDiscount = '';
+                this.quickPay.deliveryCharges = '';
+                this.quickPay.taxes = '';
+                this.quickPay.commissions = '';
+                this.quickPay.arOtherDescription = '';
+                this.quickPay.arOtherAmount = '';
+                this.quickPayAdvanceOpen = false;
+            },
+            clearQuickPayAdvance() {
+                this.quickPayAdvancePaymentId = '';
+                const delivery = this.selectedQuickPayDelivery();
+                if (delivery) {
+                    this.quickPay.amountReceived = this.formatInputAmount(delivery.balance);
+                    this.quickPay.allocationAmount = this.formatInputAmount(delivery.balance);
+                }
+            },
+            quickPayAdvanceBalanceAmount() {
+                const advance = this.selectedQuickPayAdvance();
+                return (parseFloat(advance ? advance.balance : 0) || 0) - (parseFloat(this.quickPay.allocationAmount) || 0);
+            },
             openQuickPay(id) {
                 this.quickPayDeliveryId = id;
+                this.quickPayAdvancePaymentId = '';
+                this.quickPayAdvanceOpen = false;
                 const delivery = this.selectedQuickPayDelivery();
                 if (delivery) {
                     this.quickPay.amountReceived = this.formatInputAmount(delivery.balance);
@@ -504,6 +557,8 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
             closeQuickPay() {
                 this.quickPayOpen = false;
                 this.quickPayDeliveryId = '';
+                this.quickPayAdvancePaymentId = '';
+                this.quickPayAdvanceOpen = false;
             },
             quickPayFixedAccountsTotal() {
                 return [

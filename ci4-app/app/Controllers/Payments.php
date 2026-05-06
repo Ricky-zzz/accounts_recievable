@@ -166,6 +166,7 @@ class Payments extends BaseController
             'banks' => $bankModel->orderBy('bank_name', 'asc')->findAll(),
             'unpaidDeliveries' => $unpaidResult['deliveries'],
             'unpaidPagerLinks' => $pager->makeLinks($unpaidResult['page'], $unpaidResult['perPage'], $unpaidResult['total'], 'default_full'),
+            'advanceCollections' => $paymentPosting->advanceCollections($clientId),
         ]);
     }
 
@@ -178,6 +179,17 @@ class Payments extends BaseController
         }
 
         return redirect()->to('payments/client/' . $result['client_id'])->with('success', 'Payment saved.');
+    }
+
+    public function applyAdvance()
+    {
+        try {
+            $result = (new PaymentPostingService())->applyAdvance($this->advancePayloadFromRequest());
+        } catch (RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', 'Advance PR #' . $result['pr_no'] . ' applied.');
     }
 
     public function quickPay()
@@ -197,6 +209,24 @@ class Payments extends BaseController
         }
 
         return redirect()->back()->with('success', 'Payment collected.');
+    }
+
+    private function advancePayloadFromRequest(): array
+    {
+        $allocations = $this->request->getPost('allocations');
+        if (! is_array($allocations)) {
+            $deliveryId = (int) $this->request->getPost('delivery_id');
+            $amount = (float) $this->request->getPost('allocation_amount');
+            $allocations = $deliveryId > 0 && $amount > 0
+                ? [['delivery_id' => $deliveryId, 'amount' => $amount]]
+                : [];
+        }
+
+        return [
+            'client_id' => (int) $this->request->getPost('client_id'),
+            'payment_id' => (int) $this->request->getPost('advance_payment_id'),
+            'allocations' => $allocations,
+        ];
     }
 
     private function paymentPayloadFromRequest(): array
@@ -290,9 +320,16 @@ SQL;
         $builder = $db->table('payments p');
         $builder
             ->select('p.id, p.client_id, p.pr_no, p.date, p.amount_received')
+            ->select('COALESCE(pa.allocated_amount, 0) AS amount_allocated', false)
+            ->select('ROUND((p.amount_received - COALESCE(pa.allocated_amount, 0)), 2) AS balance', false)
             ->select('c.name as client_name')
             ->select('c.payment_term as client_payment_term')
             ->join('clients c', 'c.id = p.client_id', 'left')
+            ->join(
+                '(SELECT payment_id, SUM(amount) AS allocated_amount FROM payment_allocations GROUP BY payment_id) pa',
+                'pa.payment_id = p.id',
+                'left'
+            )
             ->where('p.status', 'posted');
 
         if ($clientId !== null) {

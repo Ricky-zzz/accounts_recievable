@@ -3,7 +3,7 @@
  * @var string $fromDate
  * @var string $toDate
  * @var string $prNo
- * @var list<array{id: int|string, client_id?: int|string|null, pr_no?: int|string|null, date?: string|null, client_name?: string|null, amount_received?: int|float|string|null}> $payments
+ * @var list<array{id: int|string, client_id?: int|string|null, pr_no?: int|string|null, date?: string|null, client_name?: string|null, amount_received?: int|float|string|null, amount_allocated?: int|float|string|null, balance?: int|float|string|null}> $payments
  * @var array<int|string, array<string, int|float|string|null>> $paymentsById
  * @var int|float|string $totalCollections
  */
@@ -70,13 +70,15 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
                 <th>Client</th>
                 <th>PR #</th>
                 <th>Collections</th>
+                <th>Allocated</th>
+                <th>Balance</th>
                 <th class="text-center">Actions</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($payments)): ?>
                 <tr>
-                    <td class="py-3" colspan="6">No payments found for the selected date range.</td>
+                    <td class="py-3" colspan="8">No payments found for the selected date range.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($payments as $index => $payment): ?>
@@ -90,6 +92,8 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
                             </button>
                         </td>
                         <td><?= esc(number_format((float) $payment['amount_received'], 2)) ?></td>
+                        <td><?= esc(number_format((float) ($payment['amount_allocated'] ?? 0), 2)) ?></td>
+                        <td><?= esc(number_format((float) ($payment['balance'] ?? 0), 2)) ?></td>
                         <td class="text-center">
                             <button class="btn btn-secondary" type="button" @click="openSoaModal(<?= (int) ($payment['client_id'] ?? 0) ?>, '<?= esc((string) ($payment['client_name'] ?? ''), 'js') ?>', '<?= esc((string) ($payment['client_payment_term'] ?? ''), 'js') ?>')" <?= empty($payment['client_id']) ? 'disabled' : '' ?>>SOA</button>
                         </td>

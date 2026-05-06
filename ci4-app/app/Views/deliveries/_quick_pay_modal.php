@@ -22,17 +22,18 @@ $banks = $quickPayData['banks'] ?? [];
         </div>
 
         <?php if (! $activeReceipt): ?>
-            <div class="card mb-4 p-4">
-                <p class="text-sm text-red-700">No active receipt range is assigned to your user yet. Ask admin to assign a range before posting payments.</p>
+            <div class="card mb-4 p-4" x-show="!quickPayUsingAdvance()" x-cloak>
+                <p class="text-sm text-red-700">No active receipt range is assigned to your user yet. Ask admin to assign a range before posting new receipts.</p>
             </div>
         <?php endif; ?>
 
-        <form method="post" action="<?= base_url('payments/quick-pay') ?>" class="space-y-5" x-on:submit.prevent="if (Math.abs(quickPayBalanceAmount()) > 0.005) { window.showToast('Unallocated amount must be zero before committing.', 'error'); return; } $el.submit();">
+        <form method="post" action="<?= base_url('payments/quick-pay') ?>" :action="quickPayUsingAdvance() ? '<?= base_url('payments/apply-advance') ?>' : '<?= base_url('payments/quick-pay') ?>'" class="space-y-5" x-on:submit.prevent="if (quickPayUsingAdvance() && quickPayAdvanceBalanceAmount() < -0.005) { window.showToast('Allocation exceeds the selected advance balance.', 'error'); return; } if (!quickPayUsingAdvance() && quickPayBalanceAmount() < -0.005) { window.showToast('Allocated amount exceeds the amount available on this receipt.', 'error'); return; } $el.submit();">
             <?= csrf_field() ?>
             <input type="hidden" name="client_id" :value="selectedQuickPayDelivery() ? selectedQuickPayDelivery().client_id : ''">
             <input type="hidden" name="delivery_id" :value="selectedQuickPayDelivery() ? selectedQuickPayDelivery().id : ''">
+            <input type="hidden" name="advance_payment_id" :value="quickPayAdvancePaymentId">
 
-            <div class="card p-4">
+            <div class="card p-4" x-show="!quickPayUsingAdvance()" x-cloak>
                 <div class="grid gap-4 md:grid-cols-3">
                     <div>
                         <label class="block text-sm font-medium">Collector</label>
@@ -47,14 +48,14 @@ $banks = $quickPayData['banks'] ?? [];
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="quick_date">Date</label>
-                        <input class="input mt-1" id="quick_date" name="date" type="date" x-model="quickPay.date" required>
+                        <input class="input mt-1" id="quick_date" name="date" type="date" x-model="quickPay.date" :disabled="quickPayUsingAdvance()" required>
                     </div>
                 </div>
 
                 <div class="mt-4 grid gap-4 md:grid-cols-3">
                     <div>
                         <label class="block text-sm font-medium" for="quick_method">Payment Method</label>
-                        <select class="input mt-1" id="quick_method" name="method" x-model="quickPay.method" required>
+                        <select class="input mt-1" id="quick_method" name="method" x-model="quickPay.method" :disabled="quickPayUsingAdvance()" required>
                             <option value="cash">Cash</option>
                             <option value="bank">Bank</option>
                             <option value="check">Check</option>
@@ -62,11 +63,11 @@ $banks = $quickPayData['banks'] ?? [];
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="quick_amount_received">Amount Received</label>
-                        <input class="input mt-1" id="quick_amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="quickPay.amountReceived" @input="syncAllocationFromReceived()" required>
+                        <input class="input mt-1" id="quick_amount_received" name="amount_received" type="number" step="0.01" min="0" x-model="quickPay.amountReceived" @input="syncAllocationFromReceived()" :disabled="quickPayUsingAdvance()" required>
                     </div>
                     <div>
                         <label class="block text-sm font-medium" for="quick_deposit_bank_id">Deposit Bank</label>
-                        <select class="input mt-1" id="quick_deposit_bank_id" name="deposit_bank_id" x-model="quickPay.depositBankId" required>
+                        <select class="input mt-1" id="quick_deposit_bank_id" name="deposit_bank_id" x-model="quickPay.depositBankId" :disabled="quickPayUsingAdvance()" required>
                             <option value="">Select bank</option>
                             <?php foreach ($banks as $bank): ?>
                                 <option value="<?= esc((string) $bank['id']) ?>"><?= esc((string) $bank['bank_name']) ?></option>
@@ -78,12 +79,80 @@ $banks = $quickPayData['banks'] ?? [];
                 <div class="mt-4 grid gap-4 md:grid-cols-2">
                     <div x-show="quickPay.method === 'bank' || quickPay.method === 'check'" x-cloak>
                         <label class="block text-sm font-medium" for="quick_payer_bank">Bank of Payer</label>
-                        <input class="input mt-1" id="quick_payer_bank" name="payer_bank" type="text" x-model="quickPay.payerBank" :disabled="quickPay.method === 'cash'">
+                        <input class="input mt-1" id="quick_payer_bank" name="payer_bank" type="text" x-model="quickPay.payerBank" :disabled="quickPayUsingAdvance() || quickPay.method === 'cash'">
                     </div>
                     <div x-show="quickPay.method === 'check'" x-cloak>
                         <label class="block text-sm font-medium" for="quick_check_no">Check Number</label>
-                        <input class="input mt-1" id="quick_check_no" name="check_no" type="text" x-model="quickPay.checkNo" :disabled="quickPay.method !== 'check'">
+                        <input class="input mt-1" id="quick_check_no" name="check_no" type="text" x-model="quickPay.checkNo" :disabled="quickPayUsingAdvance() || quickPay.method !== 'check'">
                     </div>
+                </div>
+            </div>
+
+            <div class="card p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-semibold">Advance Collections</h3>
+                        <p class="mt-1 text-sm muted" x-text="availableQuickPayAdvances().length ? 'Use a previous PR for this DR.' : 'No advance PR is available for this client.'"></p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="btn btn-secondary" type="button" @click="quickPayAdvanceOpen = !quickPayAdvanceOpen" :disabled="availableQuickPayAdvances().length === 0">See Advance Collections</button>
+                        <button class="btn btn-secondary" type="button" @click="clearQuickPayAdvance()" x-show="quickPayUsingAdvance()" x-cloak>Clear Advance</button>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded border border-gray-200 p-3 text-sm" x-show="quickPayUsingAdvance()" x-cloak>
+                    <div class="grid gap-3 sm:grid-cols-4">
+                        <div>
+                            <p class="muted">Using PR</p>
+                            <p class="font-semibold" x-text="selectedQuickPayAdvance() ? selectedQuickPayAdvance().pr_no : ''"></p>
+                        </div>
+                        <div>
+                            <p class="muted">Date</p>
+                            <p class="font-semibold" x-text="selectedQuickPayAdvance() ? selectedQuickPayAdvance().date : ''"></p>
+                        </div>
+                        <div>
+                            <p class="muted">Advance Balance</p>
+                            <p class="font-semibold" x-text="formatAmount(selectedQuickPayAdvance() ? selectedQuickPayAdvance().balance : 0)"></p>
+                        </div>
+                        <div>
+                            <p class="muted">After Allocation</p>
+                            <p class="font-semibold" x-text="formatAmount(quickPayAdvanceBalanceAmount())"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 overflow-x-auto rounded border border-gray-200" x-show="quickPayAdvanceOpen" x-cloak>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>PR#</th>
+                                <th>Received</th>
+                                <th>Allocated</th>
+                                <th>Balance</th>
+                                <th class="text-right">Choose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="availableQuickPayAdvances().length === 0">
+                                <tr>
+                                    <td colspan="6" class="py-3">No advance collections available.</td>
+                                </tr>
+                            </template>
+                            <template x-for="advance in availableQuickPayAdvances()" :key="advance.payment_id">
+                                <tr>
+                                    <td x-text="advance.date"></td>
+                                    <td x-text="advance.pr_no"></td>
+                                    <td x-text="formatAmount(advance.amount_received)"></td>
+                                    <td x-text="formatAmount(advance.amount_allocated)"></td>
+                                    <td x-text="formatAmount(advance.balance)"></td>
+                                    <td class="text-right">
+                                        <button class="btn btn-secondary btn-strong" type="button" @click="chooseQuickPayAdvance(advance)">Choose</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -114,7 +183,7 @@ $banks = $quickPayData['banks'] ?? [];
                     </div>
                 </div>
 
-                <div class="card p-4">
+                <div class="card p-4" x-show="!quickPayUsingAdvance()" x-cloak>
                     <h3 class="text-sm font-semibold">Other Accounts</h3>
                     <div class="mt-4 grid gap-4">
                         <div>
@@ -136,7 +205,7 @@ $banks = $quickPayData['banks'] ?? [];
                     </div>
                 </div>
 
-                <div class="card p-4">
+                <div class="card p-4" x-show="!quickPayUsingAdvance()" x-cloak>
                     <h3 class="text-sm font-semibold">A/R Other</h3>
                     <div class="mt-4 grid gap-4">
                         <div>
@@ -154,29 +223,29 @@ $banks = $quickPayData['banks'] ?? [];
             <div class="card p-4">
                 <div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-5">
                     <div>
-                        <p class="muted">Amount Received</p>
-                        <p class="font-semibold" x-text="formatAmount(quickPay.amountReceived)"></p>
+                        <p class="muted" x-text="quickPayUsingAdvance() ? 'Advance Balance' : 'Amount Received'"></p>
+                        <p class="font-semibold" x-text="formatAmount(quickPayUsingAdvance() && selectedQuickPayAdvance() ? selectedQuickPayAdvance().balance : quickPay.amountReceived)"></p>
                     </div>
                     <div>
                         <p class="muted">Allocated</p>
                         <p class="font-semibold" x-text="formatAmount(quickPay.allocationAmount)"></p>
                     </div>
-                    <div>
+                    <div x-show="!quickPayUsingAdvance()" x-cloak>
                         <p class="muted">Other Accounts</p>
                         <p class="font-semibold" x-text="formatAmount(quickPayFixedAccountsTotal())"></p>
                     </div>
-                    <div>
+                    <div x-show="!quickPayUsingAdvance()" x-cloak>
                         <p class="muted">A/R Other</p>
                         <p class="font-semibold" x-text="formatAmount(quickPay.arOtherAmount)"></p>
                     </div>
                     <div>
-                        <p class="muted">Unallocated</p>
-                        <p class="font-semibold" x-text="formatAmount(quickPayBalanceAmount())"></p>
+                        <p class="muted" x-text="quickPayUsingAdvance() ? 'Advance Remaining' : 'Unallocated'"></p>
+                        <p class="font-semibold" x-text="formatAmount(quickPayUsingAdvance() ? quickPayAdvanceBalanceAmount() : quickPayBalanceAmount())"></p>
                     </div>
                 </div>
 
                 <div class="mt-4 flex flex-wrap gap-3">
-                    <button class="btn btn-strong" type="submit" :disabled="<?= $activeReceipt ? 'false' : 'true' ?> || !selectedQuickPayDelivery()">Commit Collection</button>
+                    <button class="btn btn-strong" type="submit" :disabled="(!quickPayUsingAdvance() && <?= $activeReceipt ? 'false' : 'true' ?>) || !selectedQuickPayDelivery()" x-text="quickPayUsingAdvance() ? 'Apply Advance PR' : 'Commit Collection'"></button>
                     <button class="btn btn-secondary" type="button" @click="closeQuickPay()">Cancel</button>
                 </div>
             </div>

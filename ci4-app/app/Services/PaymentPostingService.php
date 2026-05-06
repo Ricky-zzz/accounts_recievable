@@ -114,13 +114,9 @@ class PaymentPostingService
             $allocatedTotal += (float) $allocation['amount'];
         }
 
-        if (empty($cleanAllocations) && $fixedAccountsTotal <= 0 && $arOtherAmount <= 0) {
-            throw new RuntimeException('Add a valid allocation, A/R other, or other account amount.');
-        }
-
         $unallocatedAmount = round($amountReceived + $fixedAccountsTotal - $allocatedTotal - $arOtherAmount, 2);
-        if (abs($unallocatedAmount) > 0.005) {
-            throw new RuntimeException('Unallocated amount must be 0.00. Adjust allocations or other accounts.');
+        if ($unallocatedAmount < -0.005) {
+            throw new RuntimeException('Allocated amount exceeds the amount available on this receipt.');
         }
 
         $range = $this->getActiveReceiptRange($userId);
@@ -160,7 +156,7 @@ class PaymentPostingService
             $allocModel->insertBatch($cleanAllocations);
         }
 
-        $this->insertLedgerRows($ledgerModel, $clientId, $date, $prNo, $paymentId, $amountReceived, $allocatedTotal, $fixedAccountRows);
+        $this->insertLedgerRows($ledgerModel, $clientId, $date, $prNo, $paymentId, $amountReceived, $arOtherAmount, $fixedAccountRows);
         $this->insertBoaRows($boaModel, $clientId, $date, $prNo, $paymentId, $amountReceived, $allocatedTotal, $boaColumn, $fixedAccountRows, $arOtherAmount, $arOtherDescription);
 
         $newNext = $prNo + 1;
@@ -183,6 +179,78 @@ class PaymentPostingService
         ];
     }
 
+    public function applyAdvance(array $data): array
+    {
+        $clientId = (int) ($data['client_id'] ?? 0);
+        $paymentId = (int) ($data['payment_id'] ?? ($data['advance_payment_id'] ?? 0));
+        $allocations = $data['allocations'] ?? [];
+
+        if ($clientId <= 0 || $paymentId <= 0) {
+            throw new RuntimeException('Select an advance PR to apply.');
+        }
+
+        $paymentModel = new PaymentModel();
+        $payment = $paymentModel
+            ->where('id', $paymentId)
+            ->where('client_id', $clientId)
+            ->where('status', 'posted')
+            ->first();
+
+        if (! $payment) {
+            throw new RuntimeException('Selected advance PR was not found for this client.');
+        }
+
+        $cleanAllocations = $this->cleanAllocations($clientId, is_array($allocations) ? $allocations : []);
+        if (empty($cleanAllocations)) {
+            throw new RuntimeException('Add at least one DR allocation.');
+        }
+
+        $requestedTotal = 0.0;
+        foreach ($cleanAllocations as $allocation) {
+            $requestedTotal += (float) $allocation['amount'];
+        }
+
+        $advance = $this->advanceSummaryForPayment($paymentId);
+        $advanceBalance = (float) ($advance['balance'] ?? 0);
+        if ($requestedTotal > $advanceBalance + 0.005) {
+            throw new RuntimeException('Allocation exceeds the remaining advance balance.');
+        }
+
+        $db = db_connect();
+        $allocModel = new PaymentAllocationModel();
+        $db->transStart();
+
+        foreach ($cleanAllocations as $index => $allocation) {
+            $cleanAllocations[$index]['payment_id'] = $paymentId;
+            $cleanAllocations[$index]['created_at'] = date('Y-m-d H:i:s');
+        }
+        $allocModel->insertBatch($cleanAllocations);
+
+        $allocatedTotal = $this->paymentAllocatedTotal($paymentId);
+        $paymentModel->update($paymentId, ['amount_allocated' => $allocatedTotal]);
+        $this->syncBoaArTrade($paymentId, $allocatedTotal);
+
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            throw new RuntimeException('Failed to apply advance PR.');
+        }
+
+        return [
+            'payment_id' => $paymentId,
+            'client_id' => $clientId,
+            'pr_no' => (int) ($payment['pr_no'] ?? 0),
+        ];
+    }
+
+    public function advanceCollections(?int $clientId = null): array
+    {
+        return array_values(array_filter(
+            $this->advanceSummaries($clientId),
+            static fn (array $row): bool => (float) ($row['balance'] ?? 0) > 0.005
+        ));
+    }
+
     private function normalizeFixedAccounts(array $rows): array
     {
         $cleanRows = [];
@@ -203,27 +271,21 @@ class PaymentPostingService
 
     private function cleanAllocations(int $clientId, array $allocations): array
     {
-        $deliveryIds = [];
-        foreach ($allocations as $allocation) {
-            $deliveryId = (int) ($allocation['delivery_id'] ?? 0);
-            if ($deliveryId > 0) {
-                $deliveryIds[$deliveryId] = true;
-            }
-        }
-
-        $deliveryBalances = $this->fetchDeliveryBalancesByIds($clientId, array_keys($deliveryIds));
-        $cleanAllocations = [];
-
+        $requestedByDelivery = [];
         foreach ($allocations as $allocation) {
             $deliveryId = (int) ($allocation['delivery_id'] ?? 0);
             $amount = (float) ($allocation['amount'] ?? 0);
-
-            if ($deliveryId <= 0 || $amount <= 0) {
-                continue;
+            if ($deliveryId > 0 && $amount > 0) {
+                $requestedByDelivery[$deliveryId] = ($requestedByDelivery[$deliveryId] ?? 0.0) + $amount;
             }
+        }
 
+        $deliveryBalances = $this->fetchDeliveryBalancesByIds($clientId, array_keys($requestedByDelivery));
+        $cleanAllocations = [];
+
+        foreach ($requestedByDelivery as $deliveryId => $amount) {
             $balance = $deliveryBalances[$deliveryId] ?? null;
-            if ($balance === null || $amount > $balance) {
+            if ($balance === null || $amount > $balance + 0.005) {
                 throw new RuntimeException('Allocation exceeds delivery balance.');
             }
 
@@ -272,11 +334,11 @@ class PaymentPostingService
         int $prNo,
         int $paymentId,
         float $amountReceived,
-        float $allocatedTotal,
+        float $arOtherAmount,
         array $fixedAccountRows
     ): void {
         $currentBalance = $this->resolveStartingBalance($ledgerModel, $clientId);
-        $ledgerCollection = min($amountReceived, $allocatedTotal);
+        $ledgerCollection = max(0.0, $amountReceived - $arOtherAmount);
         $currentBalance -= $ledgerCollection;
 
         $ledgerModel->insert([
@@ -322,6 +384,98 @@ class PaymentPostingService
         }
     }
 
+    private function advanceSummaryForPayment(int $paymentId): array
+    {
+        foreach ($this->advanceSummaries(null, $paymentId) as $row) {
+            return $row;
+        }
+
+        return [];
+    }
+
+    private function advanceSummaries(?int $clientId = null, ?int $paymentId = null): array
+    {
+        $builder = db_connect()->table('payments p')
+            ->select('p.id AS payment_id, p.client_id, p.pr_no, p.date, p.amount_received')
+            ->select('COALESCE(pa.allocated_amount, 0) AS amount_allocated', false)
+            ->select('COALESCE(ar.ar_other_amount, 0) AS ar_other_amount', false)
+            ->select('COALESCE(fa.fixed_accounts_total, 0) AS fixed_accounts_total', false)
+            ->join(
+                '(SELECT payment_id, SUM(amount) AS allocated_amount FROM payment_allocations GROUP BY payment_id) pa',
+                'pa.payment_id = p.id',
+                'left'
+            )
+            ->join(
+                '(SELECT payment_id, SUM(ar_others) AS ar_other_amount FROM boa GROUP BY payment_id) ar',
+                'ar.payment_id = p.id',
+                'left'
+            )
+            ->join(
+                '(SELECT payment_id, SUM(dr) AS fixed_accounts_total FROM boa WHERE account_title IS NOT NULL GROUP BY payment_id) fa',
+                'fa.payment_id = p.id',
+                'left'
+            )
+            ->where('p.status', 'posted');
+
+        if ($clientId !== null) {
+            $builder->where('p.client_id', $clientId);
+        }
+
+        if ($paymentId !== null) {
+            $builder->where('p.id', $paymentId);
+        }
+
+        $rows = $builder
+            ->orderBy('p.date', 'asc')
+            ->orderBy('p.id', 'asc')
+            ->get()
+            ->getResultArray();
+
+        foreach ($rows as $index => $row) {
+            $amountReceived = (float) ($row['amount_received'] ?? 0);
+            $amountAllocated = (float) ($row['amount_allocated'] ?? 0);
+            $arOtherAmount = (float) ($row['ar_other_amount'] ?? 0);
+            $fixedAccountsTotal = (float) ($row['fixed_accounts_total'] ?? 0);
+            $cashUsed = max(0.0, $amountAllocated + $arOtherAmount - $fixedAccountsTotal);
+
+            $rows[$index]['balance'] = round($amountReceived - $cashUsed, 2);
+        }
+
+        return $rows;
+    }
+
+    private function paymentAllocatedTotal(int $paymentId): float
+    {
+        $row = db_connect()->table('payment_allocations')
+            ->select('COALESCE(SUM(amount), 0) AS allocated_total', false)
+            ->where('payment_id', $paymentId)
+            ->get()
+            ->getRowArray();
+
+        return round((float) ($row['allocated_total'] ?? 0), 2);
+    }
+
+    private function syncBoaArTrade(int $paymentId, float $allocatedTotal): void
+    {
+        $db = db_connect();
+        $row = $db->table('boa')
+            ->select('id')
+            ->where('payment_id', $paymentId)
+            ->where('account_title IS NULL', null, false)
+            ->where('(ar_others = 0 OR ar_others IS NULL)', null, false)
+            ->orderBy('id', 'asc')
+            ->get()
+            ->getRowArray();
+
+        if (! $row) {
+            return;
+        }
+
+        $db->table('boa')
+            ->where('id', (int) $row['id'])
+            ->update(['ar_trade' => $allocatedTotal]);
+    }
+
     private function resolveStartingBalance(LedgerModel $ledgerModel, int $clientId): float
     {
         $lastLedger = $ledgerModel
@@ -333,6 +487,11 @@ class PaymentPostingService
 
         if ($lastLedger) {
             return (float) ($lastLedger['balance'] ?? 0);
+        }
+
+        $db = db_connect();
+        if (! $db->fieldExists('forwarded_balance', 'clients')) {
+            return 0.0;
         }
 
         $client = (new ClientModel())
