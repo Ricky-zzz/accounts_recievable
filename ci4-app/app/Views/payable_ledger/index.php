@@ -143,10 +143,13 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
             <?php if ($selectedSupplier): ?>
                 <input type="hidden" name="supplier_id" value="<?= esc((string) $supplierId) ?>">
             <?php endif; ?>
-            <div><label class="block text-sm font-medium" for="start">Start Date</label><input class="input mt-1" id="start" name="start" type="date" value="<?= esc($start) ?>" @change="$el.form.requestSubmit()"></div>
-            <div><label class="block text-sm font-medium" for="end">End Date</label><input class="input mt-1" id="end" name="end" type="date" value="<?= esc($end) ?>" @change="$el.form.requestSubmit()"></div>
+            <input type="hidden" name="start" x-ref="fromDate" value="<?= esc($start) ?>">
+            <input type="hidden" name="end" x-ref="toDate" value="<?= esc($end) ?>">
+            <div><label class="block text-sm font-medium" for="start">Start Date</label><input class="input mt-1" id="start" x-ref="fromDateDraft" type="date" value="<?= esc($start) ?>"></div>
+            <div><label class="block text-sm font-medium" for="end">End Date</label><input class="input mt-1" id="end" x-ref="toDateDraft" type="date" value="<?= esc($end) ?>"></div>
             <div class="flex items-end gap-2">
                 <?php if ($selectedSupplier): ?>
+                    <button class="btn btn-strong" type="submit" @click="$refs.fromDate.value = $refs.fromDateDraft.value; $refs.toDate.value = $refs.toDateDraft.value">Filter</button>
                     <a class="btn btn-secondary" target="_blank" href="<?= base_url('payable-ledger/print') ?>?supplier_id=<?= esc((string) $supplierId) ?>&start=<?= esc($start) ?>&end=<?= esc($end) ?>">Print</a>
                     <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . $supplierId) ?>">Clear</a>
                 <?php endif; ?>

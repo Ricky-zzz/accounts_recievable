@@ -41,6 +41,8 @@ $filterQuery = [
         </div>
 
         <form method="get" action="<?= base_url('payable-reports/voided') ?>" class="filter-card rounded border border-gray-200 p-4" x-data>
+            <input type="hidden" name="from_voided_date" x-ref="fromDate" value="<?= esc($fromVoidedDate ?? '') ?>">
+            <input type="hidden" name="to_voided_date" x-ref="toDate" value="<?= esc($toVoidedDate ?? '') ?>">
             <div class="grid gap-4 md:grid-cols-5">
                 <div>
                     <label class="block text-sm font-medium" for="po_no">RR Number</label>
@@ -48,13 +50,14 @@ $filterQuery = [
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="from_voided_date">From Voided Date</label>
-                    <input class="input mt-1" id="from_voided_date" name="from_voided_date" type="date" value="<?= esc($fromVoidedDate ?? '') ?>" @change="$el.form.requestSubmit()">
+                    <input class="input mt-1" id="from_voided_date" x-ref="fromDateDraft" type="date" value="<?= esc($fromVoidedDate ?? '') ?>">
                 </div>
                 <div>
                     <label class="block text-sm font-medium" for="to_voided_date">To Voided Date</label>
-                    <input class="input mt-1" id="to_voided_date" name="to_voided_date" type="date" value="<?= esc($toVoidedDate ?? '') ?>" @change="$el.form.requestSubmit()">
+                    <input class="input mt-1" id="to_voided_date" x-ref="toDateDraft" type="date" value="<?= esc($toVoidedDate ?? '') ?>">
                 </div>
                 <div class="flex items-end gap-2 md:col-span-2">
+                    <button class="btn btn-strong" type="submit" @click="$refs.fromDate.value = $refs.fromDateDraft.value; $refs.toDate.value = $refs.toDateDraft.value">Filter</button>
                     <a class="btn btn-secondary" href="<?= base_url('payable-reports/voided') ?>">Clear</a>
                 </div>
             </div>

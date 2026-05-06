@@ -16,14 +16,17 @@
         <p class="mt-1 text-sm muted">Filter BOA records by date range.</p>
     </div>
     <form class="filter-card flex flex-wrap items-end gap-3 rounded border border-gray-200 p-3" method="get" action="<?= base_url('boa') ?>" x-data>
+        <input type="hidden" name="from" x-ref="fromDate" value="<?= esc($from) ?>">
+        <input type="hidden" name="to" x-ref="toDate" value="<?= esc($to) ?>">
         <div>
             <label class="block text-sm font-medium">From</label>
-            <input class="input" type="date" name="from" value="<?= esc($from) ?>" @change="$el.form.requestSubmit()">
+            <input class="input" type="date" x-ref="fromDateDraft" value="<?= esc($from) ?>">
         </div>
         <div>
             <label class="block text-sm font-medium">To</label>
-            <input class="input" type="date" name="to" value="<?= esc($to) ?>" @change="$el.form.requestSubmit()">
+            <input class="input" type="date" x-ref="toDateDraft" value="<?= esc($to) ?>">
         </div>
+        <button class="btn btn-strong" type="submit" @click="$refs.fromDate.value = $refs.fromDateDraft.value; $refs.toDate.value = $refs.toDateDraft.value">Filter</button>
         <a class="btn" target="_blank" href="<?= base_url('boa/print') ?>?from=<?= esc($from) ?>&to=<?= esc($to) ?>">Print</a>
     </form>
 </div>

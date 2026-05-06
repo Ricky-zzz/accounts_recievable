@@ -34,6 +34,8 @@ $filterQuery = [
     </div>
 
     <form method="get" action="<?= base_url('payable-reports/overdue') ?>" class="filter-card rounded border border-gray-200 p-4" x-data>
+        <input type="hidden" name="from_due_date" x-ref="fromDate" value="<?= esc($fromDueDate ?? '') ?>">
+        <input type="hidden" name="to_due_date" x-ref="toDate" value="<?= esc($toDueDate ?? '') ?>">
         <div class="grid gap-4 md:grid-cols-5">
         <div>
             <label class="block text-sm font-medium" for="po_no">PO Number</label>
@@ -41,11 +43,11 @@ $filterQuery = [
         </div>
         <div>
             <label class="block text-sm font-medium" for="from_due_date">From Due Date</label>
-            <input class="input mt-1" id="from_due_date" name="from_due_date" type="date" value="<?= esc($fromDueDate ?? '') ?>" @change="$el.form.requestSubmit()">
+            <input class="input mt-1" id="from_due_date" x-ref="fromDateDraft" type="date" value="<?= esc($fromDueDate ?? '') ?>">
         </div>
         <div>
             <label class="block text-sm font-medium" for="to_due_date">To Due Date</label>
-            <input class="input mt-1" id="to_due_date" name="to_due_date" type="date" value="<?= esc($toDueDate ?? '') ?>" @change="$el.form.requestSubmit()">
+            <input class="input mt-1" id="to_due_date" x-ref="toDateDraft" type="date" value="<?= esc($toDueDate ?? '') ?>">
         </div>
         <div>
             <label class="block text-sm font-medium" for="due_sort">Due Order</label>
@@ -55,6 +57,7 @@ $filterQuery = [
             </select>
         </div>
         <div class="flex items-end gap-2">
+            <button class="btn btn-strong" type="submit" @click="$refs.fromDate.value = $refs.fromDateDraft.value; $refs.toDate.value = $refs.toDateDraft.value">Filter</button>
             <a class="btn btn-secondary" href="<?= base_url('payable-reports/overdue') ?>">Clear</a>
         </div>
         </div>

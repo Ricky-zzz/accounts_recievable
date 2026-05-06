@@ -40,6 +40,8 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
     </div>
 
     <form method="get" action="<?= base_url('deliveries') ?>" class="filter-card mt-4 rounded border border-gray-200 p-4" x-data>
+        <input type="hidden" name="from_date" x-ref="fromDate" value="<?= esc($fromDate ?? '') ?>">
+        <input type="hidden" name="to_date" x-ref="toDate" value="<?= esc($toDate ?? '') ?>">
         <div class="grid gap-4 md:grid-cols-4">
             <div>
                 <label class="block text-sm font-medium" for="dr_no">DR Number</label>
@@ -55,22 +57,21 @@ $clientPriceMapJson = json_encode($deliveryActionData['clientPriceMap'] ?? [], $
                 <input
                     class="input mt-1"
                     id="from_date"
-                    name="from_date"
+                    x-ref="fromDateDraft"
                     type="date"
-                    value="<?= esc($fromDate ?? '') ?>"
-                    @change="$el.form.requestSubmit()">
+                    value="<?= esc($fromDate ?? '') ?>">
             </div>
             <div>
                 <label class="block text-sm font-medium" for="to_date">To Date</label>
                 <input
                     class="input mt-1"
                     id="to_date"
-                    name="to_date"
+                    x-ref="toDateDraft"
                     type="date"
-                    value="<?= esc($toDate ?? '') ?>"
-                    @change="$el.form.requestSubmit()">
+                    value="<?= esc($toDate ?? '') ?>">
             </div>
             <div class="flex items-end gap-2">
+                <button class="btn btn-strong" type="submit" @click="$refs.fromDate.value = $refs.fromDateDraft.value; $refs.toDate.value = $refs.toDateDraft.value">Filter</button>
                 <a class="btn btn-secondary" href="<?= base_url('deliveries') ?>">Clear</a>
             </div>
         </div>
