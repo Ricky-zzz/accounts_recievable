@@ -124,45 +124,7 @@ $printQuery = http_build_query([
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="modalOpen" x-cloak @click.self="closePayable()">
-        <div class="modal-panel max-w-3xl p-6" @click.stop>
-            <div class="flex items-start justify-between gap-4">
-                <h2 class="text-lg font-semibold">CV Details <span x-text="selectedPayable() ? selectedPayable().pr_no : ''"></span></h2>
-                <button class="btn btn-secondary" type="button" @click="closePayable()">Close</button>
-            </div>
-            <div class="mt-4 text-sm muted" x-show="detailLoading">Loading details...</div>
-            <div class="mt-4 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
-            <div class="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-                <div class="card p-3"><p class="muted">Amount Paid</p><p class="font-semibold" x-text="selectedPayable() ? Number(selectedPayable().amount_received || 0).toFixed(2) : '0.00'"></p></div>
-                <div class="card p-3"><p class="muted">Allocated to POs</p><p class="font-semibold" x-text="allocatedTotal().toFixed(2)"></p></div>
-                <div class="card p-3"><p class="muted">Other Accounts</p><p class="font-semibold" x-text="otherAccountsTotal().toFixed(2)"></p></div>
-            </div>
-            <div class="mt-5 grid gap-5 md:grid-cols-2">
-                <div>
-                    <h3 class="text-sm font-semibold">PO Allocations</h3>
-                    <table class="table mt-3">
-                        <thead><tr><th>RR #</th><th>Date</th><th>Amount</th></tr></thead>
-                        <tbody>
-                            <template x-if="detailLoading"><tr><td colspan="3">Loading...</td></tr></template>
-                            <template x-if="!detailLoading && selectedAllocations().length === 0"><tr><td colspan="3">No allocations found.</td></tr></template>
-                            <template x-for="(allocation, index) in selectedAllocations()" :key="index"><tr><td x-text="allocation.po_no"></td><td x-text="allocation.date"></td><td x-text="Number(allocation.amount).toFixed(2)"></td></tr></template>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 class="text-sm font-semibold">Other Accounts</h3>
-                    <table class="table mt-3">
-                        <thead><tr><th>Account Title</th><th>Amount</th></tr></thead>
-                        <tbody>
-                            <template x-if="detailLoading"><tr><td colspan="2">Loading...</td></tr></template>
-                            <template x-if="!detailLoading && selectedOtherAccounts().length === 0"><tr><td colspan="2">No other accounts found.</td></tr></template>
-                            <template x-for="(item, index) in selectedOtherAccounts()" :key="index"><tr><td x-text="item.account_title"></td><td x-text="Number(item.other_accounts || 0).toFixed(2)"></td></tr></template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+    <?= view('components/transaction_details/payable_modal') ?>
 
     <?= view('suppliers/_statement_modal') ?>
 </div>
@@ -171,6 +133,11 @@ $printQuery = http_build_query([
     function payablesList() {
         return {
             ...supplierStatementModalState(),
+            ...transactionDetailsState({
+                endpoints: {
+                    payable: '<?= base_url('ajax/payables') ?>',
+                },
+            }),
             payablesById: <?= $payablesJson ?>,
             detailUrl: '<?= base_url('ajax/payables') ?>',
             detailsByPayable: {},
@@ -182,12 +149,9 @@ $printQuery = http_build_query([
             openPayForm() { this.payFormOpen = true; },
             closePayForm() { this.payFormOpen = false; },
             async openPayable(id) {
-                this.selectedPayableId = id;
-                this.modalOpen = true;
-                this.detailError = '';
-                await this.loadPayableDetails(id);
+                await this.openDetail('payable', id, this.payablesById[id] ? (this.payablesById[id].pr_no || '') : '');
             },
-            closePayable() { this.modalOpen = false; this.selectedPayableId = null; },
+            closePayable() { this.closeDetail('payable'); },
             selectedPayableDetail() { return this.detailsByPayable[this.selectedPayableId] || null; },
             selectedPayable() {
                 const detail = this.selectedPayableDetail();

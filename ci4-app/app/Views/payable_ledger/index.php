@@ -44,6 +44,12 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
     function payableLedger() {
         return {
             ...supplierStatementModalState(),
+            ...transactionDetailsState({
+                endpoints: {
+                    purchaseOrder: '<?= base_url('ajax/purchase-orders') ?>',
+                    payable: '<?= base_url('ajax/payables') ?>',
+                },
+            }),
             forwardedBalance: <?= json_encode((float) ($forwardedBalance ?? 0), $jsonFlags) ?>,
             forwardBalanceOpen: false,
             forwardBalanceAmount: <?= json_encode((float) ($forwardedBalance ?? 0), $jsonFlags) ?>,
@@ -66,19 +72,16 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
                 this.forwardBalanceOpen = false;
             },
             openPoDetails(id) {
-                this.selectedPoId = id;
-                this.poDetailsOpen = true;
+                const row = this.rows.find((item) => String(item.purchase_order_id || '') === String(id || ''));
                 this.allocOpen = false;
+                this.openDetail('purchaseOrder', id, row ? (row.po_no || '') : '');
             },
             closePoDetails() {
-                this.poDetailsOpen = false;
-                this.selectedPoId = null;
+                this.closeDetail('purchaseOrder');
             },
             openPayableAllocations(id) {
-                this.allocType = 'payable';
-                this.selectedPayableId = id;
-                this.allocOpen = true;
-                this.poDetailsOpen = false;
+                const row = this.rows.find((item) => String(item.payable_id || '') === String(id || ''));
+                this.openDetail('payable', id, row ? (row.pr_no || '') : '');
             },
             closeAllocations() {
                 this.allocOpen = false;
@@ -263,135 +266,8 @@ $rowsJson = json_encode($rows ?? [], $jsonFlags);
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2>
-            </div>
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Pickup Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedItems().length === 0">
-                                <tr>
-                                    <td colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td x-text="formatQty(item.qty)"></td>
-                                    <td x-text="Number(item.unit_price || 0).toFixed(2)"></td>
-                                    <td x-text="Number(item.line_total || 0).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 class="mb-3 font-semibold">CV Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>CV #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody><template x-if="selectedPoAllocations().length === 0">
-                                <tr>
-                                    <td colspan="3">No allocations found.</td>
-                                </tr>
-                            </template><template x-for="(alloc, index) in selectedPoAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="alloc.pr_no"></td>
-                                    <td x-text="alloc.date"></td>
-                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
-                                </tr>
-                            </template></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
-        <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
-            <div class="flex items-start justify-between gap-4">
-                <h2 class="text-lg font-semibold">CV Summary <span x-text="selectedPayable() ? selectedPayable().pr_no : ''"></span></h2><button class="btn btn-secondary" type="button" @click="closeAllocations()">Close</button>
-            </div>
-            <div class="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-                <div class="card p-3">
-                    <p class="muted">Original Amount Paid</p>
-                    <p class="font-semibold" x-text="selectedPayable() ? Number(selectedPayable().amount_received || 0).toFixed(2) : '0.00'"></p>
-                </div>
-                <div class="card p-3">
-                    <p class="muted">Allocated to RRs</p>
-                    <p class="font-semibold" x-text="selectedAllocatedTotal().toFixed(2)"></p>
-                </div>
-                <div class="card p-3">
-                    <p class="muted">Other Accounts</p>
-                    <p class="font-semibold" x-text="selectedOtherAccountsTotal().toFixed(2)"></p>
-                </div>
-            </div>
-            <div class="modal-split mt-5">
-                <div>
-                    <h3 class="text-sm font-semibold">RR Allocations</h3>
-                    <table class="table mt-3">
-                        <thead>
-                            <tr>
-                                <th>RR#</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody><template x-if="selectedAllocations().length === 0">
-                                <tr>
-                                    <td colspan="3">No allocations found.</td>
-                                </tr>
-                            </template><template x-for="(allocation, index) in selectedAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="allocation.po_no"></td>
-                                    <td x-text="allocation.date"></td>
-                                    <td x-text="Number(allocation.amount).toFixed(2)"></td>
-                                </tr>
-                            </template></tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 class="text-sm font-semibold">Other Accounts</h3>
-                    <table class="table mt-3">
-                        <thead>
-                            <tr>
-                                <th>Account Title</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody><template x-if="selectedOtherAccounts().length === 0">
-                                <tr>
-                                    <td colspan="2">No other accounts found.</td>
-                                </tr>
-                            </template><template x-for="(item, index) in selectedOtherAccounts()" :key="index">
-                                <tr>
-                                    <td x-text="item.account_title"></td>
-                                    <td x-text="Number(item.other_accounts || 0).toFixed(2)"></td>
-                                </tr>
-                            </template></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <?= view('components/transaction_details/purchase_order_modal') ?>
+    <?= view('components/transaction_details/payable_modal') ?>
     <?= view('suppliers/_statement_modal') ?>
 </div>
 <?= $this->endSection() ?>

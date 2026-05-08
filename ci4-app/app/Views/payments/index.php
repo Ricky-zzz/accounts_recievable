@@ -112,100 +112,7 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
-        <div class="modal-panel max-w-lg p-6" @click.stop>
-            <h2 class="text-lg font-semibold">PR Summary for: <span x-text="selectedPrNumber()"></span></h2>
-            <div class="mt-3 text-sm muted" x-show="detailLoading">Loading details...</div>
-            <div class="mt-3 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
-            <table class="table mt-4">
-                <thead>
-                    <tr>
-                        <th>DR #</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-if="detailLoading">
-                        <tr>
-                            <td class="py-3" colspan="3">Loading...</td>
-                        </tr>
-                    </template>
-                    <template x-if="!detailLoading && selectedAllocations().length === 0">
-                        <tr>
-                            <td class="py-3" colspan="3">No allocations found.</td>
-                        </tr>
-                    </template>
-                    <template x-for="(allocation, index) in selectedAllocations()" :key="index">
-                        <tr>
-                            <td x-text="allocation.dr_no"></td>
-                            <td x-text="allocation.date"></td>
-                            <td x-text="Number(allocation.amount).toFixed(2)"></td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-            <div class="mt-4 flex items-center justify-between text-sm">
-                <span class="font-semibold">Total</span>
-                <span x-text="allocTotal()"></span>
-            </div>
-            <div class="mt-6 space-y-5">
-                <div class="rounded border border-gray-200 p-4 text-sm">
-                    <div class="flex items-center justify-between">
-                        <span class="font-semibold">Original Amount Received</span>
-                        <span x-text="selectedPayment() ? Number(selectedPayment().amount_received || 0).toFixed(2) : '0.00'"></span>
-                    </div>
-                    <div class="mt-2 flex items-center justify-between">
-                        <span class="font-semibold">Allocated to DRs</span>
-                        <span x-text="selectedAllocatedTotal().toFixed(2)"></span>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-semibold">Other Accounts</h3>
-                    <table class="table mt-3">
-                        <thead>
-                            <tr>
-                                <th>Account Title</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="detailLoading">
-                                <tr>
-                                    <td class="py-3" colspan="2">Loading...</td>
-                                </tr>
-                            </template>
-                            <template x-if="!detailLoading && selectedOtherAccountsBreakdown().length === 0">
-                                <tr>
-                                    <td class="py-3" colspan="2">No other accounts found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(item, index) in selectedOtherAccountsBreakdown()" :key="'other-' + index">
-                                <tr>
-                                    <td x-text="item.account_title"></td>
-                                    <td x-text="Number(item.dr || item.ar_others || 0).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-3 rounded border border-gray-200 p-4 text-sm" x-show="selectedArOther()" x-cloak>
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold">A/R Other Description</span>
-                            <span x-text="selectedArOther() ? (selectedArOther().description || '-') : '-' "></span>
-                        </div>
-                        <div class="mt-2 flex items-center justify-between">
-                            <span class="font-semibold">A/R Other Amount</span>
-                            <span x-text="selectedArOther() ? Number(selectedArOther().ar_others || 0).toFixed(2) : '0.00'"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4">
-                <button class="btn" type="button" @click="closeAllocations()">Close</button>
-            </div>
-        </div>
-    </div>
+    <?= view('components/transaction_details/payment_modal') ?>
     <?= view('clients/_soa_modal') ?>
 </div>
 
@@ -213,6 +120,11 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
     function paymentList() {
         return {
             ...soaModalState(),
+            ...transactionDetailsState({
+                endpoints: {
+                    payment: '<?= base_url('ajax/payments') ?>',
+                },
+            }),
             paymentsById: <?= $paymentsByIdJson ?>,
             detailUrl: '<?= base_url('ajax/payments') ?>',
             detailsByPayment: {},
@@ -222,15 +134,10 @@ $paymentsByIdJson = json_encode($paymentsById ?? [], $jsonFlags);
             detailLoading: false,
             detailError: '',
             async openAllocations(id, prNo = '') {
-                this.selectedPaymentId = id;
-                this.selectedPrLabel = prNo;
-                this.allocOpen = true;
-                this.detailError = '';
-                await this.loadPaymentDetails(id);
+                await this.openDetail('payment', id, prNo);
             },
             closeAllocations() {
-                this.allocOpen = false;
-                this.selectedPaymentId = null;
+                this.closeDetail('payment');
             },
             selectedPaymentDetail() {
                 return this.detailsByPayment[this.selectedPaymentId] || null;

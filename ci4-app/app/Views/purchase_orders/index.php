@@ -218,74 +218,7 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2>
-            </div>
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Purchase Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                                <th>Source PO</th>
-                                <th>PO Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedItems().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="6">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td x-text="formatQty(item.qty)"></td>
-                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
-                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
-                                    <td x-text="item.supplier_order_po_no || ''"></td>
-                                    <td x-text="item.po_qty_balance_after !== null && item.po_qty_balance_after !== undefined ? formatQty(item.po_qty_balance_after) : ''"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 class="mb-3 font-semibold">CV Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>CV #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedAllocations().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="alloc.pr_no"></td>
-                                    <td x-text="alloc.date"></td>
-                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end"><button class="btn" type="button" @click="closePoDetails()">Close</button></div>
-        </div>
-    </div>
+    <?= view('components/transaction_details/purchase_order_modal') ?>
 
     <?= view('purchase_orders/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
 
@@ -462,6 +395,11 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
 <script>
     function purchaseOrderList() {
         return {
+            ...transactionDetailsState({
+                endpoints: {
+                    purchaseOrder: '<?= base_url('ajax/purchase-orders') ?>',
+                },
+            }),
             orders: <?= $ordersJson ?>,
             itemsByPurchaseOrder: <?= $itemsJson ?>,
             allocationsByPurchaseOrder: <?= $allocationsJson ?>,
@@ -588,13 +526,12 @@ $printParams = ['from_date' => $fromDate ?? '', 'to_date' => $toDate ?? '', 'po_
                 this.quickPay.allocationAmount = this.quickPay.amountReceived;
             },
             openPoDetails(id) {
-                this.selectedOrderId = id;
-                this.poDetailsOpen = true;
+                const order = this.orders.find((row) => String(row.id) === String(id));
+                this.openDetail('purchaseOrder', id, order ? (order.po_no || '') : '');
                 this.quickPayOpen = false;
             },
             closePoDetails() {
-                this.poDetailsOpen = false;
-                this.selectedOrderId = null;
+                this.closeDetail('purchaseOrder');
             },
             selectedOrder() {
                 return this.orders.find((order) => String(order.id) === String(this.selectedOrderId)) || null;

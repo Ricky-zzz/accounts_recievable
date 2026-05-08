@@ -137,73 +137,6 @@ $filterQuery = [
         <?php endif; ?>
     </div>
 
-    <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">RR Details: <span x-text="selectedPoNumber()"></span></h2>
-            </div>
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Pickup Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedItems().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td x-text="formatQty(item.qty)"></td>
-                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
-                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedItems().length > 0">Total: <span x-text="itemsTotal()"></span></div>
-                </div>
-                <div>
-                    <h3 class="mb-3 font-semibold">CV Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>CV #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedAllocations().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="alloc.pr_no"></td>
-                                    <td x-text="alloc.date"></td>
-                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedAllocations().length > 0">Total: <span x-text="allocationsTotal()"></span></div>
-                </div>
-            </div>
-            <div class="mt-6 flex items-center justify-end"><button class="btn" type="button" @click="closePoDetails()">Close</button></div>
-        </div>
-    </div>
-
     <div class="modal-backdrop" x-show="historyOpen" x-cloak @click.self="closeHistory()">
         <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
             <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
@@ -307,11 +240,17 @@ $filterQuery = [
             </div>
         </div>
     </div>
+    <?= view('components/transaction_details/purchase_order_modal') ?>
 </div>
 
 <script>
     function voidedPayableReport() {
         return {
+            ...transactionDetailsState({
+                endpoints: {
+                    purchaseOrder: '<?= base_url('ajax/purchase-orders') ?>',
+                },
+            }),
             itemsByPurchaseOrder: <?= $itemsJson ?>,
             allocationsByPurchaseOrder: <?= $allocationsJson ?>,
             historiesByPurchaseOrder: <?= $historiesJson ?>,
@@ -336,12 +275,11 @@ $filterQuery = [
                 });
             },
             openPoDetails(id) {
-                this.selectedPurchaseOrderId = id;
-                this.poDetailsOpen = true;
+                const row = this.rows.find((item) => String(item.id) === String(id));
+                this.openDetail('purchaseOrder', id, row ? (row.po_no || '') : '');
             },
             closePoDetails() {
-                this.poDetailsOpen = false;
-                this.selectedPurchaseOrderId = null;
+                this.closeDetail('purchaseOrder');
             },
             openHistory(id) {
                 this.selectedHistoryId = id;

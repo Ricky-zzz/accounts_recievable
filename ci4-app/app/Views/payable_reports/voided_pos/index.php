@@ -130,40 +130,6 @@ $filterQuery = [
         <?php endif; ?>
     </div>
 
-    <div class="modal-backdrop" x-show="poDetailsOpen" x-cloak @click.self="closePoDetails()">
-        <div class="modal-panel max-w-4xl p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">Details for PO#: <span x-text="selectedPoNumber()"></span></h2>
-            </div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th class="text-right">Ordered</th>
-                        <th class="text-right">Picked</th>
-                        <th class="text-right">Balance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-if="selectedItems().length === 0">
-                        <tr>
-                            <td class="py-3 text-center" colspan="4">No items found.</td>
-                        </tr>
-                    </template>
-                    <template x-for="item in selectedItems()" :key="item.id">
-                        <tr>
-                            <td x-text="item.product_name"></td>
-                            <td class="text-right" x-text="formatQty(item.qty_ordered)"></td>
-                            <td class="text-right" x-text="formatQty(item.qty_picked_up)"></td>
-                            <td class="text-right" x-text="formatQty(item.qty_balance)"></td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-            <div class="mt-6 flex items-center justify-end"><button class="btn" type="button" @click="closePoDetails()">Close</button></div>
-        </div>
-    </div>
-
     <div class="modal-backdrop" x-show="historyOpen" x-cloak @click.self="closeHistory()">
         <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
             <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
@@ -261,11 +227,19 @@ $filterQuery = [
             </div>
         </div>
     </div>
+    <?= view('components/transaction_details/supplier_order_modal') ?>
+    <?= view('components/transaction_details/purchase_order_modal') ?>
 </div>
 
 <script>
     function voidedPosReport() {
         return {
+            ...transactionDetailsState({
+                endpoints: {
+                    supplierOrder: '<?= base_url('ajax/supplier-orders') ?>',
+                    purchaseOrder: '<?= base_url('ajax/purchase-orders') ?>',
+                },
+            }),
             itemsBySupplierOrder: <?= $itemsJson ?>,
             historiesBySupplierOrder: <?= $historiesJson ?>,
             rows: <?= $rowsJson ?>,
@@ -274,12 +248,11 @@ $filterQuery = [
             selectedSupplierOrderId: null,
             selectedHistoryId: null,
             openPoDetails(id) {
-                this.selectedSupplierOrderId = id;
-                this.poDetailsOpen = true;
+                const row = this.rows.find((item) => String(item.id) === String(id));
+                this.openDetail('supplierOrder', id, row ? (row.po_no || '') : '');
             },
             closePoDetails() {
-                this.poDetailsOpen = false;
-                this.selectedSupplierOrderId = null;
+                this.closeDetail('supplierOrder');
             },
             openHistory(id) {
                 this.selectedHistoryId = id;

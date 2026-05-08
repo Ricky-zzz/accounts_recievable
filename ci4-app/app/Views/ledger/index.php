@@ -24,6 +24,12 @@
     function ledgerItems() {
         return {
             ...soaModalState(),
+            ...transactionDetailsState({
+                endpoints: {
+                    delivery: '<?= base_url('ajax/deliveries') ?>',
+                    payment: '<?= base_url('ajax/payments') ?>',
+                },
+            }),
             forwardedBalance: <?= json_encode((float) ($forwardedBalance ?? 0)) ?>,
             forwardBalanceOpen: false,
             forwardBalanceAmount: <?= json_encode((float) ($forwardedBalance ?? 0)) ?>,
@@ -63,17 +69,12 @@
                 this.selectedItemId = null;
             },
             async openDrDetails(id, drNo = '') {
-                this.selectedItemId = id;
-                this.selectedDrLabel = drNo;
-                this.detailError = '';
-                this.drDetailsOpen = true;
                 this.itemsOpen = false;
                 this.allocOpen = false;
-                await this.loadDeliveryDetails(id);
+                await this.openDetail('delivery', id, drNo);
             },
             closeDrDetails() {
-                this.drDetailsOpen = false;
-                this.selectedItemId = null;
+                this.closeDetail('delivery');
             },
             deliveryDetails() {
                 return this.deliveryDetailsById[this.selectedItemId] || null;
@@ -101,14 +102,9 @@
                 await this.loadDeliveryDetails(id);
             },
             async openPaymentAllocations(id, prNo = '') {
-                this.allocType = 'payment';
-                this.selectedAllocId = id;
-                this.selectedPrLabel = prNo;
-                this.detailError = '';
-                this.allocOpen = true;
                 this.itemsOpen = false;
-                this.drDetailsOpen = false;
-                await this.loadPaymentDetails(id);
+                this.allocOpen = false;
+                await this.openDetail('payment', id, prNo);
             },
             closeAllocations() {
                 this.allocOpen = false;
@@ -388,232 +384,8 @@
             </form>
         </div>
     </div>
-    <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">DR Details: <span x-text="selectedDrNumber()"></span></h2>
-            </div>
-            <div class="mb-4 text-sm muted" x-show="detailLoading">Loading details...</div>
-            <div class="mb-4 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
-
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Delivery Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="detailLoading">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="4">Loading...</td>
-                                </tr>
-                            </template>
-                            <template x-if="!detailLoading && selectedDrItems().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedDrItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td x-text="item.qty"></td>
-                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
-                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedDrItems().length > 0">
-                        Total: <span x-text="drItemsTotal()"></span>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="mb-3 font-semibold">DR Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>PR #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="detailLoading">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="3">Loading...</td>
-                                </tr>
-                            </template>
-                            <template x-if="!detailLoading && selectedDrAllocations().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(alloc, index) in selectedDrAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="alloc.pr_no"></td>
-                                    <td x-text="alloc.date"></td>
-                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedDrAllocations().length > 0">
-                        Total: <span x-text="drAllocationsTotal()"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-6 flex items-center justify-end">
-                <button class="btn" type="button" @click="closeDrDetails()">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop" x-show="itemsOpen" x-cloak @click.self="closeItems()">
-        <div class="modal-panel max-w-lg p-6" @click.stop>
-            <h2 class="text-lg font-semibold">Delivery Items</h2>
-            <div class="mt-3 text-sm muted" x-show="detailLoading">Loading details...</div>
-            <div class="mt-3 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
-            <table class="table mt-4">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-if="detailLoading">
-                        <tr>
-                            <td class="py-3" colspan="4">Loading...</td>
-                        </tr>
-                    </template>
-                    <template x-if="!detailLoading && selectedItems().length === 0">
-                        <tr>
-                            <td class="py-3" colspan="4">No items found.</td>
-                        </tr>
-                    </template>
-                    <template x-for="item in selectedItems()" :key="item.id">
-                        <tr>
-                            <td x-text="item.product_name"></td>
-                            <td x-text="item.qty"></td>
-                            <td x-text="Number(item.unit_price).toFixed(2)"></td>
-                            <td x-text="Number(item.line_total).toFixed(2)"></td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-            <div class="mt-4 flex items-center justify-between text-sm">
-                <span class="font-semibold">Total</span>
-                <span x-text="itemsTotal()"></span>
-            </div>
-            <div class="mt-4">
-                <button class="btn" type="button" @click="closeItems()">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop" x-show="allocOpen" x-cloak @click.self="closeAllocations()">
-        <div class="modal-panel max-w-lg p-6" @click.stop>
-            <h2 class="text-lg font-semibold">
-                <span x-text="allocType === 'delivery' ? 'DR Allocations' : 'PR Summary for: ' + selectedPrNumber()"></span>
-            </h2>
-            <div class="mt-3 text-sm muted" x-show="detailLoading">Loading details...</div>
-            <div class="mt-3 text-sm text-red-600" x-show="detailError" x-text="detailError"></div>
-            <table class="table mt-4">
-                <thead>
-                    <tr>
-                        <th x-text="allocType === 'delivery' ? 'PR#' : 'DR#'"></th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-if="detailLoading">
-                        <tr>
-                            <td class="py-3" colspan="3">Loading...</td>
-                        </tr>
-                    </template>
-                    <template x-if="!detailLoading && selectedAllocations().length === 0">
-                        <tr>
-                            <td class="py-3" colspan="3">No allocations found.</td>
-                        </tr>
-                    </template>
-                    <template x-for="(allocation, index) in selectedAllocations()" :key="index">
-                        <tr>
-                            <td x-text="allocType === 'delivery' ? allocation.pr_no : allocation.dr_no"></td>
-                            <td x-text="allocation.date"></td>
-                            <td x-text="Number(allocation.amount).toFixed(2)"></td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-            <div class="mt-4 flex items-center justify-between text-sm">
-                <span class="font-semibold">Total</span>
-                <span x-text="allocTotal()"></span>
-            </div>
-            <template x-if="allocType === 'payment'">
-                <div class="mt-6 space-y-5">
-                    <div class="rounded border border-gray-200 p-4 text-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold">Original Amount Received</span>
-                            <span x-text="selectedPayment() ? Number(selectedPayment().amount_received || 0).toFixed(2) : '0.00'"></span>
-                        </div>
-                        <div class="mt-2 flex items-center justify-between">
-                            <span class="font-semibold">Allocated to DRs</span>
-                            <span x-text="selectedAllocatedTotal().toFixed(2)"></span>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-sm font-semibold">Other Accounts</h3>
-                        <table class="table mt-3">
-                            <thead>
-                                <tr>
-                                    <th>Account Title</th>
-                                    <th>Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-if="selectedOtherAccountsBreakdown().length === 0">
-                                    <tr>
-                                        <td class="py-3" colspan="2">No other accounts found.</td>
-                                    </tr>
-                                </template>
-                                <template x-for="(item, index) in selectedOtherAccountsBreakdown()" :key="'other-' + index">
-                                    <tr>
-                                        <td x-text="item.account_title"></td>
-                                        <td x-text="Number(item.dr || item.ar_others || 0).toFixed(2)"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                        <div class="mt-3 rounded border border-gray-200 p-4 text-sm" x-show="selectedArOther()" x-cloak>
-                            <div class="flex items-center justify-between">
-                                <span class="font-semibold">A/R Other Description</span>
-                                <span x-text="selectedArOther() ? (selectedArOther().description || '-') : '-' "></span>
-                            </div>
-                            <div class="mt-2 flex items-center justify-between">
-                                <span class="font-semibold">A/R Other Amount</span>
-                                <span x-text="selectedArOther() ? Number(selectedArOther().ar_others || 0).toFixed(2) : '0.00'"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </template>
-            <div class="mt-4">
-                <button class="btn" type="button" @click="closeAllocations()">Close</button>
-            </div>
-        </div>
-    </div>
+    <?= view('components/transaction_details/delivery_modal') ?>
+    <?= view('components/transaction_details/payment_modal') ?>
     <?= view('clients/_soa_modal') ?>
 </div>
 

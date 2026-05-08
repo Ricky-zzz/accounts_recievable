@@ -251,82 +251,8 @@ if (! $supplier && ! empty($supplierId)) {
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="detailsOpen" x-cloak @click.self="closeDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="sticky top-0 z-10 -mx-6 -mt-6 mb-5 flex items-start justify-between gap-4 border-b border-gray-200 bg-white p-6">
-                <div>
-                    <h2 class="text-lg font-semibold">PO Details <span x-text="selectedOrder() ? selectedOrder().po_no : ''"></span></h2>
-                    <p class="mt-1 text-sm muted" x-text="selectedOrder() ? selectedOrder().supplier_name || '' : ''"></p>
-                </div>
-                <button class="btn btn-secondary" type="button" @click="closeDetails()">Close</button>
-            </div>
-            <div class="space-y-5">
-                <section>
-                    <h3 class="mb-3 text-sm font-semibold">PO Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th class="text-right">Purchase Qty</th>
-                                <th class="text-right">Picked-Up</th>
-                                <th class="text-right">Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedItems().length === 0">
-                                <tr>
-                                    <td colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_ordered)"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_picked_up)"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_balance)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </section>
-                <section>
-                    <h3 class="mb-3 text-sm font-semibold">RR Consumption</h3>
-                    <div class="overflow-y-auto rounded border border-gray-200" style="max-height: 45vh;">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>RR#</th>
-                                    <th>Date</th>
-                                    <th>Product</th>
-                                    <th class="text-right">Qty</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-if="detailsLoading">
-                                    <tr>
-                                        <td colspan="4">Loading RR consumption...</td>
-                                    </tr>
-                                </template>
-                                <template x-if="!detailsLoading && selectedConsumptions().length === 0">
-                                    <tr>
-                                        <td colspan="4">No RR consumption found.</td>
-                                    </tr>
-                                </template>
-                                <template x-for="(item, index) in selectedConsumptions()" :key="index">
-                                    <tr>
-                                        <td x-text="item.rr_no || '-'"></td>
-                                        <td x-text="item.rr_date || '-'"></td>
-                                        <td x-text="item.product_name || '-'"></td>
-                                        <td class="text-right" x-text="formatQty(item.qty)"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </div>
-        </div>
-    </div>
+    <?= view('components/transaction_details/supplier_order_modal') ?>
+    <?= view('components/transaction_details/purchase_order_modal') ?>
 
     <div class="modal-backdrop" x-show="voidOpen" x-cloak @click.self="closeVoid()">
         <div class="modal-panel max-w-xl p-6" @click.stop>
@@ -459,6 +385,12 @@ if (! $supplier && ! empty($supplierId)) {
     function supplierOrderList() {
         return {
             ...supplierStatementModalState(),
+            ...transactionDetailsState({
+                endpoints: {
+                    supplierOrder: '<?= base_url('ajax/supplier-orders') ?>',
+                    purchaseOrder: '<?= base_url('ajax/purchase-orders') ?>',
+                },
+            }),
             orders: <?= $ordersJson ?>,
             itemsByOrder: <?= $itemsJson ?>,
             historiesByOrder: <?= $historiesJson ?>,
@@ -524,30 +456,11 @@ if (! $supplier && ! empty($supplierId)) {
                 });
             },
             async openDetails(id) {
-                this.selectedOrderId = id;
-                this.detailsOpen = true;
-                this.detailsLoading = true;
-                this.supplierOrderDetail = {};
-                try {
-                    const response = await fetch(`<?= base_url('ajax/supplier-orders') ?>/${id}`, {
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    if (String(this.selectedOrderId) === String(id)) {
-                        this.supplierOrderDetail = response.ok ? await response.json() : {};
-                    }
-                } finally {
-                    if (String(this.selectedOrderId) === String(id)) {
-                        this.detailsLoading = false;
-                    }
-                }
+                const order = this.orders.find((row) => String(row.id) === String(id));
+                await this.openDetail('supplierOrder', id, order ? (order.po_no || '') : '');
             },
             closeDetails() {
-                this.detailsOpen = false;
-                this.selectedOrderId = null;
-                this.supplierOrderDetail = {};
-                this.detailsLoading = false;
+                this.closeDetail('supplierOrder');
             },
             selectedOrder() {
                 return this.orders.find((row) => String(row.id) === String(this.selectedOrderId)) || null;

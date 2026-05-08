@@ -140,152 +140,20 @@ $printParams = [
         'supplierOrderId' => $supplierOrderId,
     ]) ?>
 
-    <div class="modal-backdrop" x-show="supplierOrderOpen" x-cloak @click.self="closeSupplierOrder()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4 border-b pb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">PO Details: <span x-text="supplierPoNumber()"></span></h2>
-                    <p class="mt-1 text-sm muted" x-text="supplierOrderDetail.supplier_order ? supplierOrderDetail.supplier_order.supplier_name || '' : ''"></p>
-                </div>
-                <button class="btn btn-secondary" type="button" @click="closeSupplierOrder()">Close</button>
-            </div>
-            <div class="space-y-5">
-                <section>
-                    <h3 class="mb-3 text-sm font-semibold">PO Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th class="text-right">Purchase Qty</th>
-                                <th class="text-right">Picked-Up</th>
-                                <th class="text-right">Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="supplierItems().length === 0">
-                                <tr>
-                                    <td colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in supplierItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name || '-'"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_ordered)"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_picked_up)"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty_balance)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </section>
-                <section>
-                    <h3 class="mb-3 text-sm font-semibold">RR Consumption</h3>
-                    <div class="overflow-y-auto rounded border border-gray-200" style="max-height: 45vh;">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>RR#</th>
-                                    <th>Date</th>
-                                    <th>Product</th>
-                                    <th class="text-right">Qty</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-if="supplierConsumptions().length === 0">
-                                    <tr>
-                                        <td colspan="4">No RR consumption found.</td>
-                                    </tr>
-                                </template>
-                                <template x-for="(item, index) in supplierConsumptions()" :key="index">
-                                    <tr>
-                                        <td><button class="btn-link" type="button" @click="openRr(item.purchase_order_id)" x-text="item.rr_no || '-'"></button></td>
-                                        <td x-text="item.rr_date || '-'"></td>
-                                        <td x-text="item.product_name || '-'"></td>
-                                        <td class="text-right" x-text="formatQty(item.qty)"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop" x-show="rrOpen" x-cloak @click.self="closeRr()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-5 flex items-start justify-between gap-4 border-b pb-4">
-                <div>
-                    <h2 class="text-lg font-semibold">RR Details: <span x-text="rrNumber()"></span></h2>
-                    <p class="mt-1 text-sm muted" x-text="rrDetail.purchase_order ? rrDetail.purchase_order.supplier_name || '' : ''"></p>
-                </div>
-                <button class="btn btn-secondary" type="button" @click="closeRr()">Close</button>
-            </div>
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Pickup Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th class="text-right">Qty</th>
-                                <th class="text-right">Price</th>
-                                <th class="text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="rrItems().length === 0">
-                                <tr>
-                                    <td colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in rrItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name || '-'"></td>
-                                    <td class="text-right" x-text="formatQty(item.qty)"></td>
-                                    <td class="text-right" x-text="formatAmount(item.unit_price)"></td>
-                                    <td class="text-right" x-text="formatAmount(item.line_total)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 class="mb-3 font-semibold">CV Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>CV#</th>
-                                <th>Date</th>
-                                <th class="text-right">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="rrAllocations().length === 0">
-                                <tr>
-                                    <td colspan="3">No allocations found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(item, index) in rrAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="item.pr_no || '-'"></td>
-                                    <td x-text="item.date || '-'"></td>
-                                    <td class="text-right" x-text="formatAmount(item.amount)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <?= view('components/transaction_details/supplier_order_modal') ?>
+    <?= view('components/transaction_details/purchase_order_modal') ?>
     <?= view('purchase_orders/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
 </div>
 
 <script>
     function supplierPoLedger() {
         return {
+            ...transactionDetailsState({
+                endpoints: {
+                    supplierOrder: '<?= base_url('ajax/supplier-orders') ?>',
+                    purchaseOrder: '<?= base_url('ajax/purchase-orders') ?>',
+                },
+            }),
             pickupFormOpen: <?= old('return_to_supplier_order_ledger') ? 'true' : 'false' ?>,
             supplierOrderOpen: false,
             rrOpen: false,
@@ -387,22 +255,17 @@ $printParams = [
                 return (parseFloat(this.quickPay.amountReceived) || 0) + this.quickPayFixedAccountsTotal() - (parseFloat(this.quickPay.allocationAmount) || 0);
             },
             async openSupplierOrder(id) {
-                const response = await fetch(`<?= base_url('ajax/supplier-orders') ?>/${id}`);
-                this.supplierOrderDetail = response.ok ? await response.json() : {};
-                this.supplierOrderOpen = true;
+                await this.openDetail('supplierOrder', id, '<?= esc((string) ($supplierOrder['po_no'] ?? ''), 'js') ?>');
             },
             closeSupplierOrder() {
-                this.supplierOrderOpen = false;
-                this.supplierOrderDetail = {};
+                this.closeDetail('supplierOrder');
             },
             async openRr(id) {
-                const response = await fetch(`<?= base_url('ajax/purchase-orders') ?>/${id}`);
-                this.rrDetail = response.ok ? await response.json() : {};
-                this.rrOpen = true;
+                const order = this.quickPayOrders.find((row) => String(row.id) === String(id));
+                await this.openDetail('purchaseOrder', id, order ? (order.po_no || '') : '');
             },
             closeRr() {
-                this.rrOpen = false;
-                this.rrDetail = {};
+                this.closeDetail('purchaseOrder');
             },
             supplierPoNumber() {
                 return this.supplierOrderDetail.supplier_order ? this.supplierOrderDetail.supplier_order.po_no || '' : '';

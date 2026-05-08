@@ -141,82 +141,6 @@ $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
         <?php endif; ?>
     </div>
 
-    <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">DR Details: <span x-text="selectedDrNumber()"></span></h2>
-            </div>
-
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Delivery Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedItems().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td x-text="item.qty"></td>
-                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
-                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedItems().length > 0">
-                        Total: <span x-text="itemsTotal()"></span>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="mb-3 font-semibold">DR Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>PR #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedAllocations().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="alloc.pr_no"></td>
-                                    <td x-text="alloc.date"></td>
-                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedAllocations().length > 0">
-                        Total: <span x-text="allocationsTotal()"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-6 flex items-center justify-end">
-                <button class="btn" type="button" @click="closeDrDetails()">Close</button>
-            </div>
-        </div>
-    </div>
-
     <div class="modal-backdrop" x-show="historyOpen" x-cloak @click.self="closeHistory()">
         <div class="modal-panel max-h-[92vh] max-w-5xl overflow-y-auto p-6" @click.stop>
             <div class="sticky top-0 z-10 -mx-6 -mt-6 border-b border-gray-200 bg-white p-6">
@@ -320,11 +244,17 @@ $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
             </div>
         </div>
     </div>
+    <?= view('components/transaction_details/delivery_modal') ?>
 </div>
 
 <script>
     function voidedReport() {
         return {
+            ...transactionDetailsState({
+                endpoints: {
+                    delivery: '<?= base_url('ajax/deliveries') ?>',
+                },
+            }),
             itemsByDelivery: <?= $itemsJson ?>,
             allocationsByDelivery: <?= $allocationsJson ?>,
             historiesByDelivery: <?= $historiesJson ?>,
@@ -343,12 +273,11 @@ $historiesJson = json_encode($historiesByDelivery ?? [], $jsonFlags);
                 });
             },
             openDrDetails(id) {
-                this.selectedDeliveryId = id;
-                this.drDetailsOpen = true;
+                const row = this.rows.find((item) => String(item.id) === String(id));
+                this.openDetail('delivery', id, row ? (row.dr_no || '') : '');
             },
             closeDrDetails() {
-                this.drDetailsOpen = false;
-                this.selectedDeliveryId = null;
+                this.closeDetail('delivery');
             },
             openHistory(id) {
                 this.selectedHistoryId = id;

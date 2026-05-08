@@ -161,112 +161,7 @@ $quickPayAdvanceCollectionsJson = json_encode($quickPayData['advanceCollections'
         </div>
     </div>
 
-    <div class="modal-backdrop" x-show="drDetailsOpen" x-cloak @click.self="closeDrDetails()">
-        <div class="modal-panel max-h-[92vh] max-w-6xl overflow-y-auto p-6" @click.stop>
-            <div class="mb-4 border-b pb-4">
-                <h2 class="text-lg font-semibold">DR Details: <span x-text="selectedDrNumber()"></span></h2>
-            </div>
-
-            <div class="modal-split">
-                <div>
-                    <h3 class="mb-3 font-semibold">Delivery Items</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedItems().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="4">No items found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="item in selectedItems()" :key="item.id">
-                                <tr>
-                                    <td x-text="item.product_name"></td>
-                                    <td x-text="formatQty(item.qty)"></td>
-                                    <td x-text="Number(item.unit_price).toFixed(2)"></td>
-                                    <td x-text="Number(item.line_total).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedItems().length > 0">
-                        Total: <span x-text="itemsTotal()"></span>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="mb-3 font-semibold">DR Allocations</h3>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>PR #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="selectedAllocations().length === 0">
-                                <tr>
-                                    <td class="py-3 text-center" colspan="3">No allocations found.</td>
-                                </tr>
-                            </template>
-                            <template x-for="(alloc, index) in selectedAllocations()" :key="index">
-                                <tr>
-                                    <td x-text="alloc.pr_no"></td>
-                                    <td x-text="alloc.date"></td>
-                                    <td x-text="Number(alloc.amount).toFixed(2)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <div class="mt-2 text-sm font-semibold" x-show="selectedAllocations().length > 0">
-                        Total: <span x-text="allocationsTotal()"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-6">
-                <h3 class="mb-3 font-semibold">Connected RR / Pickup</h3>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>RR#</th>
-                            <th>Supplier</th>
-                            <th>Product</th>
-                            <th class="text-right">Quantity</th>
-                            <th class="text-right">Deliverable / Loss</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-if="selectedPickupAllocations().length === 0">
-                            <tr>
-                                <td colspan="5">No RR connected.</td>
-                            </tr>
-                        </template>
-                        <template x-for="item in selectedPickupAllocations()" :key="item.purchase_order_id + '-' + item.product_id">
-                            <tr>
-                                <td x-text="item.rr_no"></td>
-                                <td x-text="item.supplier_name"></td>
-                                <td x-text="item.product_name"></td>
-                                <td class="text-right" x-text="formatQty(item.qty_allocated)"></td>
-                                <td class="text-right" x-text="formatQty((parseFloat(item.remaining_qty) || 0) - (parseFloat(item.qty_allocated) || 0))"></td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="mt-6 flex items-center justify-end">
-                <button class="btn" type="button" @click="closeDrDetails()">Close</button>
-            </div>
-        </div>
-    </div>
+    <?= view('components/transaction_details/delivery_modal') ?>
 
     <?= view('deliveries/_quick_pay_modal', ['quickPayData' => $quickPayData ?? []]) ?>
     <?= view('deliveries/_action_modals', ['deliveryActionData' => $deliveryActionData ?? []]) ?>
@@ -277,6 +172,11 @@ $quickPayAdvanceCollectionsJson = json_encode($quickPayData['advanceCollections'
     function deliveryList() {
         return {
             ...soaModalState(),
+            ...transactionDetailsState({
+                endpoints: {
+                    delivery: '<?= base_url('ajax/deliveries') ?>',
+                },
+            }),
             quickPayDeliveries: <?= $deliveriesJson ?>,
             quickPayAdvanceCollections: <?= $quickPayAdvanceCollectionsJson ?>,
             itemsByDelivery: <?= $itemsJson ?>,
@@ -379,13 +279,12 @@ $quickPayAdvanceCollectionsJson = json_encode($quickPayData['advanceCollections'
                 this.selectedDeliveryId = null;
             },
             openDrDetails(id) {
-                this.selectedDeliveryId = id;
-                this.drDetailsOpen = true;
+                const delivery = this.quickPayDeliveries.find((d) => String(d.id) === String(id));
+                this.openDetail('delivery', id, delivery ? (delivery.dr_no || '') : '');
                 this.quickPayOpen = false;
             },
             closeDrDetails() {
-                this.drDetailsOpen = false;
-                this.selectedDeliveryId = null;
+                this.closeDetail('delivery');
             },
             selectedDrNumber() {
                 const delivery = this.quickPayDeliveries.find((d) => String(d.id) === String(this.selectedDeliveryId));

@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= esc($title ?? 'Payables Admin') ?></title>
     <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>">
+    <script defer src="<?= base_url('assets/js/transaction-details.js') ?>"></script>
     <script defer src="<?= base_url('assets/js/alpine.min.js') ?>"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
