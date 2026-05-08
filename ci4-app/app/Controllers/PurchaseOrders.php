@@ -147,7 +147,7 @@ class PurchaseOrders extends BaseController
         }
 
         try {
-            $cleanItems = $this->autoAllocateSupplierOrders($supplierId, $cleanItems);
+            $cleanItems = $this->allocateSupplierOrders($supplierId, $cleanItems);
         } catch (RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
@@ -196,8 +196,12 @@ class PurchaseOrders extends BaseController
             return redirect()->back()->withInput()->with('error', 'Failed to save RR.');
         }
 
-        $query = http_build_query(['po_no' => $poNo, 'from_date' => $date, 'to_date' => $date]);
+        $returnLedgerId = (int) ($this->request->getPost('return_to_supplier_order_ledger') ?? 0);
+        if ($returnLedgerId > 0 && $returnLedgerId === (int) ($supplierOrderId ?? 0)) {
+            return redirect()->to('supplier-orders/' . $returnLedgerId . '/ledger')->with('success', 'RR saved.');
+        }
 
+        $query = http_build_query(['po_no' => $poNo, 'from_date' => $date, 'to_date' => $date]);
         return redirect()->to('suppliers/' . $supplierId . '/purchase-orders?' . $query)->with('success', 'RR saved.');
     }
 
@@ -250,7 +254,7 @@ class PurchaseOrders extends BaseController
         $oldItems = $this->fetchPurchaseOrderItems($purchaseOrderId);
         $restoredQuantities = $this->supplierOrderQuantitiesByItem($oldItems);
         try {
-            $cleanItems = $this->autoAllocateSupplierOrders($supplierId, $cleanItems, $restoredQuantities);
+            $cleanItems = $this->allocateSupplierOrders($supplierId, $cleanItems, $restoredQuantities);
         } catch (RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
@@ -379,7 +383,7 @@ class PurchaseOrders extends BaseController
                 continue;
             }
             $cleanItems[] = [
-                'supplier_order_item_id' => null,
+                'supplier_order_item_id' => (int) ($item['supplier_order_item_id'] ?? 0) ?: null,
                 'product_id' => $productId,
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
@@ -469,6 +473,91 @@ class PurchaseOrders extends BaseController
             ->find($supplierId);
 
         return (float) ($supplier['forwarded_balance'] ?? 0);
+    }
+
+    private function allocateSupplierOrders(int $supplierId, array $items, array $restoredQuantities = []): array
+    {
+        $hasExplicitSource = false;
+        foreach ($items as $item) {
+            if ((int) ($item['supplier_order_item_id'] ?? 0) > 0) {
+                $hasExplicitSource = true;
+                break;
+            }
+        }
+
+        if (! $hasExplicitSource) {
+            return $this->autoAllocateSupplierOrders($supplierId, $items, $restoredQuantities);
+        }
+
+        foreach ($items as $item) {
+            if ((int) ($item['supplier_order_item_id'] ?? 0) <= 0) {
+                throw new RuntimeException('Selected Supplier PO item is required for every pickup item.');
+            }
+        }
+
+        return $this->allocateExplicitSupplierOrderItems($supplierId, $items, $restoredQuantities);
+    }
+
+    private function allocateExplicitSupplierOrderItems(int $supplierId, array $items, array $restoredQuantities = []): array
+    {
+        $sourceItemIds = array_values(array_unique(array_map(
+            static fn(array $item): int => (int) ($item['supplier_order_item_id'] ?? 0),
+            $items
+        )));
+
+        $sources = db_connect()->table('supplier_order_items soi')
+            ->select('soi.id, soi.supplier_order_id, soi.product_id, soi.qty_balance')
+            ->select('so.po_no, so.supplier_id, so.status')
+            ->select('products.product_name')
+            ->join('supplier_orders so', 'so.id = soi.supplier_order_id', 'left')
+            ->join('products', 'products.id = soi.product_id', 'left')
+            ->whereIn('soi.id', $sourceItemIds)
+            ->get()
+            ->getResultArray();
+
+        $sourcesById = [];
+        foreach ($sources as $source) {
+            $sourceItemId = (int) ($source['id'] ?? 0);
+            if ($sourceItemId > 0) {
+                $sourcesById[$sourceItemId] = $source;
+            }
+        }
+
+        $requestedBySource = [];
+        foreach ($items as $item) {
+            $sourceItemId = (int) ($item['supplier_order_item_id'] ?? 0);
+            $source = $sourcesById[$sourceItemId] ?? null;
+            if (! $source || (int) ($source['supplier_id'] ?? 0) !== $supplierId || ($source['status'] ?? '') !== 'active') {
+                throw new RuntimeException('Selected Supplier PO item was not found or is not active.');
+            }
+
+            if ((int) ($source['product_id'] ?? 0) !== (int) ($item['product_id'] ?? 0)) {
+                throw new RuntimeException('Pickup product must match the selected Supplier PO item.');
+            }
+
+            $requestedBySource[$sourceItemId] = (float) ($requestedBySource[$sourceItemId] ?? 0) + (float) ($item['qty'] ?? 0);
+        }
+
+        foreach ($requestedBySource as $sourceItemId => $requestedQty) {
+            $source = $sourcesById[(int) $sourceItemId];
+            $availableQty = (float) ($source['qty_balance'] ?? 0) + (float) ($restoredQuantities[$sourceItemId] ?? 0);
+            if ($requestedQty > $availableQty + 0.000005) {
+                $productName = (string) ($source['product_name'] ?? ('Product #' . ($source['product_id'] ?? '')));
+                throw new RuntimeException(
+                    'Pickup quantity exceeds PO balance for ' . $productName . '. Available quantity is ' . number_format($availableQty, 5) . '.'
+                );
+            }
+        }
+
+        foreach ($items as $index => $item) {
+            $sourceItemId = (int) ($item['supplier_order_item_id'] ?? 0);
+            $source = $sourcesById[$sourceItemId];
+            $items[$index]['supplier_order_id'] = (int) ($source['supplier_order_id'] ?? 0);
+            $items[$index]['line_total'] = (float) ($item['qty'] ?? 0) * (float) ($item['unit_price'] ?? 0);
+            $items[$index]['po_qty_balance_after'] = null;
+        }
+
+        return $items;
     }
 
     private function autoAllocateSupplierOrders(int $supplierId, array $items, array $restoredQuantities = []): array

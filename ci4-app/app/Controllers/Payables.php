@@ -41,7 +41,7 @@ class Payables extends BaseController
         $prNo = $this->resolvePrNoFilter();
         $result = $this->fetchPayables($supplierId, $fromDate, $toDate, $prNo);
 
-        return view('payables/list', [
+        return view('payables/list', array_merge([
             'supplier' => $supplier,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
@@ -49,7 +49,7 @@ class Payables extends BaseController
             'payables' => $result['payables'],
             'payablesById' => $result['payablesById'],
             'totalPayments' => $result['totalPayments'],
-        ]);
+        ], $this->payableFormViewData($supplierId)));
     }
 
     public function print()
@@ -115,22 +115,25 @@ class Payables extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        return view('payables/form', array_merge([
+            'supplier' => $supplier,
+        ], $this->payableFormViewData($supplierId)));
+    }
+
+    private function payableFormViewData(int $supplierId): array
+    {
         $userId = (int) (session('user_id') ?? 0);
         $payablePosting = new PayablePostingService();
         $activeRange = $payablePosting->getActiveReceiptRange($userId);
-        $unpaidPage = max(1, (int) $this->request->getGet('page') ?: 1);
-        $unpaidPerPage = 15;
-        $unpaidResult = $this->fetchUnpaidPurchaseOrders($supplierId, $unpaidPerPage, $unpaidPage);
+        $unpaidPurchaseOrders = $this->fetchUnpaidPurchaseOrders($supplierId);
 
-        return view('payables/form', [
-            'supplier' => $supplier,
+        return [
             'assignedUser' => (new UserModel())->find($userId),
             'activeReceipt' => $activeRange ? (int) $activeRange['next_no'] : null,
             'rangeEnd' => $activeRange ? (int) $activeRange['end_no'] : null,
             'banks' => (new BankModel())->orderBy('bank_name', 'asc')->findAll(),
-            'unpaidPurchaseOrders' => $unpaidResult['purchaseOrders'],
-            'unpaidPagerLinks' => service('pager')->makeLinks($unpaidResult['page'], $unpaidResult['perPage'], $unpaidResult['total'], 'default_full'),
-        ]);
+            'unpaidPurchaseOrders' => $unpaidPurchaseOrders,
+        ];
     }
 
     public function store()
@@ -204,12 +207,9 @@ class Payables extends BaseController
         return trim((string) ($this->request->getGet('pr_no') ?? ''));
     }
 
-    private function fetchUnpaidPurchaseOrders(int $supplierId, int $perPage = 15, int $page = 1): array
+    private function fetchUnpaidPurchaseOrders(int $supplierId): array
     {
         $db = db_connect();
-        $perPage = max(1, $perPage);
-        $page = max(1, $page);
-        $offset = ($page - 1) * $perPage;
 
         $baseSql = <<<SQL
 SELECT
@@ -233,22 +233,10 @@ WHERE po.supplier_id = ?
 AND po.status != 'voided'
 SQL;
 
-        $countRow = $db->query(
-            'SELECT COUNT(*) AS total FROM (' . $baseSql . ') unpaid_purchase_orders WHERE balance > 0',
+        return $db->query(
+            'SELECT * FROM (' . $baseSql . ') unpaid_purchase_orders WHERE balance > 0 ORDER BY date ASC, purchase_order_id ASC',
             [$supplierId]
-        )->getRowArray();
-
-        $purchaseOrders = $db->query(
-            'SELECT * FROM (' . $baseSql . ') unpaid_purchase_orders WHERE balance > 0 ORDER BY date ASC, purchase_order_id ASC LIMIT ? OFFSET ?',
-            [$supplierId, $perPage, $offset]
         )->getResultArray();
-
-        return [
-            'purchaseOrders' => $purchaseOrders,
-            'total' => (int) ($countRow['total'] ?? 0),
-            'perPage' => $perPage,
-            'page' => $page,
-        ];
     }
 
     private function fetchPayables(?int $supplierId, string $fromDate, string $toDate, string $prNo): array

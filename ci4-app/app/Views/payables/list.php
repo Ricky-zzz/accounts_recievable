@@ -32,7 +32,7 @@ $printQuery = http_build_query([
             <p class="mt-1 text-sm muted">Filter payments by PR number and date range.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <a class="btn btn-strong" href="<?= base_url('payables/supplier/' . ($supplier['id'] ?? 0) . '/create') ?>">Pay Supplier</a>
+            <button class="btn btn-strong" type="button" @click="openPayForm()">Pay Supplier</button>
             <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/supplier-orders') ?>">PO</a>
             <a class="btn btn-secondary" href="<?= base_url('suppliers/' . ($supplier['id'] ?? 0) . '/purchase-orders') ?>">Pickup</a>
             <a class="btn btn-secondary" href="<?= base_url('payable-ledger?supplier_id=' . ($supplier['id'] ?? 0)) ?>">Ledger</a>
@@ -99,6 +99,31 @@ $printQuery = http_build_query([
         </div>
     </div>
 
+    <div class="modal-backdrop" x-show="payFormOpen" x-cloak @click.self="closePayForm()">
+        <div class="modal-panel max-h-[92vh] max-w-7xl overflow-y-auto p-6" @click.stop>
+            <div class="mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Pay Supplier: <?= esc((string) ($supplier['name'] ?? '')) ?></h2>
+                    <p class="mt-1 text-sm muted">Allocate payment to unpaid RRs.</p>
+                </div>
+                <button class="btn btn-secondary" type="button" @click="closePayForm()">Close</button>
+            </div>
+            <?= view('payables/_form_partial', [
+                'supplier' => $supplier,
+                'assignedUser' => $assignedUser,
+                'activeReceipt' => $activeReceipt,
+                'rangeEnd' => $rangeEnd,
+                'banks' => $banks,
+                'unpaidPurchaseOrders' => $unpaidPurchaseOrders,
+                'showPayableFormHeader' => false,
+                'showPayableFormNavigation' => false,
+                'showPayableStatementModal' => false,
+                'cancelAction' => 'closePayForm()',
+                'cancelButtonLabel' => 'Cancel',
+            ]) ?>
+        </div>
+    </div>
+
     <div class="modal-backdrop" x-show="modalOpen" x-cloak @click.self="closePayable()">
         <div class="modal-panel max-w-3xl p-6" @click.stop>
             <div class="flex items-start justify-between gap-4">
@@ -149,10 +174,13 @@ $printQuery = http_build_query([
             payablesById: <?= $payablesJson ?>,
             detailUrl: '<?= base_url('ajax/payables') ?>',
             detailsByPayable: {},
+            payFormOpen: false,
             modalOpen: false,
             selectedPayableId: null,
             detailLoading: false,
             detailError: '',
+            openPayForm() { this.payFormOpen = true; },
+            closePayForm() { this.payFormOpen = false; },
             async openPayable(id) {
                 this.selectedPayableId = id;
                 this.modalOpen = true;
