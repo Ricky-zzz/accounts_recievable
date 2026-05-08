@@ -161,18 +161,33 @@ class SupplierOrderLedger extends BaseController
 
     private function buildPickupFormData(int $supplierOrderId): array
     {
-        $items = db_connect()->table('supplier_order_items soi')
-            ->select('soi.id, soi.supplier_order_id, soi.product_id, soi.qty_ordered, soi.qty_picked_up, soi.qty_balance')
+        $db = db_connect();
+        $items = $db->table('supplier_order_items soi')
+            ->select('soi.id, soi.supplier_order_id, soi.product_id, soi.qty_ordered')
             ->select('products.product_name, products.unit_price')
             ->join('products', 'products.id = soi.product_id', 'left')
             ->where('soi.supplier_order_id', $supplierOrderId)
-            ->where('soi.qty_balance >', 0)
             ->orderBy('soi.id', 'asc')
             ->get()
             ->getResultArray();
 
+        // Calculate qty_balance dynamically by subtracting picked up quantities
+        foreach ($items as &$item) {
+            $pickedUpQty = (float) ($db->table('purchase_order_items poi')
+                ->select('COALESCE(SUM(poi.qty), 0) as total_qty')
+                ->join('supplier_order_items soi', 'soi.id = poi.supplier_order_item_id', 'left')
+                ->where('poi.supplier_order_item_id', (int) ($item['id'] ?? 0))
+                ->get()
+                ->getRowArray()['total_qty'] ?? 0);
+
+            $item['qty_balance'] = (float) ($item['qty_ordered'] ?? 0) - $pickedUpQty;
+        }
+
+        // Filter out items with no balance
+        $items = array_filter($items, fn($item) => (float) ($item['qty_balance'] ?? 0) > 0);
+
         return [
-            'items' => $items,
+            'items' => array_values($items), // Re-index array
         ];
     }
 
